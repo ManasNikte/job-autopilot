@@ -84,6 +84,7 @@ def dashboard():
         "ready": counts.get("ready", 0),
         "decide": counts.get("needs_decision", 0),
         "applied_week": db.fetchone("SELECT count(*) AS n FROM jobs WHERE applied_at>=?", (week_ago,))["n"],
+        "applied_today": db.fetchone("SELECT count(*) AS n FROM jobs WHERE applied_at>=?", (start_utc,))["n"],
         "applied_total": applied_total,
         "interviewing": counts.get("interviewing", 0) + counts.get("offer", 0),
     }
@@ -431,6 +432,26 @@ def run_now():
     worker.submit(kind, source if kind in ("run", "process") else None)
     flash(("Resumed after the usage-limit pause. " if resumed else "") + "Pipeline started in the background. Watch the activity log.")
     return redirect(request.referrer or url_for("dashboard"))
+
+
+@app.route("/api/map")
+def map_json():
+    """Pins for the dashboard maps. set = ready | today | all; rejected=1 adds applications that were rejected."""
+    from . import geo
+    which = request.args.get("set", "ready")
+    start_utc = datetime.combine(datetime.now().astimezone().date(), datetime.min.time()).astimezone().astimezone(timezone.utc).isoformat()
+    statuses = ["ready"] if which == "ready" else ["applied", "interviewing", "offer"]
+    if which != "ready" and request.args.get("rejected") == "1":
+        statuses.append("closed")
+    where = f"status IN ({','.join('?' * len(statuses))})"
+    params: tuple = tuple(statuses)
+    if which == "today":
+        where += " AND applied_at >= ?"
+        params += (start_utc,)
+    jobs = db.fetchall(f"SELECT id, company, title, location, status FROM jobs WHERE {where}", params)
+    pending = geo.warm([j["location"] for j in jobs])
+    pins, unmapped = geo.pins(jobs)
+    return jsonify({"pins": pins, "total": len(jobs), "unmapped": unmapped, "pending": pending})
 
 
 @app.route("/progress")

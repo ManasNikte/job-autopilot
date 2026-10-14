@@ -213,3 +213,19 @@ thead th { background: var(--surface); }
 .iv.referral { border-left-color: #b57bff; }
 label { color: var(--text-2); font-size: 13px; }
 label input, label select, label textarea { margin-top: 4px; font-size: 14px; }
+
+/* Dashboard maps */
+.jmap { height: 340px; margin-top: 10px; border-radius: 10px; border: 1px solid var(--border); overflow: hidden; background: var(--surface-2); z-index: 0; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { background: transparent; color: var(--text-2); border: 0; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.dot-key { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.map-pop { margin: 6px 0 0; padding-left: 16px; max-width: 280px; }
+.map-pop li { margin: 2px 0; }
+.leaflet-container { font: inherit; }
+.jmap.dark-tiles .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.82) contrast(.92) saturate(.6); }
+:root[data-theme="dark"] .leaflet-popup-content-wrapper, :root[data-theme="dark"] .leaflet-popup-tip { background: var(--surface); color: var(--text); }
+:root[data-theme="dark"] .leaflet-control-attribution { background: rgba(0,0,0,.5); color: var(--muted); }
+:root[data-theme="dark"] .leaflet-control-attribution a { color: var(--text-2); }
+:root[data-theme="dark"] .leaflet-bar a { background: var(--surface); color: var(--text); border-color: var(--border); }

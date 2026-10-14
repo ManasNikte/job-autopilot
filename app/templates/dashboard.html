@@ -8,12 +8,105 @@
   <a class="tile" href="{{ url_for('jobs') }}"><div class="v">{{ kpis.posted_today }}</div><div class="k">Relevant roles posted today</div></a>
   <a class="tile" href="{{ url_for('jobs', status='ready') }}"><div class="v">{{ kpis.ready }}</div><div class="k">Ready to submit</div></a>
   <a class="tile" href="{{ url_for('jobs', status='needs_decision') }}"><div class="v">{{ kpis.decide }}</div><div class="k">Waiting on your call</div></a>
-  <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_week }}</div><div class="k">Applied, last 7 days</div></a>
+  <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_today }}</div><div class="k">Applied today</div></a>
   <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_total }}</div><div class="k">Applied, all time</div></a>
   <a class="tile" href="{{ url_for('jobs', status='interviewing') }}"><div class="v">{{ kpis.interviewing }}</div><div class="k">Interviewing / offers</div></a>
 </div>
 
 <div style="margin-top:16px">{% include "_progress.html" %}</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<div class="grid g2" id="maps">
+  <div class="card">
+    <div class="spread"><h2 style="margin:0">Ready to submit</h2><span class="sub small" id="map-ready-note"></span></div>
+    <div class="jmap" id="map-ready" role="img" aria-label="Map of jobs ready to submit"></div>
+  </div>
+  <div class="card">
+    <div class="spread">
+      <h2 style="margin:0">Submitted</h2>
+      <div class="row">
+        <div class="seg" role="group" aria-label="Time range">
+          <button type="button" class="on" data-set="today">Applied today</button><button type="button" data-set="all">All time</button>
+        </div>
+        <label class="check small"><input type="checkbox" id="map-rejected"> Show rejected</label>
+      </div>
+    </div>
+    <div class="jmap" id="map-applied" role="img" aria-label="Map of submitted applications"></div>
+    <div class="row small sub" style="margin-top:6px;gap:14px">
+      <span><i class="dot-key" style="background:var(--good)"></i>Applied</span>
+      <span><i class="dot-key" style="background:var(--accent)"></i>Interviewing / offer</span>
+      <span id="rej-key" hidden><i class="dot-key" style="background:var(--critical)"></i>Rejected</span>
+      <span id="map-applied-note" style="margin-left:auto"></span>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(() => {
+  if (!window.L) return;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const dark = () => { const t = document.documentElement.getAttribute("data-theme");
+    return t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches); };
+  const jobUrl = id => "{{ url_for('job_detail', job_id='__ID__') }}".replace("__ID__", encodeURIComponent(id)).replace(/%3A/g, ":");
+  const color = s => s === "ready" ? css("--accent") : s === "closed" ? css("--critical") : (s === "interviewing" || s === "offer") ? css("--accent") : css("--good");
+
+  function makeMap(id) {
+    const m = L.map(id, { scrollWheelZoom: false, worldCopyJump: true, attributionControl: true }).setView([39.5, -98.35], 4);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(m);
+    m._layer = L.layerGroup().addTo(m);
+    return m;
+  }
+  const maps = { ready: makeMap("map-ready"), applied: makeMap("map-applied") };
+  // Dark theme: the same tiles, darkened with a CSS filter (see .jmap.dark-tiles in style.css)
+  const shade = () => document.querySelectorAll(".jmap").forEach(e => e.classList.toggle("dark-tiles", dark()));
+  shade();
+  new MutationObserver(shade).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", shade);
+
+  function popup(pin) {      // built with DOM nodes: job titles are untrusted text
+    const box = document.createElement("div");
+    const h = document.createElement("b"); h.textContent = `${pin.place} · ${pin.jobs.length} job${pin.jobs.length > 1 ? "s" : ""}`;
+    box.appendChild(h);
+    const ul = document.createElement("ul"); ul.className = "map-pop";
+    pin.jobs.slice(0, 8).forEach(j => { const li = document.createElement("li"); const a = document.createElement("a");
+      a.href = jobUrl(j.id); a.textContent = `${j.company} · ${j.title}`; li.appendChild(a);
+      if (j.status === "closed") li.append(" (rejected)"); ul.appendChild(li); });
+    box.appendChild(ul);
+    if (pin.jobs.length > 8) box.append(`and ${pin.jobs.length - 8} more`);
+    return box;
+  }
+
+  async function load(key, query, noteId) {
+    let d; try { d = await (await fetch("{{ url_for('map_json') }}?" + query)).json(); } catch (e) { return; }
+    const m = maps[key]; m._layer.clearLayers();
+    const pts = [];
+    for (const pin of d.pins) {
+      const worst = pin.jobs.every(j => j.status === "closed") ? "closed"
+                  : pin.jobs.some(j => ["interviewing", "offer"].includes(j.status)) ? "interviewing" : pin.jobs[0].status;
+      const c = color(worst);
+      L.circleMarker([pin.lat, pin.lng], { radius: Math.min(6 + 2.5 * Math.sqrt(pin.jobs.length - 1) * 2, 18), color: css("--surface"),
+        weight: 2, fillColor: c, fillOpacity: 0.9 }).bindPopup(popup(pin)).bindTooltip(`${pin.place}: ${pin.jobs.length}`).addTo(m._layer);
+      pts.push([pin.lat, pin.lng]);
+    }
+    if (pts.length) m.fitBounds(pts, { padding: [28, 28], maxZoom: 7 });
+    else m.setView([39.5, -98.35], 4);
+    document.getElementById(noteId).textContent = `${d.total} job${d.total === 1 ? "" : "s"} · ${d.pins.length} place${d.pins.length === 1 ? "" : "s"}` +
+      (d.unmapped ? ` · ${d.unmapped} remote or unmapped` : "") + (d.pending ? ` · locating ${d.pending} place(s)…` : "");
+    if (d.pending) setTimeout(() => load(key, query, noteId), 6000);   // geocoding runs in the background, 1 place a second
+  }
+
+  let set = "today";
+  const rej = document.getElementById("map-rejected");
+  const applied = () => { document.getElementById("rej-key").hidden = !rej.checked;
+    load("applied", `set=${set}&rejected=${rej.checked ? 1 : 0}`, "map-applied-note"); };
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x === b)); set = b.dataset.set; applied(); }));
+  rej.addEventListener("change", applied);
+  load("ready", "set=ready", "map-ready-note");
+  applied();
+})();
+</script>
 
 <div class="grid g2">
   <div class="card">
