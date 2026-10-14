@@ -49,8 +49,8 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
  │ ATS APIs +   │   │ rules, no  │   │ verdict +    │   │ resume + cover JSON│   │ review, ask │
  │ feeds (2×/d) │   │ LLM cost   │   │ match score  │   │ → PDF → checks →   │   │ referral,   │
  └──────────────┘   └────────────┘   └──────────────┘   │ patch revisions    │   │ submit      │
-                                                         └────────────────────┘   └──────┬──────┘
-                                                                                         ▼
+                                                        └────────────────────┘   └──────┬──────┘
+                                                                                        ▼
                                               Chrome extension autofills the form; you click Submit
 ```
 
