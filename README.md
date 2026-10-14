@@ -10,6 +10,8 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
+> 📄 **[Project report](PROJECT_REPORT.md)**: the problem, how it works overnight, time saved, architecture, and lessons learned.
+>
 > Screenshots use the built-in demo data (`scripts/demo_seed.py`). The candidate, "Jordan Lee", is fictional.
 
 ---
