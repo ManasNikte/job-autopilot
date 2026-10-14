@@ -123,7 +123,8 @@ def connect():
 
 
 MIGRATIONS = {   # columns added after the first release; applied idempotently on startup
-    "jobs": {"source": "TEXT", "h1b_signal": "TEXT", "h1b_level": "TEXT", "startup": "INTEGER DEFAULT 0", "company_stage": "TEXT"},
+    "jobs": {"source": "TEXT", "h1b_signal": "TEXT", "h1b_level": "TEXT", "startup": "INTEGER DEFAULT 0", "company_stage": "TEXT",
+             "salary": "TEXT", "salary_max": "INTEGER"},
     "runs": {"source": "TEXT"},
 }
 
@@ -145,6 +146,9 @@ CREATE TABLE IF NOT EXISTS referral_asks (
     status TEXT DEFAULT 'drafted',
     created_at TEXT, updated_at TEXT, asked_at TEXT,
     UNIQUE(job_id, contact_id)
+);
+CREATE TABLE IF NOT EXISTS sponsors (      -- companies seen sponsoring H-1B (Jobright, Simplify, HN, Claude screens)
+    name_norm TEXT PRIMARY KEY, name TEXT, signal TEXT, source TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS feed_status (
     feed TEXT PRIMARY KEY, ok INTEGER, seen INTEGER, kept INTEGER, error TEXT, checked_at TEXT
@@ -257,7 +261,7 @@ def query_jobs(where: str = "1=1", params: tuple = (), order: str = "posted_at D
 
 LIST_COLUMNS = ("id, company, title, location, url, apply_url, posted_at, status, status_reason, verdict, match_score, "
                 "keyword_relevancy, rw_score, final_call, resume_pdf, cover_pdf, applied_at, source, h1b_level, h1b_signal, "
-                "startup, company_stage, role_family, updated_at")
+                "startup, company_stage, role_family, salary, salary_max, updated_at")
 
 
 def list_jobs(where: str = "1=1", params: tuple = (), order: str = "posted_at DESC", limit: int = 50, offset: int = 0) -> list[dict]:

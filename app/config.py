@@ -87,7 +87,9 @@ def companies() -> list[dict]:
         from . import db
         for b in db.fetchall("SELECT * FROM discovered_boards WHERE enabled=1"):
             if b["key"] not in seen:
-                listed.append({"name": b["name"], "ats": b["ats"], "slug": b["slug"], "h1b": b["h1b"], "discovered": True})
+                # Directory boards are read titles-first (light); their sponsor status comes from your H-1B data.
+                listed.append({"name": b["name"], "ats": b["ats"], "slug": b["slug"], "h1b": b["h1b"], "discovered": True,
+                               "directory": b["source"] == "directory", "light": b["source"] == "directory"})
     except Exception:
         pass
     return listed

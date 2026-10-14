@@ -14,7 +14,7 @@
   <div class="card">
     <h2>H-1B track record data</h2>
     <p class="sub">{{ n_h1b }} employers loaded. Download yearly CSVs from the <a href="https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub" target="_blank" rel="noopener">USCIS H-1B Employer Data Hub</a> and import them here. Approval counts then show on every job and are given to Claude as evidence.</p>
-    <form method="post" enctype="multipart/form-data" class="row"><input type="file" name="csv" accept=".csv,.txt"><button class="btn">Import CSV</button></form>
+    <form method="post" enctype="multipart/form-data" class="row"><input type="file" name="csv" accept=".csv,.txt" multiple><button class="btn">Import CSV</button></form>
     <p class="muted" style="font-size:12px">Add or remove companies in config/companies.json (ats = greenhouse, lever, or ashby; slug from the public job board URL). Filters live in config/search.json.</p>
   </div>
 </div>
@@ -35,6 +35,16 @@
     <td><form method="post" action="{{ url_for('toggle_board', key=b.key) }}"><button class="btn small">{{ 'Watching' if b.enabled else 'Paused' }}</button></form></td></tr>
   {% else %}<tr><td class="muted">None yet.</td></tr>{% endfor %}</table>
 </div>
+</div>
+
+<div class="card">
+  <h2>Board directory <span class="muted">({{ '{:,}'.format(directory.by_ats|sum(attribute='n')) }} boards)</span></h2>
+  <p class="sub" style="margin-top:0">Every company board linked from the public new-grad and internship lists (SimplifyJobs, speedyapply, vanshb03) is read directly through its public API on each run: titles first, full descriptions only for new matches. A job is queued when the company is a known H-1B sponsor ({{ '{:,}'.format(n_h1b) }} employers from your USCIS import, {{ '{:,}'.format(directory.sponsors) }} learned from Jobright, Simplify, HN, and Claude screens) or the posting itself mentions sponsorship. Lists and settings: <code>config/feeds.json</code> → <code>board_directory</code>.</p>
+  <table><tr><th>Board type</th><th class="num">Boards</th><th class="num">Watching</th></tr>
+  {% for r in directory.by_ats %}<tr><td>{{ r.ats|title }}</td><td class="num">{{ '{:,}'.format(r.n) }}</td><td class="num">{{ '{:,}'.format(r.on_ or 0) }}</td></tr>
+  {% else %}<tr><td colspan="3" class="muted">Built on the next run.</td></tr>{% endfor %}</table>
+  <p class="sub" style="margin-bottom:0">{% if directory.refreshed %}List refreshed {{ directory.refreshed.at|ago }}. {% endif %}{% if directory.errors %}{{ directory.errors }} board(s) failed last run (closed boards are normal).{% endif %}
+  {% if not n_h1b %}<b>Tip:</b> import the USCIS H-1B Employer Data Hub CSVs above. Most directory jobs have no sponsor signal until that data is loaded.{% endif %}</p>
 </div>
 
 <div class="card">

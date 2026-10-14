@@ -19,7 +19,7 @@
   <input type="search" name="q" value="{{ q }}" placeholder="Search company, title, or location" class="grow" autocomplete="off">
   <select name="source" onchange="this.form.submit()" aria-label="Source">
     <option value="">All sources</option>
-    {% for v, l in [('companies','Your companies'),('discovered','Discovered boards'),('jobright','Jobright'),('simplify','Simplify'),('hn','HN startups'),('web','Added by you')] %}
+    {% for v, l in [('companies','Your companies'),('discovered','Discovered boards'),('directory','Board directory'),('jobright','Jobright'),('simplify','Simplify'),('hn','HN startups'),('web','Added by you')] %}
     <option value="{{ v }}" {{ 'selected' if source == v }}>{{ l }}</option>{% endfor %}
   </select>
   <select name="min_match" onchange="this.form.submit()" aria-label="Minimum match">
@@ -43,7 +43,7 @@
     <td class="role">
       <a class="title" href="{{ url_for('job_detail', job_id=j.id) }}">{{ j.title }}</a>
       <div class="meta">
-        <b>{{ j.company }}</b>{% if j.location %} · {{ j.location|truncate(48) }}{% endif %}
+        <b>{{ j.company }}</b>{% if j.location %} · {{ j.location|truncate(48) }}{% endif %}{% if j.salary %} · <span title="Listed pay">{{ j.salary }}</span>{% endif %}
         {% if j.startup %}<span class="badge" title="{{ j.company_stage }}">Startup</span>{% endif %}
       </div>
       {% if j.status in ('filtered_out','rejected','error','below_threshold') and j.status_reason %}<div class="reason">{{ j.status_reason|truncate(120) }}</div>{% endif %}

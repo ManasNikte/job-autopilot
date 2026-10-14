@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import html
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import requests
+
+from ..salary import parse as salary_parse
 
 TIMEOUT = 30
 HEADERS = {"User-Agent": "job-autopilot/1.0 (personal job search tool)"}
@@ -31,9 +33,26 @@ def _iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).isoformat(timespec="seconds")
 
 
+def _gh_pay(j: dict) -> tuple[int, int] | None:
+    rs = [r for r in j.get("pay_input_ranges") or [] if (r.get("currency_type") or "USD") == "USD" and r.get("max_cents")]
+    return (min(r["min_cents"] for r in rs) // 100, max(r["max_cents"] for r in rs) // 100) if rs else None
+
+
+def _gh_detail(slug: str):
+    def enrich(job: dict) -> dict:
+        jid = job["id"].rsplit(":", 1)[1]
+        d = requests.get(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs/{jid}?pay_transparency=true",
+                         timeout=TIMEOUT, headers=HEADERS).json()
+        return {"description": html_to_text(d.get("content", "")), "pay": _gh_pay(d)}
+    return enrich
+
+
 def greenhouse(company: dict) -> list[dict]:
-    slug = company["slug"]
-    r = requests.get(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true", timeout=TIMEOUT, headers=HEADERS)
+    """Curated companies: one call with descriptions. Directory boards (light=True): titles only first;
+    full descriptions are fetched later for the few postings that pass the title/date/location filter."""
+    slug, light = company["slug"], company.get("light")
+    r = requests.get(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs" + ("" if light else "?content=true&pay_transparency=true"),
+                     timeout=TIMEOUT, headers=HEADERS)
     r.raise_for_status()
     out = []
     for j in r.json().get("jobs", []):
@@ -48,6 +67,8 @@ def greenhouse(company: dict) -> list[dict]:
             "ats": "greenhouse",
             "posted_at": _iso(datetime.fromisoformat(posted)) if posted else None,
             "description": html_to_text(j.get("content", "")),
+            "pay": _gh_pay(j),
+            **({"enrich": _gh_detail(slug)} if light else {}),
         })
     return out
 
@@ -77,13 +98,21 @@ def lever(company: dict) -> list[dict]:
             "ats": "lever",
             "posted_at": _iso(datetime.fromtimestamp(created / 1000, timezone.utc)) if created else None,
             "description": "\n\n".join(p for p in parts if p).strip(),
+            "pay": _lever_pay(j.get("salaryRange")),
         })
     return out
 
 
+def _lever_pay(sr: dict | None) -> tuple[int, int] | None:
+    if not sr or (sr.get("currency") or "USD") != "USD" or not sr.get("max"):
+        return None
+    mult = {"per-hour-wage": 2080, "per-month-salary": 12}.get(sr.get("interval"), 1)
+    return int(sr.get("min") or sr["max"]) * mult, int(sr["max"]) * mult
+
+
 def ashby(company: dict) -> list[dict]:
     slug = company["slug"]
-    r = requests.get(f"https://api.ashbyhq.com/posting-api/job-board/{slug}", timeout=TIMEOUT, headers=HEADERS)
+    r = requests.get(f"https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true", timeout=TIMEOUT, headers=HEADERS)
     r.raise_for_status()
     out = []
     for j in r.json().get("jobs", []):
@@ -107,11 +136,88 @@ def ashby(company: dict) -> list[dict]:
             "ats": "ashby",
             "posted_at": _iso(datetime.fromisoformat(posted.replace("Z", "+00:00"))) if posted else None,
             "description": j.get("descriptionPlain") or html_to_text(j.get("descriptionHtml", "")),
+            "pay": salary_parse((j.get("compensation") or {}).get("scrapeableCompensationSalarySummary") or ""),
         })
     return out
 
 
-FETCHERS = {"greenhouse": greenhouse, "lever": lever, "ashby": ashby}
+BROWSER = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) job-autopilot/1.0", "Accept": "application/json"}
+WD_AGE = re.compile(r"posted (today|yesterday|(\d+)\+? days? ago)", re.I)
+
+
+def workday(company: dict) -> list[dict]:
+    """Workday career sites expose the same public JSON their own search page uses, newest first.
+    slug = "host|tenant|site". Reads up to 3 pages while postings are still from the last 2 days."""
+    host, tenant, site = company["slug"].split("|")
+    base = f"https://{host}/wday/cxs/{tenant}/{site}"
+    out, now = [], datetime.now(timezone.utc)
+    for page in range(3):
+        r = requests.post(f"{base}/jobs", json={"appliedFacets": {}, "limit": 20, "offset": page * 20, "searchText": ""},
+                          headers=BROWSER, timeout=TIMEOUT)
+        r.raise_for_status()
+        posts = r.json().get("jobPostings") or []
+        stale = False
+        for j in posts:
+            m = WD_AGE.search(j.get("postedOn") or "")
+            days = 0 if not m or m.group(1).lower() == "today" else 1 if m.group(1).lower() == "yesterday" else int(m.group(2))
+            if not m:
+                days = 30          # "Posted 30+ Days Ago" and unknown formats
+            stale = stale or days > 1
+            path = j.get("externalPath") or ""
+            out.append({
+                "id": f"workday:{tenant}:{path.rsplit('_', 1)[-1] or path}",
+                "company": company["name"], "title": (j.get("title") or "").strip(),
+                "location": j.get("locationsText") or "",
+                "url": f"https://{host}/{site}{path}", "apply_url": f"https://{host}/{site}{path}", "ats": "workday",
+                "posted_at": _iso(now - timedelta(days=days)), "description": "",
+                "enrich": _wd_detail(base, path),
+            })
+        if stale or len(posts) < 20:
+            break
+    return out
+
+
+def _wd_detail(base: str, path: str):
+    def enrich(job: dict) -> dict:
+        info = requests.get(f"{base}{path}", headers=BROWSER, timeout=TIMEOUT).json().get("jobPostingInfo") or {}
+        loc = info.get("location") or job.get("location")
+        if info.get("additionalLocations"):
+            loc = " • ".join([loc] + info["additionalLocations"])
+        return {"description": html_to_text(info.get("jobDescription", "")), "location": loc}
+    return enrich
+
+
+def smartrecruiters(company: dict) -> list[dict]:
+    slug = company["slug"]
+    r = requests.get(f"https://api.smartrecruiters.com/v1/companies/{slug}/postings?limit=100&country=us", timeout=TIMEOUT, headers=HEADERS)
+    r.raise_for_status()
+    out = []
+    for j in r.json().get("content") or []:
+        loc = j.get("location") or {}
+        where = ", ".join(x for x in (loc.get("city"), loc.get("region"), (loc.get("country") or "").upper()) if x)
+        if loc.get("remote"):
+            where += " • Remote"
+        posted = j.get("releasedDate")
+        out.append({
+            "id": f"smartrecruiters:{slug}:{j['id']}", "company": company["name"], "title": (j.get("name") or "").strip(),
+            "location": where, "url": f"https://jobs.smartrecruiters.com/{slug}/{j['id']}",
+            "apply_url": f"https://jobs.smartrecruiters.com/{slug}/{j['id']}", "ats": "smartrecruiters",
+            "posted_at": _iso(datetime.fromisoformat(posted.replace("Z", "+00:00"))) if posted else None,
+            "description": "", "enrich": _sr_detail(slug, j["id"]),
+        })
+    return out
+
+
+def _sr_detail(slug: str, jid: str):
+    def enrich(job: dict) -> dict:
+        d = requests.get(f"https://api.smartrecruiters.com/v1/companies/{slug}/postings/{jid}", timeout=TIMEOUT, headers=HEADERS).json()
+        secs = (d.get("jobAd") or {}).get("sections") or {}
+        return {"description": "\n\n".join(html_to_text((secs.get(k) or {}).get("text", ""))
+                                            for k in ("companyDescription", "jobDescription", "qualifications", "additionalInformation"))}
+    return enrich
+
+
+FETCHERS = {"greenhouse": greenhouse, "lever": lever, "ashby": ashby, "workday": workday, "smartrecruiters": smartrecruiters}
 
 
 def fetch(company: dict) -> list[dict]:

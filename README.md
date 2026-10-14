@@ -16,11 +16,18 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
 
 ## Highlights
 
-- **Multi-source job discovery.** Public Greenhouse, Lever, and Ashby APIs for about 90 known sponsors,
-  plus Jobright and SimplifyJobs new-grad feeds and Hacker News "Who is hiring?" posts. Boards linked from
-  sponsoring jobs join the watch list automatically. Duplicates across boards are collapsed.
+- **Multi-source job discovery, about 4,000 company boards.** Public Greenhouse, Lever, Ashby, Workday, and
+  SmartRecruiters APIs for your curated sponsors, plus a *board directory* built daily from every company
+  board linked in the public new-grad and internship lists (SimplifyJobs, speedyapply, vanshb03). Titles
+  are checked first, and full descriptions are fetched only for new matches, so a full sweep of about 160K
+  postings takes about 4 minutes. Jobright and SimplifyJobs feeds and Hacker News "Who is hiring?" posts
+  are included too. Duplicates across boards are collapsed.
+- **H-1B signal for every company.** From your USCIS H-1B Employer Data Hub import, plus sponsors the app
+  learns from Jobright, Simplify, HN, and Claude's own screens.
 - **Rule prefilter before any LLM call.** Drops stale postings, senior titles, roles outside the US,
-  4+ years asked, and explicit "no sponsorship / citizens only / clearance" wording.
+  4+ years asked, explicit "no sponsorship / citizens only / clearance" wording, and **listed pay below
+  your floor** (default $100K a year; ranges are parsed from ATS fields or the description, and hourly pay
+  is annualized).
 - **Claude screening with structured outputs.** Every job gets a verdict (APPLY / APPLY WITH RISK /
   DON'T APPLY), a harsh match score, eligibility gates, and a recruiter's six-second read, all as
   schema-validated JSON.
@@ -61,7 +68,7 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
 | Documents | reportlab (direct PDF, justified text, live links), pypdf for verification |
 | Browser | Chrome extension (MV3, shadow-DOM side panel), Playwright for the optional in-app autofill and tests |
 | Scheduling | macOS launchd (user agents plus a root LaunchDaemon for `pmset` wake) |
-| Tests | pytest (30 tests, including Chromium-driven form-fill tests) |
+| Tests | pytest (45 tests, including Chromium-driven form-fill tests) |
 
 ## Screenshots
 
@@ -179,14 +186,16 @@ Change the run times on the **Settings** page. The launchd agents and wake-ups f
 
 | Where | What |
 |---|---|
-| **Settings** page / `config/settings.json` | Match threshold for building documents, per-run caps, parallelism, effort levels, posting age |
+| **Settings** page / `config/settings.json` | Match threshold for building documents, minimum pay, screening unknown-sponsor jobs, per-run caps, parallelism, effort levels, posting age |
 | `config/companies.json` | Your curated company boards (`greenhouse`, `lever`, or `ashby` plus slug) |
 | `config/search.json` | Role families, title exclusions, visa-blocker phrases, location rules |
-| `config/feeds.json` | Aggregator feeds and the "require an H-1B signal" switch |
+| `config/feeds.json` | Aggregator feeds, the board directory's source lists, and the "require an H-1B signal" switch |
 | `.env` | Claude backend, models, port (Settings overrides `.env`) |
 
-To see real approval counts on each job, import the yearly CSVs from the USCIS H-1B Employer Data Hub on
-the **Sources** page.
+**Import the USCIS H-1B data (recommended).** Download the yearly CSVs from the
+[USCIS H-1B Employer Data Hub](https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub) in your
+browser and upload them on the **Sources** page. Several files can be uploaded at once. Directory jobs are
+queued only for known sponsors, so this data covers most companies.
 
 ## What stays manual, and why
 
@@ -201,7 +210,9 @@ the **Sources** page.
 
 ```
 app/
-  sources/      job-board and feed fetchers (Greenhouse, Lever, Ashby, Jobright, Simplify, HN)
+  sources/      job-board and feed fetchers (Greenhouse, Lever, Ashby, Workday, SmartRecruiters, feeds,
+                board directory)
+  salary.py     pay-range parsing and the minimum-pay filter
   prefilter.py  rule gate before any Claude call
   llm.py        Claude via Claude Code CLI or the Anthropic API; structured JSON; usage-limit pause
   pipeline.py   fetch → screen → tailor → render → check → revise → queue human steps

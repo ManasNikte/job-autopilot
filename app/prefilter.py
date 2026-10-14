@@ -43,6 +43,7 @@ def is_us_location(location: str, cfg: dict) -> bool | None:
     parts = re.split(r"[•;|/]| or ", location)
     strong_us = any(_has_word(loc, t) for t in cfg["us_location_terms"])
     strong_us |= any(_has_word(loc, c) for c in US_CITIES | US_STATE_NAMES)
+    strong_us |= re.search(r"(?<![a-z])usa?\s*-\s*[a-z]{2}\b", loc) is not None   # Workday style "US-TX-McKinney"
     if strong_us:
         return True  # multi-location postings with any US office count
     if any(_has_word(loc, t) for t in cfg["non_us_terms"]):

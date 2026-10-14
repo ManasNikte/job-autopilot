@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import quote_plus
 
-from . import db, llm, prefilter, progress, sources
+from . import db, llm, prefilter, progress, salary, sources
 from .config import OUTPUT_DIR, applicant, companies, env, env_int, feeds_config, search_config
 from .h1b import lookup as h1b_lookup
 from .render import pdf as pdfx
@@ -34,11 +34,30 @@ def _print(msg: str) -> None:
 # ----------------------------------------------------------------------------- fetch + prefilter
 
 def fetch_all(log: Log = _print) -> dict:
+    """Company boards in two passes: a cheap title/date/location check on every posting, then full descriptions
+    only for the survivors (directory boards list titles first), then pay floor and H-1B signal."""
+    from .h1b import seed_from_jobs
+    from .sources import directory
+    from .sources.feeds import VISA_NO, VISA_YES
+
     cfg = search_config()
     within = env_int("POSTED_WITHIN_HOURS", 24)
-    stats = {"companies": 0, "fetched": 0, "new": 0, "passed": 0, "errors": 0}
-    comps = companies()
-    progress.set_run("fetch", f"Checking {len(comps)} company job boards", 0, len(comps))
+    floor = env_int("MIN_SALARY", 100000)
+    fcfg = feeds_config()
+    dcfg = fcfg.get("board_directory") or {}
+    require = fcfg.get("require_h1b_signal", True) and env("SCREEN_UNKNOWN_SPONSOR", "0") != "1"
+    seed_from_jobs()
+    if dcfg.get("enabled"):
+        progress.set_run("fetch", "Refreshing the board directory from public new-grad lists")
+        try:
+            directory.refresh(dcfg, log)
+        except Exception as e:
+            log(f"  ✗ board directory refresh: {e}")
+    comps = [c for c in companies() if dcfg.get("enabled") or not c.get("directory")]
+    stats = {"companies": 0, "fetched": 0, "new": 0, "passed": 0, "errors": 0, "low_pay": 0, "details": 0}
+    progress.set_run("fetch", f"Checking {len(comps):,} company job boards", 0, len(comps))
+    norm = lambda x: re.sub(r"[^a-z0-9]", "", (x or "").lower())
+    recent, batch, pending = db.recent_job_keys(), set(), []
 
     def one(c):
         try:
@@ -46,7 +65,35 @@ def fetch_all(log: Log = _print) -> dict:
         except Exception as e:  # network/HTTP/JSON errors are per-company, never fatal
             return c, [], f"{type(e).__name__}: {e}"[:300]
 
-    with cf.ThreadPoolExecutor(12) as ex:
+    def finish(c: dict, j: dict, ok: bool, reason: str, notes: list[str]) -> None:
+        salary.annotate(j)
+        low = salary.below_floor(j, floor)
+        if ok and low:
+            ok, reason = False, low
+            stats["low_pay"] += 1
+        if c.get("directory"):
+            sig = h1b_lookup(j["company"])
+            desc = j.get("description") or ""
+            if not sig and VISA_YES.search(desc) and not VISA_NO.search(desc):
+                sig = "JD mentions visa / H-1B sponsorship"
+            j.update(source="directory", h1b_level="strong" if sig else "unknown", h1b_signal=sig or "", h1b_note="")
+            if ok and not sig and require:
+                ok, reason = False, "no H-1B sponsorship signal (screen it anyway if you know they sponsor)"
+            elif ok and not sig:
+                notes.append("H-1B sponsorship unknown for this company: check the visa gate")
+        else:
+            j.update(h1b_note=c.get("h1b", ""), source="discovered" if c.get("discovered") else j["ats"],
+                     h1b_level="strong", h1b_signal=c.get("h1b") or "In your sponsor list")
+        if not db.upsert_job({k: v for k, v in j.items() if k in JOB_COLUMNS}):
+            return
+        stats["new"] += 1
+        if ok:
+            stats["passed"] += 1
+            db.update_job(j["id"], status="to_screen", status_reason="; ".join(notes) or reason)
+        else:
+            db.update_job(j["id"], status="filtered_out", status_reason=reason)
+
+    with cf.ThreadPoolExecutor(24) as ex:
         for c, jobs, err in ex.map(one, comps):
             stats["companies"] += 1
             progress.bump_run()
@@ -57,40 +104,62 @@ def fetch_all(log: Log = _print) -> dict:
             )
             if err:
                 stats["errors"] += 1
-                log(f"  ✗ {c['name']} ({key}): {err}")
+                if not c.get("directory"):       # thousands of directory boards: a few dead ones are normal
+                    log(f"  ✗ {c['name']} ({key}): {err}")
                 continue
             stats["fetched"] += len(jobs)
             for j in jobs:
                 ok, reason, fam, notes = prefilter.check(j, cfg, within)
                 if not ok and reason.startswith(("title not in", "posted ")):
                     continue  # don't store the thousands of irrelevant/old postings
-                j.update(role_family=fam, h1b_note=c.get("h1b", ""), source="discovered" if c.get("discovered") else j["ats"],
-                         h1b_level="strong", h1b_signal=c.get("h1b") or "In your sponsor list")
-                if not db.upsert_job(j):
+                if c.get("directory"):
+                    k = norm(j["company"]) + "|" + norm(j["title"])
+                    if not ok or k in recent or k in batch:
+                        continue  # directory: keep only clean candidates, once (same role is often on several boards)
+                    batch.add(k)
+                j["role_family"] = fam
+                if ok and j.get("enrich") and not j.get("description"):
+                    if not db.fetchone("SELECT 1 FROM jobs WHERE id=?", (j["id"],)):
+                        pending.append((c, j))
                     continue
-                stats["new"] += 1
-                if ok:
-                    stats["passed"] += 1
-                    db.update_job(j["id"], status="to_screen", status_reason="; ".join(notes) or reason)
-                else:
-                    db.update_job(j["id"], status="filtered_out", status_reason=reason)
-    log(f"Fetched {stats['fetched']} postings from {stats['companies']} companies; "
-        f"{stats['new']} new relevant, {stats['passed']} passed the prefilter, {stats['errors']} source errors.")
+                finish(c, j, ok, reason, notes)
+
+    if pending:
+        progress.set_run("fetch", f"Reading {len(pending):,} new job descriptions", 0, len(pending))
+
+        def detail(cj):
+            c, j = cj
+            try:
+                j.update({k: v for k, v in (j["enrich"](j) or {}).items() if v not in (None, "")})
+            except Exception:
+                pass
+            progress.bump_run()
+            return cj
+
+        with cf.ThreadPoolExecutor(10) as ex:
+            for c, j in ex.map(detail, pending):
+                stats["details"] += 1
+                ok, reason, fam, notes = prefilter.check(j, cfg, 0)
+                finish(c, j, ok, reason, notes)
+    log(f"Fetched {stats['fetched']:,} postings from {stats['companies']:,} company boards; "
+        f"{stats['new']} new relevant, {stats['passed']} passed the prefilter, {stats['low_pay']} under your pay floor, "
+        f"{stats['errors']} source errors.")
     stats["feeds"] = fetch_feeds(log, cfg, within)
     return stats
 
 
 JOB_COLUMNS = {"id", "company", "title", "location", "url", "apply_url", "ats", "posted_at", "description", "role_family",
-               "h1b_note", "source", "h1b_signal", "h1b_level", "startup", "company_stage"}
+               "h1b_note", "source", "h1b_signal", "h1b_level", "startup", "company_stage", "salary", "salary_max"}
 
 
 def fetch_feeds(log: Log, cfg: dict, within: int) -> dict:
     """Jobright lists, SimplifyJobs, HN Who is hiring: cheap prefilter first, then fetch details for the survivors."""
     from .h1b import lookup as h1b_lookup
+    from .h1b import remember as remember_sponsor
     from .sources import feeds
 
     fcfg = feeds_config()
-    require = fcfg.get("require_h1b_signal", True)
+    require = fcfg.get("require_h1b_signal", True) and env("SCREEN_UNKNOWN_SPONSOR", "0") != "1"
     listed = {re.sub(r"[^a-z0-9]", "", c["name"].lower()) for c in companies()}
     totals = {"new": 0, "passed": 0}
     enabled = [n for n in feeds.FEEDS if (fcfg.get(n) or {}).get("enabled")]
@@ -153,8 +222,14 @@ def fetch_feeds(log: Log, cfg: dict, within: int) -> dict:
             if board and fcfg.get("discover_boards", True) and j["h1b_level"] == "strong":
                 db.execute("INSERT OR IGNORE INTO discovered_boards (key, ats, slug, name, h1b, source, found_at) VALUES (?,?,?,?,?,?,?)",
                            (f"{board[0]}:{board[1]}", board[0], board[1], j["company"], j["h1b_signal"][:200], name, db.now()))
+            if j["h1b_level"] == "strong" and not extra:
+                remember_sponsor(j["company"], j.get("h1b_signal") or "", name)
+            salary.annotate(j)
             ok, reason, fam, notes = prefilter.check(j, cfg, 0, skip_title=(name == "hn_who_is_hiring"))
-            if ok and j["h1b_level"] == "none":
+            low = salary.below_floor(j, env_int("MIN_SALARY", 100000))
+            if ok and low:
+                ok, reason = False, low
+            elif ok and j["h1b_level"] == "none":
                 ok, reason = False, j["h1b_signal"] or "source says no sponsorship"
             elif ok and require and j["h1b_level"] != "strong":
                 ok, reason = False, "no H-1B sponsorship signal (screen it anyway if you know they sponsor)"
@@ -224,6 +299,9 @@ def screen_job(job_id: str, log: Log = _print) -> dict | None:
 
     verdict = res["verdict"]
     fields = dict(screen_json=res, verdict=verdict, match_score=res["match_score"])
+    if res.get("sponsorship_signal") == "explicit_yes":
+        from .h1b import remember
+        remember(fields.get("company") or job["company"], "the JD says it sponsors (Claude screen)", "screen")
     if job["id"].startswith(("ext:", "hn:")):   # free-text sources: trust Claude's reading of company and title
         if res.get("company_name"):
             fields["company"] = res["company_name"][:120]

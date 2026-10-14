@@ -29,7 +29,8 @@ def _int(v) -> int:
 
 
 def import_csv(raw: bytes) -> int:
-    text = raw.decode("utf-8-sig", errors="replace")
+    # The data hub has shipped UTF-8 and UTF-16 (tab-separated) exports in different years.
+    text = raw.decode("utf-16") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-8-sig", errors="replace")
     sample = text[:5000]
     delim = "\t" if sample.count("\t") > sample.count(",") else ","
     reader = csv.DictReader(io.StringIO(text), delimiter=delim)
@@ -63,14 +64,38 @@ def import_csv(raw: bytes) -> int:
     return len(agg)
 
 
+def remember(company: str, signal: str, source: str) -> None:
+    """Note a company as an H-1B sponsor (from a Jobright flag, Simplify, an HN post, or a Claude screen)."""
+    n = norm(company)
+    if n and signal:
+        db.execute("INSERT OR REPLACE INTO sponsors VALUES (?,?,?,?,?)", (n, company, signal[:200], source, db.now()))
+
+
+def seed_from_jobs() -> int:
+    """One-time: learn sponsors from jobs already in the database."""
+    if db.kv_get("sponsors_seeded"):
+        return 0
+    rows = db.fetchall("SELECT company, h1b_signal, source FROM jobs WHERE h1b_level='strong' AND h1b_signal IS NOT NULL "
+                       "AND (h1b_signal LIKE 'Jobright:%' OR h1b_signal LIKE 'Simplify: Offers%' OR h1b_signal LIKE 'HN post%')")
+    for r in rows:
+        remember(r["company"], r["h1b_signal"], r["source"] or "")
+    from .config import load_json, CONFIG_DIR
+    for c in load_json(CONFIG_DIR / "companies.json")["companies"]:
+        remember(c["name"], c.get("h1b") or "In your sponsor list", "companies.json")
+    db.kv_set("sponsors_seeded", str(len(rows)))
+    return len(rows)
+
+
 def lookup(company: str) -> str | None:
-    """'1,234 approvals / 12 denials (FY2023,FY2024)' summed over employer names that start with the company name."""
+    """'1,234 approvals / 12 denials (FY2023,FY2024)' summed over employer names that start with the company name;
+    otherwise a sponsor signal the app has seen before for this company."""
     n = norm(company)
     if not n:
         return None
     rows = db.fetchall("SELECT * FROM h1b_employers WHERE name_norm=? OR name_norm LIKE ?", (n, n + " %"))
     if not rows:
-        return None
+        s = db.fetchone("SELECT signal FROM sponsors WHERE name_norm=?", (n,))
+        return f"Known sponsor ({s['signal']})" if s else None
     ap = sum(r["approvals"] for r in rows)
     de = sum(r["denials"] for r in rows)
     yrs = sorted({y for r in rows for y in (r["fiscal_years"] or "").split(",") if y})

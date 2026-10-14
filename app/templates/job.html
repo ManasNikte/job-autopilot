@@ -5,7 +5,7 @@
 <div class="spread">
   <div>
     <h1 style="margin-bottom:4px">{{ job.title }}</h1>
-    <div class="sub">{{ job.company }} · {{ job.location }} · posted {{ job.posted_at|local }} · <a href="{{ job.url }}" target="_blank" rel="noopener">Job posting ↗</a></div>
+    <div class="sub">{{ job.company }} · {{ job.location }}{% if job.salary %} · {{ job.salary }}{% endif %} · posted {{ job.posted_at|local }} · <a href="{{ job.url }}" target="_blank" rel="noopener">Job posting ↗</a></div>
   </div>
   <div class="row">
     {% set j = job %}{% include "_verdict.html" %}
@@ -85,6 +85,7 @@
     <div class="kv">
       {% for k, g in (s.eligibility or {}).items() %}<div>{{ k|replace('_',' ')|title }}</div><div><b>{{ g.result }}</b> · {{ g.note }}</div>{% endfor %}
       <div>Experience asked</div><div>{{ s.experience_required }}</div>
+      <div>Listed pay</div><div>{{ job.salary or 'not listed' }}</div>
       <div>Sponsorship in JD</div><div>{{ s.sponsorship_signal|replace('_',' ') }}</div>
       <div>H-1B signal</div><div>{{ job.h1b_signal or h1b or job.h1b_note or 'unknown' }}</div>
       <div>Found on</div><div>{{ job.source|source_label }}{% if job.company_stage %} · {{ job.company_stage }}{% endif %}{% if job.startup %} · <span class="badge">Startup</span>{% endif %}</div>

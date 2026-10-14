@@ -365,22 +365,32 @@ def outreach_action(oid):
 @app.route("/sources", methods=["GET", "POST"])
 def sources_page():
     if request.method == "POST" and request.files.get("csv"):
-        try:
-            n = h1b.import_csv(request.files["csv"].read())
-            flash(f"Imported {n:,} employers from the USCIS file.")
-        except ValueError as e:
-            flash(f"Import failed: {e}")
+        for f in request.files.getlist("csv"):
+            try:
+                n = h1b.import_csv(f.read())
+                flash(f"{f.filename}: imported {n:,} employers.")
+            except (ValueError, UnicodeDecodeError) as e:
+                flash(f"{f.filename}: import failed: {e}")
         return redirect(url_for("sources_page"))
     status = {r["key"]: r for r in db.fetchall("SELECT * FROM source_status")}
     rows = []
     for c in companies():
+        if c.get("directory"):
+            continue                      # thousands of boards: summarized in the directory card instead
         key = f"{c['ats']}:{c['slug']}"
         rows.append({**c, "status": status.get(key), "h1b_data": h1b.lookup(c["name"])})
+    directory = {
+        "by_ats": db.fetchall("SELECT ats, count(*) AS n, sum(enabled) AS on_ FROM discovered_boards WHERE source='directory' GROUP BY ats ORDER BY n DESC"),
+        "errors": db.fetchone("SELECT count(*) AS n FROM source_status s JOIN discovered_boards b ON b.key=s.key "
+                              "WHERE b.source='directory' AND s.ok=0")["n"],
+        "refreshed": db.kv_get("directory_refreshed"),
+        "sponsors": db.fetchone("SELECT count(*) AS n FROM sponsors")["n"],
+    }
     n_h1b = db.fetchone("SELECT count(*) AS n FROM h1b_employers")["n"]
     feeds = db.fetchall("SELECT * FROM feed_status ORDER BY feed")
-    boards = db.fetchall("SELECT * FROM discovered_boards ORDER BY found_at DESC")
+    boards = db.fetchall("SELECT * FROM discovered_boards WHERE source != 'directory' ORDER BY found_at DESC")
     runs = db.fetchall("SELECT * FROM runs ORDER BY id DESC LIMIT 15")
-    return render_template("sources.html", rows=rows, n_h1b=n_h1b, runs=runs, feeds=feeds, boards=boards)
+    return render_template("sources.html", rows=rows, n_h1b=n_h1b, runs=runs, feeds=feeds, boards=boards, directory=directory)
 
 
 @app.post("/boards/<path:key>")
@@ -390,7 +400,8 @@ def toggle_board(key):
 
 
 SOURCE_LABELS = {"greenhouse": "Company board", "lever": "Company board", "ashby": "Company board", "discovered": "Discovered board",
-                 "jobright": "Jobright", "simplify": "Simplify", "hn": "HN startups", "web": "Added by you"}
+                 "jobright": "Jobright", "simplify": "Simplify", "hn": "HN startups", "web": "Added by you",
+                 "workday": "Company board", "smartrecruiters": "Company board", "directory": "Board directory"}
 
 
 @app.template_filter("smslink")
@@ -621,6 +632,7 @@ def job_referrals(job_id):
 TUNABLES = [
     ("MIN_MATCH_FOR_DOCS", "Minimum match to build documents", "int", "Resumes and cover letters are built only for jobs Claude scores at or above this (out of 10). Lower-scored jobs wait under 'Below your threshold', where you can still build one by hand.", (1, 10)),
     # key, label, kind, help, choices/range
+    ("MIN_SALARY", "Minimum pay (USD per year)", "int", "Jobs whose listed pay tops out below this are skipped before Claude sees them (hourly pay counts as 2,080 hours a year). Jobs that list no pay are kept. 0 turns it off.", (0, 500000)),
     ("POSTED_WITHIN_HOURS", "Look back (hours)", "int", "Only postings newer than this are fetched each run.", (1, 336)),
     ("MAX_SCREEN_PER_RUN", "Screens per run", "int", "How many new jobs Claude scores per run (cheap calls).", (1, 300)),
     ("MAX_TAILOR_PER_RUN", "Documents per run", "int", "How many tailored resume + cover letter packages are built per run.", (0, 100)),
@@ -629,9 +641,10 @@ TUNABLES = [
     ("EFFORT_TAILOR", "Resume writing effort", "choice", "Higher is slower but more careful.", ("low", "medium", "high")),
     ("EFFORT_SCREEN", "Screening effort", "choice", "Fit verdicts are short; low is usually enough.", ("low", "medium", "high")),
     ("AUTO_TAILOR_RISK", "Build documents for 'apply with risk' roles", "bool", "Off = those roles wait for your OK on Needs you.", None),
+    ("SCREEN_UNKNOWN_SPONSOR", "Screen jobs when sponsorship is unknown", "bool", "On = jobs from companies with no H-1B signal yet still go to Claude (its visa gate judges the posting); uses more screens. Off = they wait under Filtered out. Importing the USCIS H-1B data on Sources covers most companies either way.", None),
 ]
-DEFAULTS = {"MIN_MATCH_FOR_DOCS": 7, "POSTED_WITHIN_HOURS": 24, "MAX_SCREEN_PER_RUN": 60, "MAX_TAILOR_PER_RUN": 15, "PARALLEL_JOBS": 3,
-            "MAX_REVISIONS": 2, "EFFORT_TAILOR": "medium", "EFFORT_SCREEN": "low", "AUTO_TAILOR_RISK": "1"}
+DEFAULTS = {"MIN_MATCH_FOR_DOCS": 7, "MIN_SALARY": 100000, "POSTED_WITHIN_HOURS": 24, "MAX_SCREEN_PER_RUN": 60, "MAX_TAILOR_PER_RUN": 15, "PARALLEL_JOBS": 3,
+            "MAX_REVISIONS": 2, "EFFORT_TAILOR": "medium", "EFFORT_SCREEN": "low", "AUTO_TAILOR_RISK": "1", "SCREEN_UNKNOWN_SPONSOR": "0"}
 
 
 @app.route("/settings", methods=["GET", "POST"])

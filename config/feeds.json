@@ -23,5 +23,23 @@
     "_comment": "Hacker News monthly 'Who is hiring?' thread: mostly startups. Only posts that mention visa / H-1B sponsorship are kept."
   },
   "discover_boards": true,
-  "_comment_discover_boards": "When a sponsoring job links to a Greenhouse, Lever, or Ashby board, that company's board is added to the watch list (Sources page) so future runs see all its roles."
+  "_comment_discover_boards": "When a sponsoring job links to a Greenhouse, Lever, or Ashby board, that company's board is added to the watch list (Sources page) so future runs see all its roles.",
+  "board_directory": {
+    "enabled": true,
+    "_comment": "Watch every company board linked from these public lists (Greenhouse, Lever, Ashby, Workday, SmartRecruiters). Titles are checked first; full descriptions are read only for postings that pass. Refreshed once a day. Disable single boards on the Sources page.",
+    "lists": [
+      "https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/.github/scripts/listings.json",
+      "https://raw.githubusercontent.com/SimplifyJobs/Summer2026-Internships/dev/.github/scripts/listings.json",
+      "https://raw.githubusercontent.com/vanshb03/New-Grad-2027/dev/.github/scripts/listings.json",
+      "https://raw.githubusercontent.com/speedyapply/2027-SWE-College-Jobs/main/NEW_GRAD_USA.md"
+    ],
+    "ats": [
+      "greenhouse",
+      "lever",
+      "ashby",
+      "workday",
+      "smartrecruiters"
+    ],
+    "refresh_hours": 24
+  }
 }
