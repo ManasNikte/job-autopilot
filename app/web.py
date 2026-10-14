@@ -417,12 +417,19 @@ def source_label(s):
     return SOURCE_LABELS.get(s or "", s or "—")
 
 
+@app.post("/resume")
+def resume_now():
+    flash("Resumed. If Claude is still at its limit, work pauses again on its own." if worker.resume() else "Nothing was paused.")
+    return redirect(request.referrer or url_for("dashboard"))
+
+
 @app.post("/run")
 def run_now():
     kind = request.form.get("kind", "run")
     source = request.form.get("source", "manual")
+    resumed = worker.resume()          # you clicked: try now, even if an earlier usage-limit pause is pending
     worker.submit(kind, source if kind in ("run", "process") else None)
-    flash("Pipeline started in the background. Watch the activity log.")
+    flash(("Resumed after the usage-limit pause. " if resumed else "") + "Pipeline started in the background. Watch the activity log.")
     return redirect(request.referrer or url_for("dashboard"))
 
 

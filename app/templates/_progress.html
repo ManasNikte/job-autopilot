@@ -18,7 +18,12 @@
     try { d = await (await fetch("{{ url_for('progress_json') }}")).json(); } catch (e) { return; }
     const pz = document.getElementById("bg-paused");
     pz.style.display = d.paused_until ? "block" : "none";
-    pz.textContent = d.paused_until ? `Paused: your Claude usage limit was reached. Work resumes automatically at ${d.paused_until}; nothing is lost.` : "";
+    pz.replaceChildren();
+    if (d.paused_until) {
+      pz.appendChild(el("span", null, `Paused: your Claude usage limit was reached. Work resumes automatically at ${d.paused_until}; nothing is lost. `));
+      const f = el("form"); f.method = "post"; f.action = "{{ url_for('resume_now') }}"; f.className = "inline";
+      f.appendChild(el("button", "btn small", "Resume now (limit was reset)")); pz.appendChild(f);
+    }
     const box = document.getElementById("bg-active");
     box.replaceChildren();
     if (!d.active.length) {

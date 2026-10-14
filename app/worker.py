@@ -33,12 +33,28 @@ def _refresh_state() -> None:
     state["queued"] = _q.qsize()
 
 
+_resumed = threading.Event()
+
+
 def _wait_if_paused() -> None:
     while state["paused_until"] and time.time() < state["paused_until"]:
-        time.sleep(min(30, max(1, state["paused_until"] - time.time())))
+        _resumed.wait(min(30, max(1, state["paused_until"] - time.time())))
     if state["paused_until"]:
         _log("▶ Claude usage limit has reset; resuming background work.")
         state["paused_until"], state["pause_reason"] = None, ""
+
+
+def resume() -> bool:
+    """Lift a usage-limit pause now (e.g. the limit was reset early). If Claude is still limited, the next
+    call simply pauses again. Returns True if work was paused."""
+    was = bool(state["paused_until"])
+    if was:
+        state["paused_until"], state["pause_reason"] = None, ""
+        _log("▶ Resumed by you; continuing background work.")
+        _resumed.set()
+        time.sleep(0.05)
+        _resumed.clear()
+    return was
 
 
 def _pause(e) -> None:
