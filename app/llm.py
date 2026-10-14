@@ -118,28 +118,31 @@ class _NoLimit:
 
 
 def structured(*, user: str, schema: dict, model: str, effort: str = "high", max_tokens: int = 32000,
-               on_start=None, label: str = "", interactive: bool = False) -> dict:
+               on_start=None, label: str = "", interactive: bool = False, system: str | None = None,
+               web_search: bool = False) -> dict:
     """One Claude call that must return JSON matching `schema`. `on_start` fires once a slot is free.
 
     interactive=True (form autofill while the candidate waits) skips the background-work slot limit.
+    system: a short task-specific system prompt instead of the candidate's master prompt.
+    web_search: let Claude search the public web (used only for the sponsor lookup).
     """
-    system = system_prompt()
+    system = system or system_prompt()
     b = backend()
     with (_NoLimit() if interactive else _semaphore()):
         if on_start:
             on_start()
         t0 = time.time()
         if b == "api":
-            out = _via_api(system, user, schema, model, effort, max_tokens)
+            out = _via_api(system, user, schema, model, effort, max_tokens, web_search)
         elif b == "claude_cli":
-            out = _via_cli(system, user, schema, model, effort)
+            out = _via_cli(system, user, schema, model, effort, web_search)
         else:
             raise LLMError(f"Unknown LLM_BACKEND '{b}'")
         _log_line({"label": label, "backend": b, "model": model, "effort": effort, "secs": round(time.time() - t0, 1)})
         return out
 
 
-def _via_api(system: str, user: str, schema: dict, model: str, effort: str, max_tokens: int) -> dict:
+def _via_api(system: str, user: str, schema: dict, model: str, effort: str, max_tokens: int, web_search: bool = False) -> dict:
     import anthropic
 
     client = anthropic.Anthropic(max_retries=4, timeout=900)
@@ -150,6 +153,8 @@ def _via_api(system: str, user: str, schema: dict, model: str, effort: str, max_
         messages=[{"role": "user", "content": user}],
         output_config={"effort": effort, "format": {"type": "json_schema", "schema": schema}},
     )
+    if web_search:
+        kwargs["tools"] = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 4}]
     try:
         if env("CLAUDE_FALLBACKS", "on") == "on" and model in ("claude-opus-5-5", "claude-sonnet-5-5", "claude-opus-5", "claude-fable-5-1"):
             # If a safety classifier declines, the API re-runs the request on a fallback model.
@@ -172,12 +177,12 @@ def _via_api(system: str, user: str, schema: dict, model: str, effort: str, max_
         raise LLMError("Claude declined this request (refusal).")
     if msg.stop_reason == "max_tokens":
         raise LLMError("Output hit max_tokens before finishing; raise max_tokens.")
-    text = next((b.text for b in msg.content if b.type == "text"), "")
+    text = next((b.text for b in reversed(msg.content) if b.type == "text"), "")
     _log_usage(model, getattr(msg, "usage", None))
     return json.loads(text)
 
 
-def _via_cli(system: str, user: str, schema: dict, model: str, effort: str) -> dict:
+def _via_cli(system: str, user: str, schema: dict, model: str, effort: str, web_search: bool = False) -> dict:
     cli = find_claude_cli()
     if not cli:
         raise BackendUnavailable("Claude Code CLI not found. Install it or set CLAUDE_CLI_PATH.")
@@ -191,7 +196,8 @@ def _via_cli(system: str, user: str, schema: dict, model: str, effort: str) -> d
         cli, "-p",
         "--output-format", "json",
         "--model", model,
-        "--tools", "",                       # pure text-in / JSON-out, no file or shell access
+        # Pure text-in / JSON-out, no file or shell access. The sponsor lookup may also search the web.
+        *(["--tools", "WebSearch", "--allowedTools", "WebSearch"] if web_search else ["--tools", ""]),
         "--system-prompt-file", str(sp),
         "--json-schema", json.dumps(schema),
         "--effort", effort,

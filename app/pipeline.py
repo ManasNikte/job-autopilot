@@ -36,7 +36,7 @@ def _print(msg: str) -> None:
 def fetch_all(log: Log = _print) -> dict:
     """Company boards in two passes: a cheap title/date/location check on every posting, then full descriptions
     only for the survivors (directory boards list titles first), then pay floor and H-1B signal."""
-    from .h1b import seed_from_jobs
+    from .h1b import WebChecker, seed_from_jobs
     from .sources import directory
     from .sources.feeds import SPONSOR_OFFERED
 
@@ -57,7 +57,9 @@ def fetch_all(log: Log = _print) -> dict:
     stats = {"companies": 0, "fetched": 0, "new": 0, "passed": 0, "errors": 0, "low_pay": 0, "details": 0}
     progress.set_run("fetch", f"Checking {len(comps):,} company job boards", 0, len(comps))
     norm = lambda x: re.sub(r"[^a-z0-9]", "", (x or "").lower())
-    recent, batch, pending = db.recent_job_keys(), set(), []
+    recent, batch, pending, deferred = db.recent_job_keys(), set(), [], []
+    budget = env_int("SPONSOR_WEB_CHECKS", 25)
+    checker = WebChecker(budget, log) if budget > 0 else None
 
     def one(c):
         try:
@@ -65,7 +67,7 @@ def fetch_all(log: Log = _print) -> dict:
         except Exception as e:  # network/HTTP/JSON errors are per-company, never fatal
             return c, [], f"{type(e).__name__}: {e}"[:300]
 
-    def finish(c: dict, j: dict, ok: bool, reason: str, notes: list[str]) -> None:
+    def finish(c: dict, j: dict, ok: bool, reason: str, notes: list[str], looked: bool = False) -> None:
         salary.annotate(j)
         low = salary.below_floor(j, floor)
         if ok and low:
@@ -76,6 +78,14 @@ def fetch_all(log: Log = _print) -> dict:
             desc = j.get("description") or ""
             if not sig and ok and SPONSOR_OFFERED.search(desc):
                 sig = "JD says sponsorship is available"
+            if ok and not sig and checker:
+                if not looked:                       # look the company up online once, after the sweep
+                    deferred.append((c, j, ok, reason, notes))
+                    return
+                sig = h1b_lookup(j["company"])
+                refused = checker.refused(j["company"])
+                if refused:
+                    ok, reason = False, refused
             j.update(source="directory", h1b_level="strong" if sig else "unknown", h1b_signal=sig or "", h1b_note="")
             if ok and not sig and require:
                 ok, reason = False, "no H-1B sponsorship signal (screen it anyway if you know they sponsor)"
@@ -141,18 +151,42 @@ def fetch_all(log: Log = _print) -> dict:
                 stats["details"] += 1
                 ok, reason, fam, notes = prefilter.check(j, cfg, 0)
                 finish(c, j, ok, reason, notes)
+    if deferred:
+        _web_lookups(checker, sorted({j["company"] for _, j, *_ in deferred}), log)
+        for args in deferred:
+            finish(*args, looked=True)
+    stats["sponsor_lookups"] = budget - checker.budget if checker else 0
     log(f"Fetched {stats['fetched']:,} postings from {stats['companies']:,} company boards; "
         f"{stats['new']} new relevant, {stats['passed']} passed the prefilter, {stats['low_pay']} under your pay floor, "
         f"{stats['errors']} source errors.")
-    stats["feeds"] = fetch_feeds(log, cfg, within)
+    stats["feeds"] = fetch_feeds(log, cfg, within, checker)
     return stats
+
+
+def _web_lookups(checker, names: list[str], log: Log) -> None:
+    """Online H-1B lookups for companies missing from the USCIS data, a few at a time."""
+    names = [n for n in names if n]
+    if not checker or not names:
+        return
+    progress.set_run("fetch", f"Checking H-1B sponsorship online for {len(names)} companies not in your USCIS data", 0, len(names))
+
+    def one(name):
+        try:
+            checker.check(name)
+        except llm.BackendUnavailable as e:
+            checker.budget = 0                 # usage limit: stop looking things up this run
+            log(f"  sponsor lookups paused: {e}")
+        progress.bump_run()
+
+    with cf.ThreadPoolExecutor(max(1, env_int("PARALLEL_JOBS", 3))) as ex:
+        list(ex.map(one, names))
 
 
 JOB_COLUMNS = {"id", "company", "title", "location", "url", "apply_url", "ats", "posted_at", "description", "role_family",
                "h1b_note", "source", "h1b_signal", "h1b_level", "startup", "company_stage", "salary", "salary_max"}
 
 
-def fetch_feeds(log: Log, cfg: dict, within: int) -> dict:
+def fetch_feeds(log: Log, cfg: dict, within: int, checker=None) -> dict:
     """Jobright lists, SimplifyJobs, HN Who is hiring: cheap prefilter first, then fetch details for the survivors."""
     from .h1b import lookup as h1b_lookup
     from .h1b import remember as remember_sponsor
@@ -206,6 +240,10 @@ def fetch_feeds(log: Log, cfg: dict, within: int) -> dict:
 
         with cf.ThreadPoolExecutor(6) as ex:
             candidates = list(ex.map(enrich, candidates))
+        if require and checker:
+            unknown = {j["company"] for j in candidates if j.get("h1b_level") == "unknown" and not h1b_lookup(j["company"])
+                       and prefilter.check(j, cfg, 0, skip_title=(name == "hn_who_is_hiring"))[0]}
+            _web_lookups(checker, sorted(unknown), log)
         kept = 0
         for j in candidates:
             norm_co = re.sub(r"[^a-z0-9]", "", j["company"].lower())
@@ -215,6 +253,8 @@ def fetch_feeds(log: Log, cfg: dict, within: int) -> dict:
             uscis = h1b_lookup(j["company"])
             if uscis:
                 extra.append(uscis)
+            if checker and checker.refused(j["company"]):
+                j["h1b_level"], j["h1b_signal"] = "none", checker.refused(j["company"])
             if extra and j.get("h1b_level") != "none":
                 j["h1b_level"] = "strong"
                 j["h1b_signal"] = "; ".join(x for x in [j.get("h1b_signal")] + extra if x)

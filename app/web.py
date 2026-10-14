@@ -641,10 +641,11 @@ TUNABLES = [
     ("EFFORT_TAILOR", "Resume writing effort", "choice", "Higher is slower but more careful.", ("low", "medium", "high")),
     ("EFFORT_SCREEN", "Screening effort", "choice", "Fit verdicts are short; low is usually enough.", ("low", "medium", "high")),
     ("AUTO_TAILOR_RISK", "Build documents for 'apply with risk' roles", "bool", "Off = those roles wait for your OK on Needs you.", None),
+    ("SPONSOR_WEB_CHECKS", "Online sponsor lookups per run", "int", "For companies missing from your USCIS data, Claude searches public H-1B disclosure data (DOL LCAs, USCIS approvals) once per company and caches the answer for 90 days. Each lookup is one small Claude call with web search. 0 turns it off.", (0, 200)),
     ("SCREEN_UNKNOWN_SPONSOR", "Screen jobs when sponsorship is unknown", "bool", "On = jobs from companies with no H-1B signal yet still go to Claude (its visa gate judges the posting); uses more screens. Off = they wait under Filtered out. Importing the USCIS H-1B data on Sources covers most companies either way.", None),
 ]
 DEFAULTS = {"MIN_MATCH_FOR_DOCS": 7, "MIN_SALARY": 100000, "POSTED_WITHIN_HOURS": 24, "MAX_SCREEN_PER_RUN": 60, "MAX_TAILOR_PER_RUN": 15, "PARALLEL_JOBS": 3,
-            "MAX_REVISIONS": 2, "EFFORT_TAILOR": "medium", "EFFORT_SCREEN": "low", "AUTO_TAILOR_RISK": "1", "SCREEN_UNKNOWN_SPONSOR": "0"}
+            "MAX_REVISIONS": 2, "EFFORT_TAILOR": "medium", "EFFORT_SCREEN": "low", "AUTO_TAILOR_RISK": "1", "SCREEN_UNKNOWN_SPONSOR": "0", "SPONSOR_WEB_CHECKS": 25}
 
 
 @app.route("/settings", methods=["GET", "POST"])

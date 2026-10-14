@@ -150,6 +150,9 @@ CREATE TABLE IF NOT EXISTS referral_asks (
 CREATE TABLE IF NOT EXISTS sponsors (      -- companies seen sponsoring H-1B (Jobright, Simplify, HN, Claude screens)
     name_norm TEXT PRIMARY KEY, name TEXT, signal TEXT, source TEXT, updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS sponsor_checks ( -- web lookups for companies missing from the USCIS data (cached 90 days)
+    name_norm TEXT PRIMARY KEY, name TEXT, verdict TEXT, evidence TEXT, url TEXT, checked_at TEXT
+);
 CREATE TABLE IF NOT EXISTS feed_status (
     feed TEXT PRIMARY KEY, ok INTEGER, seen INTEGER, kept INTEGER, error TEXT, checked_at TEXT
 );
