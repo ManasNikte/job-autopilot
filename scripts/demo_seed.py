@@ -129,7 +129,7 @@ def main() -> None:
     pdfgen.build_resume(FIXTURE, str(resume), title_meta="Jordan Lee — Resume (demo)")
     pdfgen.build_cover(FIXTURE["header"], FIXTURE["cover_letter"], str(cover), title_meta="Jordan Lee — Cover letter (demo)")
 
-    plan = (["applied"] * 26 + ["interviewing"] * 2 + ["ready"] * 6 + ["needs_decision"] * 2 + ["below_threshold"] * 3
+    plan = (["applied"] * 26 + ["interviewing"] * 2 + ["closed"] * 4 + ["ready"] * 6 + ["needs_decision"] * 2 + ["below_threshold"] * 3
             + ["rejected"] * 5 + ["filtered_out"] * 12)
     n = 0
     for status in plan:
@@ -138,15 +138,17 @@ def main() -> None:
         title = random.choice(ROLES[fam])
         n += 1
         jid = f"{ats}:{company.lower()}:{9100 + n}"
-        if status in ("applied", "interviewing"):
-            applied = NOW - timedelta(days=random.choice([0, 1, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]), hours=random.randint(0, 8))
+        if status in ("applied", "interviewing", "closed"):
+            applied = NOW - timedelta(days=random.choice([1, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]), hours=random.randint(0, 8))
+            if n <= 7:                                   # a few applications from this morning
+                applied = local_today_at(random.randint(7, 11))
             posted = applied - timedelta(hours=random.randint(2, 20))
         elif status in ("ready", "needs_decision", "filtered_out") or n % 3 == 0:
             posted, applied = local_today_at(random.randint(6, 13)), None
         else:
             posted, applied = NOW - timedelta(days=random.randint(1, 3)), None
         score = {"applied": random.choice([7, 8, 8, 9]), "interviewing": 9, "ready": random.choice([7, 8, 9]),
-                 "needs_decision": 7, "below_threshold": 6, "rejected": random.choice([3, 4, 5])}.get(status)
+                 "needs_decision": 7, "below_threshold": 6, "closed": 8, "rejected": random.choice([3, 4, 5])}.get(status)
         verdict = {"needs_decision": "APPLY WITH RISK", "below_threshold": "APPLY WITH RISK",
                    "rejected": "DON'T APPLY", "filtered_out": None}.get(status, "APPLY")
         row = {
@@ -167,7 +169,7 @@ def main() -> None:
             row["status_reason"] = "Match 6/10 is below your 7/10 threshold for building documents"
         if verdict:
             row.update(verdict=verdict, match_score=score, screen_json=json.dumps(screen(company, title, verdict, score)))
-        if status in ("applied", "interviewing", "ready"):
+        if status in ("applied", "interviewing", "closed", "ready"):
             t = tailor(company, title)
             row.update(tailor_json=json.dumps(t), keyword_relevancy=t["keyword_relevancy"], rw_score=84,
                        final_call=t["teardown"]["final_call"], resume_pdf=str(resume), cover_pdf=str(cover),
@@ -228,6 +230,16 @@ def main() -> None:
                     "done", "schedule" if i % 3 else "manual", json.dumps(stats)))
     for feed, seen, kept in (("jobright", 412, 37), ("simplify", 1650, 22), ("hn", 380, 9)):
         db.execute("INSERT OR REPLACE INTO feed_status VALUES (?,?,?,?,?,?)", (feed, 1, seen, kept, None, db.now()))
+    # Board directory, USCIS records, and learned sponsors, so the Sources page looks like a real install.
+    for ats, count in (("workday", 1847), ("greenhouse", 874), ("ashby", 691), ("lever", 357), ("smartrecruiters", 295)):
+        for i in range(count):
+            db.execute("INSERT OR IGNORE INTO discovered_boards (key, ats, slug, name, h1b, source, enabled, found_at) VALUES (?,?,?,?,?,?,1,?)",
+                       (f"{ats}:demo-{i}", ats, f"demo-{i}", f"Demo company {i}", "", "directory", db.now()))
+    db.kv_set("directory_refreshed", json.dumps({"boards": 4064, "added": 0}))
+    for name, approvals in (("STRIPE INC", 310), ("DATADOG INC", 205), ("DATABRICKS INC", 420), ("CLOUDFLARE INC", 160)):
+        db.execute("INSERT OR REPLACE INTO h1b_employers VALUES (?,?,?,?,?)", (name.lower().replace(" inc", ""), name, approvals, 3, "2026"))
+    for name in ("Ramp", "Mercury", "Vercel", "Retool"):
+        db.execute("INSERT OR REPLACE INTO sponsors VALUES (?,?,?,?,?)", (name.lower(), name, "Jobright: H-1B sponsor", "jobright", db.now()))
     from app.config import companies
     for c in companies():
         db.execute("INSERT OR REPLACE INTO source_status VALUES (?,?,?,?,?,?,?,?)",

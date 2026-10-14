@@ -40,6 +40,7 @@
     </div>
   </div>
 </div>
+<script>window.L_DISABLE_3D = true;   // 2D tile positioning: no hairline seams between tiles on Retina screens</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 (() => {
@@ -47,20 +48,21 @@
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const dark = () => { const t = document.documentElement.getAttribute("data-theme");
     return t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches); };
+  const tile = kind => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${dark() ? "Dark" : "Light"}_Gray_${kind}/MapServer/tile/{z}/{y}/{x}`;
   const jobUrl = id => "{{ url_for('job_detail', job_id='__ID__') }}".replace("__ID__", encodeURIComponent(id)).replace(/%3A/g, ":");
   const color = s => s === "ready" ? css("--accent") : s === "closed" ? css("--critical") : (s === "interviewing" || s === "offer") ? css("--accent") : css("--good");
 
   function makeMap(id) {
     const m = L.map(id, { scrollWheelZoom: false, worldCopyJump: true, attributionControl: true }).setView([39.5, -98.35], 4);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(m);
+    m._base = L.tileLayer(tile("Base"), { maxZoom: 16, attribution: "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors" }).addTo(m);
+    m.createPane("labels"); m.getPane("labels").style.zIndex = 350; m.getPane("labels").style.pointerEvents = "none";
+    m._labels = L.tileLayer(tile("Reference"), { maxZoom: 16, pane: "labels" }).addTo(m);   // place names under the pins
     m._layer = L.layerGroup().addTo(m);
     return m;
   }
   const maps = { ready: makeMap("map-ready"), applied: makeMap("map-applied") };
-  // Dark theme: the same tiles, darkened with a CSS filter (see .jmap.dark-tiles in style.css)
-  const shade = () => document.querySelectorAll(".jmap").forEach(e => e.classList.toggle("dark-tiles", dark()));
-  shade();
+  // Esri's gray canvas maps (no key): a dark and a light version, swapped with the theme.
+  const shade = () => Object.values(maps).forEach(m => { m._base.setUrl(tile("Base")); m._labels.setUrl(tile("Reference")); });
   new MutationObserver(shade).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", shade);
 

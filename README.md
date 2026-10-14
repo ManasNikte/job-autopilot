@@ -24,8 +24,12 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
   are checked first, and full descriptions are fetched only for new matches, so a full sweep of about 160K
   postings takes about 4 minutes. Jobright and SimplifyJobs feeds and Hacker News "Who is hiring?" posts
   are included too. Duplicates across boards are collapsed.
-- **H-1B signal for every company.** From your USCIS H-1B Employer Data Hub import, plus sponsors the app
-  learns from Jobright, Simplify, HN, and Claude's own screens.
+- **H-1B signal for every company.** First from your USCIS H-1B Employer Data Hub import (tens of thousands
+  of employers, with names matched even when they're spelled differently). Then from sponsors the app learns
+  from Jobright, Simplify, HN, and Claude's own screens. For anything still unknown, Claude runs a **short web
+  lookup** on public H-1B disclosure data, once per company, cached for 90 days and capped per run.
+  Employers that say they don't sponsor are filtered out. Wording like "unable to offer visa sponsorship"
+  counts as a refusal, never as a signal.
 - **Rule prefilter before any LLM call.** Drops stale postings, senior titles, roles outside the US,
   4+ years asked, explicit "no sponsorship / citizens only / clearance" wording, and **listed pay below
   your floor** (default $100K a year; ranges are parsed from ATS fields or the description, and hourly pay
@@ -46,9 +50,14 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
   one-click "Text them" link.
 - **Runs while you sleep.** macOS launchd agents run the pipeline at the times you choose. An optional
   root helper schedules `pmset` wake-ups so runs happen even when the lid is closed. If Claude's usage
-  limit is hit, work pauses and resumes at the reset time.
-- **Dashboard.** KPIs, a 14-day applications chart, a pipeline funnel, live per-job progress bars,
-  server-side pagination and search everywhere, and dark, light, and system themes.
+  limit is hit, work pauses and resumes at the reset time, or right away with **Resume now** if you reset
+  your limit early.
+- **Dashboard.** KPIs (including **applied today**), **maps of where you're applying**, a 14-day
+  applications chart, a pipeline funnel, live per-job progress bars with an honest "not started / running /
+  paused" status, server-side pagination and search everywhere, and dark, light, and system themes.
+- **Application maps.** One map pins every job ready to submit. A second map pins submitted applications,
+  with **Applied today / All time** toggles and a **Show rejected** filter. Locations are geocoded once
+  through OpenStreetMap and cached; clicking a pin lists its jobs.
 
 ## How it works
 
@@ -70,9 +79,14 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
 | Documents | reportlab (direct PDF, justified text, live links), pypdf for verification |
 | Browser | Chrome extension (MV3, shadow-DOM side panel), Playwright for the optional in-app autofill and tests |
 | Scheduling | macOS launchd (user agents plus a root LaunchDaemon for `pmset` wake) |
-| Tests | pytest (45 tests, including Chromium-driven form-fill tests) |
+| Maps | Leaflet with Esri gray canvas tiles (light and dark), OpenStreetMap Nominatim geocoding (cached) |
+| Tests | pytest (50 tests, including Chromium-driven form-fill tests) |
 
 ## Screenshots
+
+**Maps**: jobs ready to submit, and submitted applications (here: all time, rejected shown in red).
+
+![Application maps](docs/screenshots/maps.png)
 
 **Needs you**: the only page you have to work through. Referral asks come first, then risky-fit
 decisions, facts only you know, and applications ready to submit.
@@ -92,9 +106,13 @@ for this role.
 |---|---|
 | ![Resume sample](docs/screenshots/resume-sample.png) | ![People](docs/screenshots/people.png) |
 
-| Background runs and schedule | Settings |
+| Background runs and schedule | Settings (schedule, lid-closed wake, pay floor, sponsor lookups) |
 |---|---|
 | ![Background](docs/screenshots/background.png) | ![Settings](docs/screenshots/settings.png) |
+
+| Sources (feeds, ~4,000-board directory, USCIS import) | Outreach notes |
+|---|---|
+| ![Sources](docs/screenshots/sources.png) | ![Outreach](docs/screenshots/outreach.png) |
 
 | Profile and master-prompt editor | Light theme |
 |---|---|
@@ -188,7 +206,7 @@ Change the run times on the **Settings** page. The launchd agents and wake-ups f
 
 | Where | What |
 |---|---|
-| **Settings** page / `config/settings.json` | Match threshold for building documents, minimum pay, screening unknown-sponsor jobs, per-run caps, parallelism, effort levels, posting age |
+| **Settings** page / `config/settings.json` | Run times, match threshold for building documents, minimum pay, online sponsor lookups per run, screening unknown-sponsor jobs, per-run caps, parallelism, effort levels, posting age |
 | `config/companies.json` | Your curated company boards (`greenhouse`, `lever`, or `ashby` plus slug) |
 | `config/search.json` | Role families, title exclusions, visa-blocker phrases, location rules |
 | `config/feeds.json` | Aggregator feeds, the board directory's source lists, and the "require an H-1B signal" switch |
@@ -206,7 +224,8 @@ queued only for known sponsors, so this data covers most companies.
   final click.
 - **LinkedIn invites and messages.** LinkedIn's User Agreement prohibits automation, and accounts that
   automate get restricted. The app drafts the notes and opens the people search. You send them.
-- **No scraping of logged-in sites.** Jobs come from public APIs and public feeds only.
+- **No scraping of logged-in or bot-protected sites** (LinkedIn, Indeed, Handshake). Jobs come from public
+  APIs and public feeds only, and the H-1B data comes from your own USCIS download plus public web search.
 
 ## Project layout
 
@@ -215,6 +234,8 @@ app/
   sources/      job-board and feed fetchers (Greenhouse, Lever, Ashby, Workday, SmartRecruiters, feeds,
                 board directory)
   salary.py     pay-range parsing and the minimum-pay filter
+  h1b.py        USCIS import, learned sponsors, cached online sponsor lookup
+  geo.py        location → place splitting and cached geocoding for the maps
   prefilter.py  rule gate before any Claude call
   llm.py        Claude via Claude Code CLI or the Anthropic API; structured JSON; usage-limit pause
   pipeline.py   fetch → screen → tailor → render → check → revise → queue human steps
@@ -240,5 +261,6 @@ python -m pytest
 ## Privacy
 
 The database, generated documents, logs, and your profile live in `data/` and `profile/`. Both are
-gitignored. Claude receives your master prompt and the job description. The browser extension talks only
-to your local server.
+gitignored. Claude receives your master prompt and the job description; sponsor lookups send only a company
+name. The map geocoder sends only place names such as "Austin, TX". The browser extension talks only to your
+local server.
