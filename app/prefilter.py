@@ -30,6 +30,15 @@ US_CITIES = {
 }
 
 
+# "unable to offer visa sponsorship", "not offering visa sponsorship", "will not provide H-1B sponsorship",
+# "does not participate in the H-1B lottery": wording the fixed phrase list kept missing.
+VISA_NEGATION = re.compile(
+    r"\b(not|unable\s+to|cannot|can't|can\s+not|won't|will\s+not|do\s+not|does\s+not|no\s+longer)\s+(be\s+)?"
+    r"(offer|offering|provide|providing|support|supporting|sponsor|sponsoring|consider)\w*\s+(any\s+|future\s+|employment\s+|work\s+)?"
+    r"(visa|h-?1b|immigration)?\s*(visa\s+)?sponsorship|"
+    r"\bnot\s+participate\s+in\s+the\s+h-?1b|\bauthorized\s+to\s+work\s+in\s+the\s+united\s+states\s+on\s+a\s+permanent\s+basis", re.I)
+
+
 def _has_word(text: str, term: str) -> bool:
     """Case-insensitive whole-word/phrase match ('intern' does not hit 'internal', 'itar' not 'military')."""
     return re.search(rf"(?<![a-z0-9]){re.escape(term.strip().lower())}(?![a-z0-9])", text.lower()) is not None
@@ -103,6 +112,10 @@ def check(job: dict, cfg: dict, posted_within_hours: int, now: datetime | None =
             i = desc.lower().find(phrase.strip().lower())
             snippet = desc[max(0, i - 80): i + 100].replace("\n", " ") if i >= 0 else phrase
             return False, f"visa/clearance blocker: …{snippet}…", fam, notes
+
+    m = VISA_NEGATION.search(desc)
+    if m:
+        return False, f"visa/clearance blocker: …{desc[max(0, m.start() - 60): m.end() + 60].replace(chr(10), ' ')}…", fam, notes
 
     for phrase in cfg.get("visa_soft_signals", []):
         if _has_word(desc, phrase):

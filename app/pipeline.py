@@ -38,7 +38,7 @@ def fetch_all(log: Log = _print) -> dict:
     only for the survivors (directory boards list titles first), then pay floor and H-1B signal."""
     from .h1b import seed_from_jobs
     from .sources import directory
-    from .sources.feeds import VISA_NO, VISA_YES
+    from .sources.feeds import SPONSOR_OFFERED
 
     cfg = search_config()
     within = env_int("POSTED_WITHIN_HOURS", 24)
@@ -74,8 +74,8 @@ def fetch_all(log: Log = _print) -> dict:
         if c.get("directory"):
             sig = h1b_lookup(j["company"])
             desc = j.get("description") or ""
-            if not sig and VISA_YES.search(desc) and not VISA_NO.search(desc):
-                sig = "JD mentions visa / H-1B sponsorship"
+            if not sig and ok and SPONSOR_OFFERED.search(desc):
+                sig = "JD says sponsorship is available"
             j.update(source="directory", h1b_level="strong" if sig else "unknown", h1b_signal=sig or "", h1b_note="")
             if ok and not sig and require:
                 ok, reason = False, "no H-1B sponsorship signal (screen it anyway if you know they sponsor)"

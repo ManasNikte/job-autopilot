@@ -35,3 +35,23 @@ def test_pay_floor_only_blocks_listed_low_pay():
 ])
 def test_board_from_url(url, expected):
     assert board_from_url(url) == expected
+
+
+@pytest.mark.parametrize("text", [
+    "Uline does not participate in the H-1B lottery",
+    "We are unable to offer visa sponsorship at this time.",
+    "Vanguard is not offering visa sponsorship for this position.",
+    "Applicants must be authorized to work in the United States on a permanent basis.",
+])
+def test_sponsorship_refusals_are_blockers(text):
+    from app import prefilter
+    from app.config import search_config
+    job = {"title": "Software Engineer", "location": "Austin, TX", "posted_at": None, "description": text}
+    ok, reason, *_ = prefilter.check(job, search_config(), 0)
+    assert not ok and "blocker" in reason
+
+
+def test_only_offered_sponsorship_counts_as_a_signal():
+    from app.sources.feeds import SPONSOR_OFFERED
+    assert SPONSOR_OFFERED.search("Visa sponsorship is available for this role")
+    assert not SPONSOR_OFFERED.search("We are unable to offer visa sponsorship")

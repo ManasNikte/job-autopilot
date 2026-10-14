@@ -22,6 +22,11 @@ BROWSER_HEADERS = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7
 VISA_YES = re.compile(r"\bvisa\b|h-?1b|sponsor(ship)?\b|\bopt\b|stem opt", re.I)
 VISA_NO = re.compile(r"no visa|not (able to )?sponsor|can(no|')t sponsor|unable to sponsor|no sponsorship|without sponsorship|"
                      r"us citizens? only|u\.s\. citizens? only|citizenship required|no h-?1b", re.I)
+# A JD that *offers* sponsorship (a bare mention of "visa" is often the opposite: "unable to offer visa sponsorship").
+SPONSOR_OFFERED = re.compile(
+    r"(visa|h-?1b|immigration)\s+sponsorship\s+(is\s+|will\s+be\s+)?(available|provided|offered|supported)|"
+    r"\b(we|will|can|able to|happy to|open to|willing to)\s+(sponsor|provide\s+(visa|h-?1b|immigration)\s+sponsorship)\b|"
+    r"\bsponsorship\s+(is\s+)?available\b|\bwe\s+(do\s+)?sponsor\s+(visas|h-?1b)", re.I)
 STARTUP_STAGES = re.compile(r"seed|series [a-d]\b|pre-seed|angel|early stage", re.I)
 
 
