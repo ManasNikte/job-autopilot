@@ -97,13 +97,13 @@ applied to within hours of going live, while applicant counts are still low.
 ## 4. Architecture
 
 ```
-            ┌────────────────────────────────── launchd (8:00 / 15:00) + pmset wake, lid closed ─┐
-            ▼                                                                                     │
-  Sources (public APIs)          Prefilter (no LLM)      Sponsor check            Claude          │
-  Greenhouse · Lever · Ashby ──▶ age · title · US ──▶  USCIS 42,984 ──▶   screen (verdict, ──┐   │
-  Workday · SmartRecruiters      years · visa words    learned sponsors      score, gates)   │   │
-  Jobright · Simplify · HN       pay floor ($100K)     web lookup (cached)                    ▼   │
-                                                                         tailor JSON ─▶ PDF ─▶ checks
+            ┌────────────────────────────────── launchd (8:00 / 15:00) + pmset wake, lid closed ────┐
+            ▼                                                                                       │
+  Sources (public APIs)          Prefilter (no LLM)      Sponsor check            Claude            │
+  Greenhouse · Lever · Ashby ──▶ age · title · US ──▶  USCIS 42,984 ──▶   screen (verdict, ──┐      │
+  Workday · SmartRecruiters      years · visa words    learned sponsors      score, gates)   │      │
+  Jobright · Simplify · HN       pay floor ($100K)     web lookup (cached)                   ▼      │
+                                                                            tailor JSON ─▶  PDF ─▶ checks
                                                                                 ▲       (reportlab) │
                                                                                 └── patch revisions ┘
                                                                                          │
