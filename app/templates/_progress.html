@@ -21,7 +21,19 @@
     pz.textContent = d.paused_until ? `Paused: your Claude usage limit was reached. Work resumes automatically at ${d.paused_until}; nothing is lost.` : "";
     const box = document.getElementById("bg-active");
     box.replaceChildren();
-    if (!d.active.length) box.appendChild(el("p", "muted", d.queued_total ? "Waiting for a free worker…" : "Nothing running. Click Run now to fetch and process new jobs."));
+    if (!d.active.length) {
+      const docs = d.queued.filter(q => q.status === "to_tailor").length;
+      if (!d.queued_total) box.appendChild(el("p", "muted", "Nothing running. Click Run now to fetch and process new jobs."));
+      else if (d.run || docs) box.appendChild(el("p", "muted", "Starting the next job…"));
+      else {
+        // Screening only happens inside a run, so jobs waiting for a screen sit here until one starts.
+        const line = el("div", "row");
+        line.appendChild(el("span", "muted", `Not started: ${d.queued_total} job(s) are waiting for Claude to screen them. The next run picks them up (up to ${d.screen_cap} per run), or start now.`));
+        const f = el("form"); f.method = "post"; f.action = "{{ url_for('run_now') }}"; f.className = "inline";
+        const b = el("button", "btn small primary", "Screen them now"); b.name = "kind"; b.value = "process";
+        f.appendChild(b); line.appendChild(f); box.appendChild(line);
+      }
+    }
     for (const a of d.active) {
       const row = el("div", "prog-row");
       const head = el("div", "spread");
@@ -44,7 +56,7 @@
     document.getElementById("bg-queue-title").textContent = d.queued_total + " waiting in the queue";
     document.getElementById("bg-summary").textContent =
       d.active.length + " running, " + d.queued_total + " queued · " + d.lanes + " at a time · about " + fmt(d.avg_doc_secs) + " per document" +
-      (d.active.length || d.queued_total ? " · all done in ~" + fmt(d.eta_secs) : "");
+      (d.active.length || d.run ? " · all done in ~" + fmt(d.eta_secs) : "");
   }
   refresh(); setInterval(refresh, 3000);
 })();

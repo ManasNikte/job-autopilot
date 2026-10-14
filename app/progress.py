@@ -123,5 +123,5 @@ def snapshot() -> dict:
         run["elapsed"] = int(now - run.get("started", now))
         run["pct"] = int(100 * run["done"] / run["total"]) if run.get("total") else None
     return {"active": active, "queued": queued[:50], "queued_total": len(queued), "eta_secs": eta, "run": run, "last_run": last,
-            "avg_doc_secs": int(per_doc), "lanes": lanes,
+            "avg_doc_secs": int(per_doc), "lanes": lanes, "screen_cap": env_int("MAX_SCREEN_PER_RUN", 60),
             "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
