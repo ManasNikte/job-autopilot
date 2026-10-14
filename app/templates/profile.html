@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Profile · Job Autopilot{% endblock %}
+{% block content %}
+<div class="spread">
+  <h1>Profile &amp; prompt</h1>
+  <span class="sub" id="save-state">Last saved {{ modified }}</span>
+</div>
+
+<div class="row" style="margin-bottom:12px">
+  {% for key, (label, path, help) in files.items() %}
+  <a class="btn {{ 'primary' if key == name }}" href="{{ url_for('profile_page', f=key) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <div class="spread">
+    <div>
+      <b>{{ files[name][0] }}</b> <span class="muted">· {{ files[name][1] }}</span>
+      <div class="sub" style="font-size:13px">{{ files[name][2] }}</div>
+    </div>
+    <div class="row">
+      <input type="search" id="find" placeholder="Find in text (Enter)" style="width:220px">
+      <button class="btn primary" id="save-btn" type="button">Save</button>
+    </div>
+  </div>
+  {% if restoring %}<div class="flash" style="margin-top:10px">Showing an earlier version. Click <b>Save</b> to restore it (the current text is kept in history).</div>{% endif %}
+  <textarea id="editor" spellcheck="false">{{ text }}</textarea>
+  <div class="spread" style="margin-top:6px">
+    <span class="muted" style="font-size:12px" id="counts"></span>
+    <span class="muted" style="font-size:12px">Saves a backup of the previous version every time · ⌘S to save</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Earlier versions</h2>
+  {% if versions %}
+  <table><tr><th>Saved</th><th class="num">Size</th><th></th></tr>
+  {% for v in versions %}<tr><td>{{ v.label }}</td><td class="num sub">{{ '{:,}'.format(v.size) }} bytes</td>
+    <td><a class="btn small" href="{{ url_for('profile_page', f=name, version=v.file) }}">Open</a></td></tr>{% endfor %}
+  </table>
+  {% else %}<p class="muted">No earlier versions yet. One is kept automatically each time you save.</p>{% endif %}
+</div>
+
+<style>
+  #editor { width: 100%; min-height: 65vh; margin-top: 12px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+            padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); tab-size: 2; }
+</style>
+<script>
+(() => {
+  const ed = document.getElementById("editor"), state = document.getElementById("save-state"), counts = document.getElementById("counts");
+  let saved = ed.value;
+  const update = () => {
+    counts.textContent = `${ed.value.length.toLocaleString()} characters · ${ed.value.split("\n").length.toLocaleString()} lines`;
+    if (ed.value !== saved) state.textContent = "Unsaved changes";
+  };
+  ed.addEventListener("input", update); update();
+  async function save() {
+    state.textContent = "Saving…";
+    const r = await fetch("{{ url_for('profile_save') }}", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "{{ name }}", text: ed.value }) });
+    const d = await r.json();
+    if (d.ok) { saved = ed.value; state.textContent = `Saved at ${d.saved}. The next screen or document uses it.`; }
+    else { state.textContent = "Not saved: " + d.error; alert(d.error); }
+  }
+  document.getElementById("save-btn").onclick = save;
+  document.addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save(); } });
+  window.addEventListener("beforeunload", (e) => { if (ed.value !== saved) { e.preventDefault(); e.returnValue = ""; } });
+  const find = document.getElementById("find"); let from = 0;
+  find.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || !find.value) return;
+    e.preventDefault();
+    const hay = ed.value.toLowerCase(), q = find.value.toLowerCase();
+    let i = hay.indexOf(q, from); if (i < 0) i = hay.indexOf(q);
+    if (i < 0) { find.style.outline = "2px solid #d03b3b"; return; }
+    find.style.outline = ""; from = i + q.length;
+    ed.focus(); ed.setSelectionRange(i, i + q.length);
+    const line = ed.value.slice(0, i).split("\n").length;          // scroll the match into view
+    ed.scrollTop = Math.max(0, (line - 5) * 19.5);
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  // Apply the saved theme before the page paints (no white flash). Dark is the default.
+  (function () { var t = "dark"; try { t = localStorage.getItem("theme") || "dark"; } catch (e) {}
+    document.documentElement.setAttribute("data-theme", t); })();
+</script>
+<meta name="color-scheme" content="dark light">
+<title>{% block title %}Job Autopilot{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="top">
+  {% set ep = request.endpoint %}
+  <a class="brand" href="{{ url_for('dashboard') }}"><span class="logo">A</span>Job Autopilot</a>
+  <nav class="primary">
+    <a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep=='dashboard' }}">Dashboard</a>
+    <a href="{{ url_for('inbox') }}" class="{{ 'on' if ep=='inbox' }}">Needs you{% if open_interventions %}<span class="pill">{{ open_interventions }}</span>{% endif %}</a>
+    <a href="{{ url_for('jobs') }}" class="{{ 'on' if ep in ('jobs','job_detail') and request.args.get('status') != 'applied_all' }}">Jobs</a>
+    <a href="{{ url_for('jobs', status='applied_all') }}" class="{{ 'on' if ep=='jobs' and request.args.get('status') == 'applied_all' }}">Applied</a>
+    <a href="{{ url_for('outreach') }}" class="{{ 'on' if ep=='outreach' }}">Outreach</a>
+    <a href="{{ url_for('people') }}" class="{{ 'on' if ep in ('people','person_form') }}">People</a>
+    <a href="{{ url_for('background') }}" class="{{ 'on' if ep=='background' }}">Background<span id="bg-dot" class="dot" hidden></span></a>
+  </nav>
+  <form class="global-search" action="{{ url_for('jobs') }}" method="get" role="search">
+    <input type="search" name="q" id="global-q" placeholder="Search jobs  ( / )" value="{{ request.args.get('q', '') if ep == 'jobs' else '' }}" aria-label="Search jobs">
+  </form>
+  <div class="right">
+    <span id="worker-state" class="sub">{% if worker.active %}Working on {{ worker.active|length }} job(s){% else %}Idle{% endif %}</span>
+    <form class="inline" method="post" action="{{ url_for('run_now') }}"><button class="btn primary small" type="submit">Run now</button></form>
+    <button type="button" class="btn small theme-toggle" id="theme-toggle" aria-label="Theme" title="Theme"></button>
+    <nav class="secondary">
+      <a href="{{ url_for('sources_page') }}" class="{{ 'on' if ep=='sources_page' }}" title="Job sources">Sources</a>
+      <a href="{{ url_for('profile_page') }}" class="{{ 'on' if ep=='profile_page' }}" title="Your profile and prompt">Profile</a>
+      <a href="{{ url_for('settings_page') }}" class="{{ 'on' if ep=='settings_page' }}" title="Schedule and pipeline settings">Settings</a>
+    </nav>
+  </div>
+</header>
+<main>
+  {% with msgs = get_flashed_messages() %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<script>
+  // Keep the header status fresh while the background worker runs.
+  async function poll() {
+    try {
+      const r = await fetch("{{ url_for('activity') }}"); const d = await r.json();
+      const el = document.getElementById("worker-state");
+      const n = Object.keys(d.state.active || {}).length;
+      el.textContent = n ? "Working on " + n + " job" + (n > 1 ? "s" : "") + (d.state.queued ? ", " + d.state.queued + " queued" : "") : (d.state.queued ? d.state.queued + " queued" : "Idle");
+      const dot = document.getElementById("bg-dot");
+      if (dot) dot.hidden = !(n || d.state.queued);
+      const log = document.getElementById("activity-log");
+      if (log) { log.textContent = d.log.join("\n") || "No activity yet."; log.scrollTop = log.scrollHeight; }
+    } catch (e) {}
+  }
+  setInterval(poll, 4000); poll();
+  // Theme toggle: Dark -> Light -> System (follows macOS)
+  (() => {
+    const order = ["dark", "light", "system"], icon = { dark: "☾", light: "☀", system: "◐" },
+          label = { dark: "Dark theme", light: "Light theme", system: "Theme follows your Mac" };
+    const btn = document.getElementById("theme-toggle");
+    const show = (t) => { btn.textContent = icon[t]; btn.title = label[t] + " (click to change)"; };
+    let cur = document.documentElement.getAttribute("data-theme") || "dark";
+    show(cur);
+    btn.addEventListener("click", () => {
+      cur = order[(order.indexOf(cur) + 1) % order.length];
+      document.documentElement.setAttribute("data-theme", cur);
+      try { localStorage.setItem("theme", cur); } catch (e) {}
+      show(cur);
+    });
+  })();
+  // "/" jumps to the job search (unless you're typing somewhere)
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) {
+      e.preventDefault(); const g = document.getElementById("global-q"); g.focus(); g.select();
+    }
+  });
+  // Instant filter for any list marked data-filter-for (client-side search on smaller pages)
+  document.querySelectorAll("input[data-filter-for]").forEach((inp) => {
+    const rows = () => document.querySelectorAll(inp.dataset.filterFor);
+    const empty = document.getElementById(inp.dataset.emptyId || "");
+    inp.addEventListener("input", () => {
+      const q = inp.value.trim().toLowerCase(); let shown = 0;
+      rows().forEach((r) => { const hit = !q || r.textContent.toLowerCase().includes(q); r.hidden = !hit; shown += hit; });
+      if (empty) empty.hidden = shown > 0;
+    });
+  });
+  function copyText(id, btn) {
+    const el = document.getElementById(id); navigator.clipboard.writeText(el.value || el.textContent);
+    const t = btn.textContent; btn.textContent = "Copied"; setTimeout(() => btn.textContent = t, 1200);
+  }
+</script>
+</body>
+</html>

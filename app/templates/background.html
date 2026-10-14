@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "_pager.html" import pager %}
+{% block title %}Background · Job Autopilot{% endblock %}
+{% block content %}
+<div class="spread">
+  <h1>Background</h1>
+  <form class="row" method="post" action="{{ url_for('run_now') }}">
+    <button class="btn primary" name="kind" value="run">Run now</button>
+    <button class="btn" name="kind" value="process">Process queue only</button>
+  </form>
+</div>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Current run</h2>
+    <div id="run-box"><p class="muted">Loading…</p></div>
+  </div>
+  <div class="card">
+    <h2>Daily schedule</h2>
+    {% if schedule.installed %}
+      <div class="kv">
+        <div>Runs</div><div>Every day at {{ schedule.times|join(' and ') }} (Eastern)</div>
+        <div>Next run</div><div><b>{{ schedule.next or '—' }}</b></div>
+        <div>Lid closed</div><div>
+          {% if schedule.wake %}<span class="badge apply">Wakes the Mac</span> next wake {{ schedule.wake_next }}
+          {% else %}<span class="badge risk">Not set up</span> runs when the Mac is awake (or right after it wakes){% endif %}
+        </div>
+      </div>
+      {% if not schedule.wake %}
+      <p class="sub" style="margin-bottom:0">To run with the lid closed, run this once in Terminal (it asks for your Mac password):</p>
+      <pre class="log" style="margin-top:6px">sudo ~/job-autopilot/scripts/install_wake.sh</pre>
+      {% endif %}
+    {% else %}
+      <p class="sub">No schedule installed. Run <code>~/job-autopilot/scripts/install_schedule.sh</code>.</p>
+    {% endif %}
+    <p style="margin:8px 0 0"><a class="btn small" href="{{ url_for('settings_page') }}">Change run times</a></p>
+    {% if sched_log %}<details style="margin-top:8px"><summary>Scheduled run log</summary><pre class="log">{{ sched_log }}</pre></details>{% endif %}
+  </div>
+</div>
+
+{% include "_progress.html" %}
+
+<div class="grid g2">
+  <div class="card" id="recent-runs">
+    <h2>Recent runs</h2>
+    <table>
+      <tr><th>Started</th><th>Trigger</th><th>Status</th><th class="num">Fetched</th><th class="num">New</th><th class="num">Screened</th><th class="num">Docs</th><th>Took</th></tr>
+      {% for r in runs %}
+      <tr>
+        <td class="sub">{{ r.started_at|local }}</td>
+        <td>{{ {'schedule': 'Scheduled', 'manual': 'You'}.get(r.source or 'manual', r.source) }}</td>
+        <td><span class="badge {{ 'apply' if r.status == 'done' else 'no' if r.status == 'failed' else 'risk' if r.status in ('paused', 'interrupted') else '' }}" title="{{ r.summary.error or '' }}">{{ r.status }}</span>
+          {% if r.summary.error %}<div class="small muted">{{ r.summary.error|truncate(40) }}</div>{% endif %}</td>
+        <td class="num">{{ r.summary.fetched if r.summary.fetched is not none else '—' }}</td>
+        <td class="num">{{ r.summary.new or '—' }}</td>
+        <td class="num">{{ r.summary.screened if r.summary.screened is not none else '—' }}</td>
+        <td class="num">{{ r.summary.docs if r.summary.docs is not none else '—' }}</td>
+        <td class="sub">{{ r.duration or ('running' if r.status == 'running' else '—') }}</td>
+      </tr>
+      {% else %}<tr><td colspan="8" class="muted">No runs yet.</td></tr>{% endfor %}
+    </table>
+    {{ pager(runs_page, "runs") }}
+  </div>
+  <div class="card">
+    <h2>Activity log</h2>
+    <pre class="log" id="activity-log" style="max-height:420px">Loading…</pre>
+  </div>
+</div>
+
+<script>
+(() => {
+  const fmt = s => s < 60 ? s + "s" : Math.floor(s / 60) + "m " + String(s % 60).padStart(2, "0") + "s";
+  const PHASES = [["fetch", "Company boards"], ["feeds", "Job feeds"], ["screen", "Claude screening"], ["docs", "Documents"]];
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  async function tick() {
+    let d; try { d = await (await fetch("{{ url_for('progress_json') }}")).json(); } catch (e) { return; }
+    const box = document.getElementById("run-box");
+    box.replaceChildren();
+    const r = d.run;
+    if (!r) {
+      const docs = d.active.filter(a => a.kind === "tailor").length + d.queued.filter(q => q.status === "to_tailor").length;
+      box.appendChild(el("p", "muted", docs ? `No fetch or screening running. ${docs} document job(s) in progress below.` : "Idle. The next scheduled run will appear here, or click Run now."));
+      const lr = d.last_run;
+      if (lr) {
+        const when = new Date(lr.finished_at || lr.started_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+        const ok = lr.status === "done";
+        const line = el("div", "flash");
+        line.style.marginTop = "6px";
+        if (!ok) { line.style.background = "var(--bad-bg)"; line.style.borderColor = "var(--critical)"; }
+        line.textContent = `Last run ${when} (${lr.source === "schedule" ? "scheduled" : "started by you"}): ` + (ok
+          ? `done · ${lr.fetched ?? 0} postings checked, ${lr.new || 0} new, ${lr.screened ?? 0} screened, ${lr.docs ?? 0} queued for documents.`
+          : `failed · ${lr.error || lr.status}.`);
+        box.appendChild(line);
+      }
+      return;
+    }
+    const head = el("div", "spread");
+    head.append(el("b", null, r.source === "schedule" ? "Scheduled run" : "Run you started"), el("span", "sub", fmt(r.elapsed) + " elapsed"));
+    box.appendChild(head);
+    // Phase stepper: done / current / upcoming
+    const steps = el("div", "row"); steps.style.margin = "10px 0";
+    const order = PHASES.map(p => p[0]); const cur = order.indexOf(r.phase);
+    PHASES.forEach(([key, name], i) => {
+      const b = el("span", "badge " + (i < cur ? "apply" : i === cur ? "risk" : ""), (i < cur ? "✓ " : "") + name);
+      steps.appendChild(b);
+    });
+    box.appendChild(steps);
+    box.appendChild(el("div", null, r.label));
+    if (r.total) {
+      const pct = Math.min(100, Math.round(100 * r.done / r.total));
+      const tr = el("div", "prog-track"), fi = el("div", "prog-fill"); fi.style.width = pct + "%"; tr.appendChild(fi);
+      box.appendChild(tr);
+      box.appendChild(el("div", "sub prog-stage", `${r.done} of ${r.total} · ${pct}%`));
+    }
+  }
+  tick(); setInterval(tick, 2500);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,7 @@
+{
+  "_comment": "Daily run times (24-hour, local Eastern time). Edit on the dashboard's Settings page; the launchd agent and the lid-closed wake-ups follow this file.",
+  "times": [
+    "08:00",
+    "15:00"
+  ]
+}

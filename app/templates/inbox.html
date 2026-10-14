@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Needs you</h1>
+<p class="sub">Everything the autopilot could not decide or do on its own. Answer once and it is remembered.</p>
+<div class="searchbar"><input type="search" placeholder="Filter by company, role, or question" data-filter-for=".iv" data-empty-id="iv-empty" aria-label="Filter items"></div>
+<p id="iv-empty" class="muted" hidden>Nothing matches that filter.</p>
+{% include "_progress.html" %}
+{% set titles = {
+  'referral': 'Ask for a referral first', 'error': 'Something broke', 'decision': 'Your call: apply with risk?', 'missing_info': 'Facts only you know',
+  'quality': 'Document quality warnings', 'review': 'Gaps to know before you submit', 'submit': 'Ready for you to submit',
+  'outreach': 'LinkedIn follow-ups due' } %}
+{% for kind, items in groups.items() %}
+<div class="card">
+  <h2>{{ titles.get(kind, kind) }} <span class="muted">({{ items|length }})</span></h2>
+  {% for i in items %}
+  <div class="iv {{ kind }} {{ 'more' if loop.index > 8 }}" {{ 'hidden' if loop.index > 8 }}>
+    <div class="spread">
+      <b>{{ i.title }}</b>
+      {% if i.job_id %}<a href="{{ url_for('job_detail', job_id=i.job_id) }}">Open job →</a>{% endif %}
+    </div>
+    {% if i.job_id and i.company %}<div class="sub" style="font-size:12px">{{ i.company }} · {{ i.job_title }}{% if i.match_score is not none %} · match {{ i.match_score }}/10{% endif %}</div>{% endif %}
+    {% if i.detail %}<div class="detail">{{ i.detail }}</div>{% endif %}
+    {% if kind == 'referral' and i.ask %}
+    <div class="copybox"><textarea id="ivref{{ i.id }}" readonly rows="4">{{ i.ask.message }}</textarea><button class="btn small" type="button" onclick="copyText('ivref{{ i.id }}', this)">Copy</button></div>
+    <div class="row" style="margin-top:6px">
+      {% if i.ask.phone %}<a class="btn small primary" href="{{ i.ask.phone|smslink(i.ask.message) }}">Text {{ i.ask.name.split()[0] }}</a>{% endif %}
+      {% if i.ask.linkedin %}<a class="btn small" href="{{ i.ask.linkedin }}" target="_blank" rel="noopener">LinkedIn ↗</a>{% endif %}
+      <form class="inline" method="post" action="{{ url_for('referral_action', rid=i.ask.id) }}">
+        <button class="btn small" name="status" value="asked">I asked</button>
+        <button class="btn small" name="status" value="referred">They referred me</button>
+        <button class="btn small" name="status" value="skipped">Skip</button>
+      </form>
+    </div>
+    {% elif kind == 'missing_info' %}
+    <form method="post" action="{{ url_for('inbox_action', iid=i.id) }}" class="row">
+      <input type="text" name="answer" placeholder="Your answer (saved to profile/answers.md)" style="flex:1; min-width:280px">
+      <label class="sub"><input type="checkbox" name="rebuild" value="1"> rebuild that job's documents</label>
+      <button class="btn primary small" name="action" value="answer">Save</button>
+      <button class="btn small" name="action" value="dismiss">Dismiss</button>
+    </form>
+    {% elif kind == 'decision' %}
+    <div class="row">
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=i.job_id) }}"><button class="btn primary small" name="action" value="approve">Build documents</button></form>
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=i.job_id) }}"><button class="btn small" name="action" value="skip" onclick="return confirm('Skip this job? It will be marked Don\'t apply and any documents will be deleted.')">Skip job</button></form>
+    </div>
+    {% elif kind == 'submit' %}
+    <div class="row"><a class="btn primary small" href="{{ url_for('job_detail', job_id=i.job_id) }}">Review &amp; submit</a></div>
+    {% else %}
+    <form method="post" action="{{ url_for('inbox_action', iid=i.id) }}" class="row"><button class="btn small" name="action" value="resolve">Done</button><button class="btn small" name="action" value="dismiss">Dismiss</button></form>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if items|length > 8 %}<button type="button" class="btn small" onclick="this.parentNode.querySelectorAll('.iv.more').forEach(e => e.hidden = false); this.remove()">Show all {{ items|length }}</button>{% endif %}
+</div>
+{% else %}
+<div class="card"><p class="muted">Nothing needs you right now.</p></div>
+{% endfor %}
+{% endblock %}

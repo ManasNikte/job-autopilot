@@ -1,0 +1,51 @@
+<div class="card" id="bg-work">
+  <div class="spread">
+    <h2 style="margin:0">Background work</h2>
+    <span class="sub" id="bg-summary">Loading…</span>
+  </div>
+  <div id="bg-paused" class="flash" style="display:none;margin:10px 0 0"></div>
+  <div id="bg-active" style="margin-top:10px"></div>
+  <details id="bg-queue-wrap" style="display:none"><summary id="bg-queue-title"></summary><ol id="bg-queue" class="tight" style="margin-top:6px"></ol></details>
+  <p class="muted" style="font-size:12px;margin:8px 0 0">Claude doesn't report partial progress, so each bar advances by elapsed time against the median of recent real runs of that step, and it never passes the end of a step until the step actually finishes.</p>
+</div>
+<script>
+(() => {
+  const fmt = s => s < 60 ? s + "s" : s < 3600 ? Math.floor(s / 60) + "m " + String(s % 60).padStart(2, "0") + "s" : Math.floor(s / 3600) + "h " + Math.floor(s % 3600 / 60) + "m";
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const jobUrl = id => "{{ url_for('job_detail', job_id='__ID__') }}".replace("__ID__", encodeURIComponent(id)).replace(/%3A/g, ":");
+  async function refresh() {
+    let d;
+    try { d = await (await fetch("{{ url_for('progress_json') }}")).json(); } catch (e) { return; }
+    const pz = document.getElementById("bg-paused");
+    pz.style.display = d.paused_until ? "block" : "none";
+    pz.textContent = d.paused_until ? `Paused: your Claude usage limit was reached. Work resumes automatically at ${d.paused_until}; nothing is lost.` : "";
+    const box = document.getElementById("bg-active");
+    box.replaceChildren();
+    if (!d.active.length) box.appendChild(el("p", "muted", d.queued_total ? "Waiting for a free worker…" : "Nothing running. Click Run now to fetch and process new jobs."));
+    for (const a of d.active) {
+      const row = el("div", "prog-row");
+      const head = el("div", "spread");
+      const name = el("a", null, a.company + " · " + a.title); name.href = jobUrl(a.job_id);
+      head.appendChild(name);
+      head.appendChild(el("span", "prog-pct", a.pct + "%"));
+      row.appendChild(head);
+      const track = el("div", "prog-track"); const fill = el("div", "prog-fill"); fill.style.width = a.pct + "%";
+      track.appendChild(fill); row.appendChild(track);
+      row.appendChild(el("div", "sub prog-stage", (a.kind === "screen" ? "Screening · " : "Documents · ") + a.stage + " · " + fmt(a.elapsed) + " elapsed"));
+      box.appendChild(row);
+    }
+    const q = document.getElementById("bg-queue"), wrap = document.getElementById("bg-queue-wrap");
+    q.replaceChildren();
+    for (const j of d.queued) {
+      const li = el("li"); const a = el("a", null, j.company + " · " + j.title); a.href = jobUrl(j.id);
+      li.appendChild(a); li.appendChild(el("span", "muted", j.status === "to_screen" ? "  (screen)" : "  (documents)")); q.appendChild(li);
+    }
+    wrap.style.display = d.queued_total ? "block" : "none";
+    document.getElementById("bg-queue-title").textContent = d.queued_total + " waiting in the queue";
+    document.getElementById("bg-summary").textContent =
+      d.active.length + " running, " + d.queued_total + " queued · " + d.lanes + " at a time · about " + fmt(d.avg_doc_secs) + " per document" +
+      (d.active.length || d.queued_total ? " · all done in ~" + fmt(d.eta_secs) : "");
+  }
+  refresh(); setInterval(refresh, 3000);
+})();
+</script>

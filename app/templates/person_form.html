@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit ' ~ person.name if person.id else 'Add person' }} · Job Autopilot{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ 'Edit ' ~ person.name if person.id else 'Add a person' }}</h1>
+  <a class="btn ghost" href="{{ url_for('people') }}">← People</a></div>
+<form method="post" class="card">
+  <div class="grid g2">
+    <label>Name *<br><input type="text" name="name" value="{{ person.name or '' }}" required style="width:100%"></label>
+    <label>Company<br><input type="text" name="company" value="{{ person.company or '' }}" placeholder="e.g. Mastercard (used to match jobs)" style="width:100%"></label>
+    <label>Their role<br><input type="text" name="title" value="{{ person.title or '' }}" style="width:100%"></label>
+    <label>How you know them<br><input type="text" name="connection" value="{{ person.connection or '' }}" placeholder="e.g. former teammate, family friend, school alum" style="width:100%"></label>
+    <label>Phone<br><input type="text" name="phone" value="{{ person.phone or '' }}" placeholder="(555) 555-0100" style="width:100%"></label>
+    <label>Email<br><input type="text" name="email" value="{{ person.email or '' }}" style="width:100%"></label>
+    <label>LinkedIn URL<br><input type="text" name="linkedin" value="{{ person.linkedin or '' }}" style="width:100%"></label>
+    <label>Last contacted<br><input type="date" name="last_contacted" value="{{ person.last_contacted or '' }}"></label>
+    <label>Referral stage<br><select name="stage">{% for k, v in stages.items() %}<option value="{{ k }}" {{ 'selected' if (person.stage or 'unknown') == k }}>{{ v }}</option>{% endfor %}</select>
+      <div class="muted small">“Will refer”, “Warm”, and “Not asked yet” get referral texts for matching jobs.</div></label>
+    <label>Job links they shared (one per line)<br><textarea name="job_links" rows="3" style="width:100%">{{ person.job_links_text or '' }}</textarea></label>
+  </div>
+  <label style="display:block;margin-top:12px">Notes<br><textarea name="notes" rows="4" style="width:100%">{{ person.notes or '' }}</textarea></label>
+  <div class="row" style="margin-top:12px"><button class="btn primary" type="submit">Save</button><a class="btn ghost" href="{{ url_for('people') }}">Cancel</a></div>
+</form>
+{% endblock %}

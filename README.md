@@ -1,0 +1,231 @@
+# Job Autopilot
+
+**A local, AI-powered job-application pipeline.** Twice a day it finds new US roles at companies that
+sponsor H-1B visas. Claude screens each posting against your own "master prompt" (your background plus
+your rules). For the good matches it writes a tailored one-page resume and cover letter, rendered straight
+to PDF and checked automatically. A Chrome extension fills the application form, and you press Submit.
+Anything that needs your judgment lands in one **Needs you** inbox.
+
+Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hosted.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+> Screenshots use the built-in demo data (`scripts/demo_seed.py`). The candidate, "Jordan Lee", is fictional.
+
+---
+
+## Highlights
+
+- **Multi-source job discovery.** Public Greenhouse, Lever, and Ashby APIs for about 90 known sponsors,
+  plus Jobright and SimplifyJobs new-grad feeds and Hacker News "Who is hiring?" posts. Boards linked from
+  sponsoring jobs join the watch list automatically. Duplicates across boards are collapsed.
+- **Rule prefilter before any LLM call.** Drops stale postings, senior titles, roles outside the US,
+  4+ years asked, and explicit "no sponsorship / citizens only / clearance" wording.
+- **Claude screening with structured outputs.** Every job gets a verdict (APPLY / APPLY WITH RISK /
+  DON'T APPLY), a harsh match score, eligibility gates, and a recruiter's six-second read, all as
+  schema-validated JSON.
+- **Tailored documents with automatic quality checks.** The resume and cover letter are drawn directly
+  to PDF with reportlab. Each bullet's line fill is measured, and the page count, word count, and dash
+  rules are checked. Failures go back to Claude as *patch-style* revisions, which change only the lines
+  that failed. Documents are built only above your match threshold (default 7/10).
+- **Chrome extension (Manifest V3) for autofill**, similar to Jobright. It works on Greenhouse, Lever,
+  Ashby, Workday, iCIMS, and other portals. It uploads the tailored PDFs and answers every question from
+  your profile, including EEO presets. It **learns from the answers you edit**, so it asks less over time,
+  and it marks the job applied when the confirmation page appears. It never clicks Submit.
+- **Referral engine.** Import your networking spreadsheet (`.xlsx`), or add, edit, and delete people. When a
+  job at their company is ready, the app drafts a personal referral text for that exact role, with a
+  one-click "Text them" link.
+- **Runs while you sleep.** macOS launchd agents run the pipeline at the times you choose. An optional
+  root helper schedules `pmset` wake-ups so runs happen even when the lid is closed. If Claude's usage
+  limit is hit, work pauses and resumes at the reset time.
+- **Dashboard.** KPIs, a 14-day applications chart, a pipeline funnel, live per-job progress bars,
+  server-side pagination and search everywhere, and dark, light, and system themes.
+
+## How it works
+
+```
+ ┌──────────────┐   ┌────────────┐   ┌──────────────┐   ┌────────────────────┐   ┌─────────────┐
+ │ Job sources  │──▶│ Prefilter  │──▶│ Claude screen│──▶│ Claude tailor      │──▶│ Needs you   │
+ │ ATS APIs +   │   │ rules, no  │   │ verdict +    │   │ resume + cover JSON│   │ review, ask │
+ │ feeds (2×/d) │   │ LLM cost   │   │ match score  │   │ → PDF → checks →   │   │ referral,   │
+ └──────────────┘   └────────────┘   └──────────────┘   │ patch revisions    │   │ submit      │
+                                                         └────────────────────┘   └──────┬──────┘
+                                                                                         ▼
+                                              Chrome extension autofills the form; you click Submit
+```
+
+| Layer | Tech |
+|---|---|
+| Backend | Python 3.11+, Flask, SQLite (WAL, thread-local connections), background worker thread pool |
+| LLM | Claude via the headless Claude Code CLI (works with a Claude Team or Enterprise seat) or the Anthropic API with prompt caching, plus JSON-schema structured outputs |
+| Documents | reportlab (direct PDF, justified text, live links), pypdf for verification |
+| Browser | Chrome extension (MV3, shadow-DOM side panel), Playwright for the optional in-app autofill and tests |
+| Scheduling | macOS launchd (user agents plus a root LaunchDaemon for `pmset` wake) |
+| Tests | pytest (30 tests, including Chromium-driven form-fill tests) |
+
+## Screenshots
+
+**Needs you**: the only page you have to work through. Referral asks come first, then risky-fit
+decisions, facts only you know, and applications ready to submit.
+
+![Needs you](docs/screenshots/needs-you.png)
+
+**Jobs**: status tabs, search, source, match, and sort filters, and the documents for each job.
+
+![Jobs](docs/screenshots/jobs.png)
+
+**Job detail**: the fit verdict, eligibility gates, recruiter teardown, interview prep, and the referral
+for this role.
+
+![Job detail](docs/screenshots/job-detail.png)
+
+| Generated resume (one page, measured line fill) | People and referrals |
+|---|---|
+| ![Resume sample](docs/screenshots/resume-sample.png) | ![People](docs/screenshots/people.png) |
+
+| Background runs and schedule | Settings |
+|---|---|
+| ![Background](docs/screenshots/background.png) | ![Settings](docs/screenshots/settings.png) |
+
+| Profile and master-prompt editor | Light theme |
+|---|---|
+| ![Profile](docs/screenshots/profile.png) | ![Light theme](docs/screenshots/dashboard-light.png) |
+
+---
+
+## Quick start
+
+Requires macOS or Linux (the scheduler is macOS-only), Python 3.11+, and Google Chrome for the extension.
+
+```bash
+git clone https://github.com/ManasNikte/job-autopilot.git ~/job-autopilot
+cd ~/job-autopilot
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+### Try the UI with demo data (no Claude needed)
+
+```bash
+python scripts/demo_seed.py
+JOB_AUTOPILOT_DATA=demo/data JOB_AUTOPILOT_PROFILE=demo/profile python -m app.cli serve
+```
+
+Open http://127.0.0.1:5055. The demo lives in `demo/` (gitignored) and never touches your real data.
+Don't click **Run now** in demo mode unless Claude is set up.
+
+### 1. Add your profile
+
+On first run, the app copies the placeholder templates from `profile/examples/` into `profile/`. Your
+real files stay **gitignored**, so they never reach the repository:
+
+| File | What to put there |
+|---|---|
+| `profile/system_prompt.md` | **Your master prompt**: your full background (Section I), project library (Section I-B), and your rules for fit verdicts, resumes, and cover letters. The template shows the section headings the app refers to. Claude reads it fresh on every call. |
+| `profile/applicant.json` | Contact details and fixed form answers (work authorization, start date, EEO) for autofill |
+| `profile/answers.md` | Facts you confirm on **Needs you** are appended here automatically |
+| `profile/company_aliases.json` | Optional company-name fixes for your networking spreadsheet |
+
+You can also edit all of these on the dashboard's **Profile** page. It keeps a backup of every version.
+
+### 2. Connect Claude (pick one)
+
+**Option A: Claude Code CLI (uses a Claude Pro, Max, Team, or Enterprise seat; no API bill)**
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+claude        # type /login, sign in, then /exit
+```
+
+Keep `LLM_BACKEND=auto` in `.env`. The app runs `claude -p` headlessly with your prompt as a system
+prompt file.
+
+**Option B: Anthropic API key.** Set `ANTHROPIC_API_KEY=...` in `.env`. The master prompt is
+prompt-cached, so after the first call each request pays about 10% for it.
+
+Check the setup:
+
+```bash
+python -m app.cli check
+```
+
+### 3. Run it
+
+```bash
+python -m app.cli serve
+```
+
+Open http://127.0.0.1:5055, click **Run now**, then work through **Needs you** from top to bottom.
+
+### 4. Install the Chrome extension
+
+1. Open `chrome://extensions` and turn on **Developer mode**.
+2. Click **Load unpacked** and choose the `extension/` folder.
+3. Open an application from a job's **Open application** button, then click **Autofill** in the side panel.
+
+The extension only talks to your local app (`127.0.0.1:5055`).
+
+### 5. Schedule daily runs (macOS, optional)
+
+```bash
+./scripts/install_schedule.sh          # runs at the times in config/schedule.json (default 8:00 and 15:00)
+sudo ./scripts/install_wake.sh         # optional: wake the Mac for each run, even with the lid closed
+```
+
+Change the run times on the **Settings** page. The launchd agents and wake-ups follow automatically.
+
+## Configuration
+
+| Where | What |
+|---|---|
+| **Settings** page / `config/settings.json` | Match threshold for building documents, per-run caps, parallelism, effort levels, posting age |
+| `config/companies.json` | Your curated company boards (`greenhouse`, `lever`, or `ashby` plus slug) |
+| `config/search.json` | Role families, title exclusions, visa-blocker phrases, location rules |
+| `config/feeds.json` | Aggregator feeds and the "require an H-1B signal" switch |
+| `.env` | Claude backend, models, port (Settings overrides `.env`) |
+
+To see real approval counts on each job, import the yearly CSVs from the USCIS H-1B Employer Data Hub on
+the **Sources** page.
+
+## What stays manual, and why
+
+- **Submitting applications.** Forms include legal attestations (work authorization, EEO) and often
+  CAPTCHAs, and an auto-submitted wrong answer can't be taken back. The app does everything up to the
+  final click.
+- **LinkedIn invites and messages.** LinkedIn's User Agreement prohibits automation, and accounts that
+  automate get restricted. The app drafts the notes and opens the people search. You send them.
+- **No scraping of logged-in sites.** Jobs come from public APIs and public feeds only.
+
+## Project layout
+
+```
+app/
+  sources/      job-board and feed fetchers (Greenhouse, Lever, Ashby, Jobright, Simplify, HN)
+  prefilter.py  rule gate before any Claude call
+  llm.py        Claude via Claude Code CLI or the Anthropic API; structured JSON; usage-limit pause
+  pipeline.py   fetch → screen → tailor → render → check → revise → queue human steps
+  render/       reportlab resume and cover-letter builders, plus PDF checks
+  form_fill.py  form extraction, Claude answers, fill, learn-from-edits (shared by the extension)
+  contacts.py   networking-sheet import, job matching, referral texts
+  worker.py     background thread pool with pause and resume
+  web.py        Flask dashboard and the extension API
+extension/      Chrome extension (side panel, autofill, popup)
+profile/examples/  placeholder profile templates (your real profile is gitignored)
+prompts/        app adapter: how the app asks Claude for JSON
+scripts/        launchd schedule, wake helper, demo seeder
+tests/          pytest suite (fixture uses a fictional candidate)
+```
+
+## Tests
+
+```bash
+python -m playwright install chromium   # once, for the form-fill tests
+python -m pytest
+```
+
+## Privacy
+
+The database, generated documents, logs, and your profile live in `data/` and `profile/`. Both are
+gitignored. Claude receives your master prompt and the job description. The browser extension talks only
+to your local server.

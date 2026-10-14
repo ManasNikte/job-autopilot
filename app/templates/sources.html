@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Sources</h1>
+<div class="grid g2">
+  <div class="card">
+    <h2>Run the pipeline</h2>
+    <p class="sub">"Run now" fetches every company below, filters by your rules, screens new roles with Claude, and builds documents for the best ones. "Process queue" skips fetching.</p>
+    <form class="row" method="post" action="{{ url_for('run_now') }}">
+      <button class="btn primary" name="kind" value="run">Run now</button>
+      <button class="btn" name="kind" value="process">Process queue only</button>
+    </form>
+    <h3>Activity</h3><pre class="log" id="activity-log">Loading…</pre>
+  </div>
+  <div class="card">
+    <h2>H-1B track record data</h2>
+    <p class="sub">{{ n_h1b }} employers loaded. Download yearly CSVs from the <a href="https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub" target="_blank" rel="noopener">USCIS H-1B Employer Data Hub</a> and import them here. Approval counts then show on every job and are given to Claude as evidence.</p>
+    <form method="post" enctype="multipart/form-data" class="row"><input type="file" name="csv" accept=".csv,.txt"><button class="btn">Import CSV</button></form>
+    <p class="muted" style="font-size:12px">Add or remove companies in config/companies.json (ats = greenhouse, lever, or ashby; slug from the public job board URL). Filters live in config/search.json.</p>
+  </div>
+</div>
+
+<div class="grid g2">
+<div class="card">
+  <h2>Job feeds</h2>
+  <p class="sub" style="margin-top:0">Public lists beyond your companies: Jobright's daily new-grad lists (they include LinkedIn-sourced postings), SimplifyJobs new-grad listings, and Hacker News "Who is hiring?" (startups). Only jobs with an H-1B signal are queued; settings in <code>config/feeds.json</code>.</p>
+  <table><tr><th>Feed</th><th>Status</th><th class="num">Listings</th><th class="num">Queued</th></tr>
+  {% for f in feeds %}<tr><td>{{ f.feed|replace('_',' ') }}</td><td>{% if f.ok %}<span class="badge apply">ok</span>{% else %}<span class="badge no" title="{{ f.error }}">error</span>{% endif %} <span class="muted">{{ f.checked_at|ago }}</span></td><td class="num">{{ f.seen }}</td><td class="num">{{ f.kept }}</td></tr>
+  {% else %}<tr><td colspan="4" class="muted">Runs on the next "Run now".</td></tr>{% endfor %}
+  </table>
+</div>
+<div class="card">
+  <h2>Discovered company boards <span class="muted">({{ boards|length }})</span></h2>
+  <p class="sub" style="margin-top:0">When a sponsoring job links to a company's Greenhouse, Lever, or Ashby board, that board joins your watch list so every new role there is checked too.</p>
+  <table>{% for b in boards[:30] %}<tr><td>{{ b.name }}</td><td class="sub">{{ b.ats }}/{{ b.slug }}</td>
+    <td><form method="post" action="{{ url_for('toggle_board', key=b.key) }}"><button class="btn small">{{ 'Watching' if b.enabled else 'Paused' }}</button></form></td></tr>
+  {% else %}<tr><td class="muted">None yet.</td></tr>{% endfor %}</table>
+</div>
+</div>
+
+<div class="card">
+  <h2>Browser extension: autofill on any portal</h2>
+  <p class="sub" style="margin-top:0">Works on Greenhouse, Lever, Ashby, Workday, iCIMS, SmartRecruiters, Taleo, and company career sites, including "Apply now" pages and multi-page applications. It never submits.</p>
+  <ol class="tight">
+    <li>Open <code>chrome://extensions</code> in Chrome and turn on <b>Developer mode</b>.</li>
+    <li>Click <b>Load unpacked</b> and choose the <code>job-autopilot/extension</code> folder.</li>
+    <li>Pin <b>Job Autopilot</b>, keep this app running, and open applications with <b>Open application</b> on a job page.</li>
+  </ol>
+</div>
+
+<div class="spread" style="margin:6px 0 10px"><h2 style="margin:0">Watched companies <span class="muted">({{ rows|length }})</span></h2>
+  <input type="search" placeholder="Filter companies" data-filter-for=".company-row" data-empty-id="co-empty" style="min-width:240px"></div>
+<div class="card flush" style="max-height:640px;overflow:auto">
+<table>
+  <thead><tr><th>Company</th><th>Board</th><th>H-1B</th><th>Last fetch</th><th class="num">Open roles</th></tr></thead>
+  {% for r in rows %}
+  <tr class="company-row">
+    <td>{{ r.name }}</td>
+    <td class="sub">{{ r.ats }}/{{ r.slug }}</td>
+    <td class="sub">{{ r.h1b_data or r.h1b }}</td>
+    <td>{% if r.status %}{% if r.status.ok %}<span class="badge apply">ok</span>{% else %}<span class="badge no" title="{{ r.status.error }}">error</span>{% endif %} <span class="muted">{{ r.status.checked_at|ago }}</span>{% else %}<span class="muted">never</span>{% endif %}</td>
+    <td class="num">{{ r.status.jobs_seen if r.status else '—' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p id="co-empty" class="muted" style="padding:12px 16px" hidden>No company matches that filter.</p>
+</div>
+
+<p class="sub">Run history and live progress are on the <a href="{{ url_for('background') }}">Background</a> tab.</p>
+{% endblock %}

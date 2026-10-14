@@ -1,0 +1,27 @@
+{
+  "_comment": "Extra job sources beyond the companies in companies.json. All are public, no login. Jobright's lists include LinkedIn-sourced postings, so they also cover what you'd find on LinkedIn.",
+  "require_h1b_signal": true,
+  "_comment_require_h1b_signal": "true = keep only jobs with a real H-1B signal (Jobright's sponsor flag or company H-1B filings, Simplify 'Offers Sponsorship', a visa mention in an HN post, a company in companies.json, or your imported USCIS data). Jobs without one are stored as 'filtered out' so you can still screen them by hand.",
+  "jobright": {
+    "enabled": true,
+    "repos": [
+      "jobright-ai/2026-Software-Engineer-New-Grad",
+      "jobright-ai/2026-Data-Analysis-New-Grad",
+      "jobright-ai/2026-Business-Analyst-New-Grad",
+      "jobright-ai/2026-Engineering-New-Grad"
+    ],
+    "max_details_per_run": 120
+  },
+  "simplify": {
+    "enabled": true,
+    "url": "https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/.github/scripts/listings.json",
+    "max_details_per_run": 80
+  },
+  "hn_who_is_hiring": {
+    "enabled": true,
+    "max_age_days": 14,
+    "_comment": "Hacker News monthly 'Who is hiring?' thread: mostly startups. Only posts that mention visa / H-1B sponsorship are kept."
+  },
+  "discover_boards": true,
+  "_comment_discover_boards": "When a sponsoring job links to a Greenhouse, Lever, or Ashby board, that company's board is added to the watch list (Sources page) so future runs see all its roles."
+}

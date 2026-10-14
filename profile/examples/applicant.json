@@ -1,0 +1,25 @@
+{
+  "_comment": "Used by Autofill to fill application forms (with profile/system_prompt.md). Preset answers here win over everything else, including EEO questions. Learned answers from forms you approved are kept in profile/form_memory.json.",
+  "name": "Your Name",
+  "email": "you@example.com",
+  "phone": "(555) 555-5555",
+  "location": "City, ST",
+  "linkedin": "https://linkedin.com/in/your-handle",
+  "github": "https://github.com/your-handle",
+  "portfolio": "https://your-site.example.com",
+  "school": "Your University",
+  "start_date": "Month Year",
+  "relocate": "Yes",
+  "answers": {
+    "Are you legally authorized to work in the United States?": "Yes",
+    "Will you now or in the future require visa sponsorship?": "<Yes / No, truthfully>",
+    "Earliest start date": "Month Year",
+    "Willing to relocate?": "Yes",
+    "Highest degree": "<Degree, School (year)>",
+    "Gender": "Decline to self identify",
+    "Race": "Decline to self identify",
+    "Hispanic or Latino": "Decline to self identify",
+    "Veteran status": "I don't wish to answer",
+    "Disability status": "I don't wish to answer"
+  }
+}

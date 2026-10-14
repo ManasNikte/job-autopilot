@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_pager.html" import pager %}
+{% block title %}Outreach · Job Autopilot{% endblock %}
+{% block content %}
+<div class="page-head"><h1>LinkedIn outreach</h1><span class="sub">{{ page.total }} note{{ '' if page.total == 1 else 's' }}</span></div>
+<nav class="tabs">
+  {% for key, label in [('', 'All'), ('drafted', 'To send'), ('sent', 'Sent'), ('accepted', 'Accepted'), ('replied', 'Replied'), ('skipped', 'Skipped')] %}
+  <a class="tab {{ 'on' if status == key }}" href="{{ url_for('outreach', status=key or None, q=q or None) }}">{{ label }}
+    <span class="count">{{ counts.values()|sum if not key else counts.get(key, 0) }}</span></a>
+  {% endfor %}
+</nav>
+<form class="filters" method="get">
+  <input type="hidden" name="status" value="{{ status }}">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search company, role, or person" class="grow">
+  <button class="btn" type="submit">Search</button>
+  {% if q %}<a class="btn ghost" href="{{ url_for('outreach', status=status or None) }}">Clear</a>{% endif %}
+</form>
+<p class="sub">Drafted notes for every role with documents. LinkedIn does not allow automated invites, so you send each one yourself: open the search, choose the person, paste the note. Mark it sent and the app reminds you on day 3–5 and day 7–10 (Section XI).</p>
+<div class="card flush">
+<table>
+  <tr><th>Company · role</th><th>Target</th><th>Note</th><th>Status</th><th></th></tr>
+  {% for o in rows %}
+  <tr>
+    <td><a href="{{ url_for('job_detail', job_id=o.job_id) }}">{{ o.company }}</a><div class="sub" style="font-size:12px">{{ o.title }}</div></td>
+    <td>{{ o.target|replace('_',' ')|title }}<div><a href="{{ o.search_url }}" target="_blank" rel="noopener">Find people ↗</a></div></td>
+    <td style="min-width:320px"><div class="copybox"><textarea id="m{{ o.id }}" readonly>{{ o.message }}</textarea><button class="btn small" type="button" onclick="copyText('m{{ o.id }}', this)">Copy</button></div>
+      <span class="muted" style="font-size:12px">{{ o.message|length }}/300{% if o.person_name %} · sent to {{ o.person_name }}{% endif %}</span></td>
+    <td><span class="badge">{{ o.status }}</span>{% if o.sent_at %}<div class="muted" style="font-size:12px">{{ o.sent_at|ago }}</div>{% endif %}</td>
+    <td>
+      <form method="post" action="{{ url_for('outreach_action', oid=o.id) }}" class="row">
+        {% if o.status == 'drafted' %}<input type="text" name="person_name" placeholder="Name" style="width:120px">
+        <button class="btn small primary" name="status" value="sent">Sent</button><button class="btn small" name="status" value="skipped">Skip</button>
+        {% elif o.status == 'sent' %}<button class="btn small" name="status" value="accepted">Accepted</button><button class="btn small" name="status" value="replied">Replied</button>
+        {% elif o.status == 'accepted' %}<button class="btn small" name="status" value="replied">Replied</button>{% endif %}
+      </form>
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="5" class="empty">{% if q %}No notes match “{{ q }}”.{% else %}No outreach drafted yet. Notes appear once a job's documents are built.{% endif %}</td></tr>{% endfor %}
+</table>
+</div>
+{{ pager(page, "notes") }}
+{% endblock %}

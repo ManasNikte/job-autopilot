@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_pager.html" import pager %}
+{% block content %}
+<div class="spread"><h1>Dashboard</h1>
+  <span class="muted">{% if last_run %}Last run {{ last_run.started_at|ago }} · {{ last_run.status }}{% else %}No runs yet. Click "Run now".{% endif %}</span></div>
+
+<div class="grid kpis">
+  <a class="tile" href="{{ url_for('jobs') }}"><div class="v">{{ kpis.posted_today }}</div><div class="k">Relevant roles posted today</div></a>
+  <a class="tile" href="{{ url_for('jobs', status='ready') }}"><div class="v">{{ kpis.ready }}</div><div class="k">Ready to submit</div></a>
+  <a class="tile" href="{{ url_for('jobs', status='needs_decision') }}"><div class="v">{{ kpis.decide }}</div><div class="k">Waiting on your call</div></a>
+  <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_week }}</div><div class="k">Applied, last 7 days</div></a>
+  <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_total }}</div><div class="k">Applied, all time</div></a>
+  <a class="tile" href="{{ url_for('jobs', status='interviewing') }}"><div class="v">{{ kpis.interviewing }}</div><div class="k">Interviewing / offers</div></a>
+</div>
+
+<div style="margin-top:16px">{% include "_progress.html" %}</div>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Applications submitted per day</h2>
+    <div class="bars" role="img" aria-label="Applications per day, last 14 days">
+      {% for s in series %}
+      <div class="bar-col">
+        {% if s.n and (s.n == peak or loop.last) %}<span class="val">{{ s.n }}</span>{% endif %}
+        <div class="bar" style="height: {{ (s.n / peak * 100)|round(1) }}%"></div>
+        <span class="tip">{{ s.label }}: {{ s.n }} applied</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="axis">{% for s in series %}<span>{{ s.short if loop.index0 % 2 == 1 or loop.last else '' }}</span>{% endfor %}</div>
+    <details><summary>Table view</summary>
+      <table><tr><th>Day</th><th class="num">Applied</th></tr>{% for s in series %}<tr><td>{{ s.label }}</td><td class="num">{{ s.n }}</td></tr>{% endfor %}</table>
+    </details>
+  </div>
+  <div class="card">
+    <h2>Pipeline</h2>
+    {% for f in funnel %}
+    <a class="funnel-row" href="{{ url_for('jobs', status=f.status) }}" title="{{ f.label }}: {{ f.n }}">
+      <span class="lbl">{{ f.label }}</span>
+      <span class="funnel-track"><span class="funnel-fill" style="display:block;width: {{ (f.n / fmax * 100)|round(1) }}%"></span></span>
+      <span class="n">{{ f.n }}</span>
+    </a>
+    {% endfor %}
+    <p class="muted" style="margin:10px 0 0">Filtered out by rules: {{ counts.get('filtered_out', 0) }} · Claude said don't apply: {{ counts.get('rejected', 0) }} · Errors: {{ counts.get('error', 0) }}</p>
+  </div>
+</div>
+
+<div class="card flush" id="today">
+  <div class="spread" style="padding:14px 16px 0"><h2 style="margin:0">Posted today <span class="muted">({{ today_page.total }})</span></h2><a href="{{ url_for('jobs', sort='posted') }}">All jobs →</a></div>
+  {% if today_jobs %}
+  <table class="jobs-table">
+    <thead><tr><th>Role</th><th>Posted</th><th>Match</th><th>Status</th></tr></thead>
+    {% for j in today_jobs %}
+    <tr>
+      <td class="role"><a class="title" href="{{ url_for('job_detail', job_id=j.id) }}">{{ j.title }}</a>
+        <div class="meta"><b>{{ j.company }}</b>{% if j.location %} · {{ j.location|truncate(44) }}{% endif %}
+          {% if j.startup %}<span class="badge">Startup</span>{% endif %}{% if j.h1b_level == 'strong' %}<span class="badge apply">H-1B</span>{% endif %}</div></td>
+      <td class="sub small nowrap">{{ j.posted_at|ago }}</td>
+      <td>{% if j.match_score is not none %}<span class="score s{{ j.match_score }}">{{ j.match_score }}/10</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td><span class="badge {{ 'ready' if j.status=='ready' }}">{{ status_labels.get(j.status, j.status) }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div style="padding:6px 16px 0">{{ pager(today_page, "jobs") }}</div>
+  {% else %}<p class="muted" style="padding:0 16px 16px">Nothing relevant posted today yet. Runs pick up new postings each time.</p>{% endif %}
+</div>
+
+<div class="grid g3">
+  <div class="card" id="by-family"><h2>Applied by role family <span class="muted">({{ applied_total }})</span></h2>
+    {% if by_family %}<table>{% for r in by_family %}<tr><td><a href="{{ url_for('jobs', status='applied_all', q=None) }}">{{ r.fam }}</a></td><td class="num">{{ r.n }}</td></tr>{% endfor %}</table>
+    {{ pager(family_page, "families") }}{% else %}<p class="muted">No applications yet.</p>{% endif %}</div>
+  <div class="card" id="by-company"><h2>Applied by company <span class="muted">({{ company_page.total }})</span></h2>
+    {% if by_company %}<table>{% for r in by_company %}<tr><td><a href="{{ url_for('jobs', status='applied_all', q=r.company) }}">{{ r.company }}</a></td><td class="num">{{ r.n }}</td></tr>{% endfor %}</table>
+    {{ pager(company_page, "companies") }}{% else %}<p class="muted">No applications yet.</p>{% endif %}</div>
+  <div class="card"><h2>Activity</h2><pre class="log" id="activity-log">Loading…</pre></div>
+</div>
+{% endblock %}

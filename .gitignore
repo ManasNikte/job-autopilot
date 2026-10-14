@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+.env
+
+# Everything the pipeline produces: the database, generated resumes and cover letters, run logs.
+data/
+demo/
+*.pdf
+*.docx
+*.xlsx
+*.db
+*.db-wal
+*.db-shm
+
+# Your personal profile (master prompt, contact details, answers, learned form answers, prompt history).
+# Only the placeholder templates in profile/examples/ are committed; they are copied on first run.
+profile/*
+!profile/examples/

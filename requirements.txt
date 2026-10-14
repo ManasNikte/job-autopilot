@@ -1,0 +1,11 @@
+flask>=3.0
+anthropic>=1.13
+pypdf>=5.0
+requests>=2.32
+pillow>=10.0
+openpyxl>=3.1
+reportlab>=4.0
+python-dotenv>=1.0
+pytest>=8.0
+# Form autofill (fills the form, never submits). After install run: python -m playwright install chromium
+playwright>=1.50

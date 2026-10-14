@@ -1,0 +1,232 @@
+{
+  "company_slug": "Example",
+  "position_slug": "SoftwareEngineer",
+  "exact_role_title": "Software Engineer",
+  "projects_selected": [
+    "P1",
+    "P2",
+    "P3"
+  ],
+  "selection_reason": "Renderer test fixture only. Not a real application.",
+  "header": {
+    "name": "JORDAN LEE",
+    "line2": [
+      {
+        "text": "jordan.lee@example.com",
+        "url": "mailto:jordan.lee@example.com"
+      },
+      {
+        "text": "(555)-010-0199",
+        "url": ""
+      },
+      {
+        "text": "Linkedin.com/jordanlee",
+        "url": "https://linkedin.com/in/example"
+      },
+      {
+        "text": "Github.com/jordanlee",
+        "url": "https://github.com/example"
+      }
+    ],
+    "line3": [
+      {
+        "text": "jordanlee.example.com",
+        "url": "https://example.com"
+      },
+      {
+        "text": "Austin, TX",
+        "url": ""
+      },
+      {
+        "text": "Open to Relocate",
+        "url": ""
+      }
+    ]
+  },
+  "career_objective": "To join an engineering team as a Software Engineer building reliable Python and TypeScript services, bringing 3 years of production backend work, AWS data pipelines, and a tested LLM agent with 90+ automated tests.",
+  "education": [
+    {
+      "degree": "MS Computer Science",
+      "institution": "State University",
+      "location": "Austin, TX",
+      "dates": "Expected Dec 2026",
+      "coursework": [
+        "Machine Learning",
+        "Distributed Systems",
+        "Databases"
+      ]
+    },
+    {
+      "degree": "BS Computer Engineering",
+      "institution": "City Institute of Technology",
+      "location": "Dallas, TX",
+      "dates": "Aug 2019 – May 2023",
+      "coursework": [
+        "Data Structures & Algorithms",
+        "Operating Systems",
+        "Software Engineering",
+        "Cloud Computing"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "label": "Languages",
+      "items": "Python, SQL, TypeScript, JavaScript (ES6+), Go, Bash, HTML5/CSS3, Java"
+    },
+    {
+      "label": "Backend & Web",
+      "items": "Flask, Django, FastAPI, React, Node.js, Express, REST APIs, GraphQL, JWT authentication"
+    },
+    {
+      "label": "Cloud & DevOps",
+      "items": "AWS (S3, Glue, Athena, DynamoDB, Lambda), Docker, Git, CI/CD, pytest, Playwright, Linux"
+    },
+    {
+      "label": "Data & AI",
+      "items": "PostgreSQL, MongoDB, Redis, LangChain, RAG, pgvector, PyTorch, scikit-learn, Tableau"
+    }
+  ],
+  "experience": [
+    {
+      "company": "State University",
+      "location": "Austin, TX",
+      "title": "Graduate Research Assistant",
+      "dates": "Sep 2025 – Present",
+      "bullets": [
+        "Maintained the lab's data pipeline that ingests sensor readings from 120 field devices into a shared Postgres warehouse",
+        "Reviewed 30+ pull requests a month from student researchers and turned recurring review comments into a style guide"
+      ]
+    },
+    {
+      "company": "Northwind Labs",
+      "location": "Dallas, TX",
+      "title": "Data Engineer",
+      "dates": "Jun 2023 – Aug 2025",
+      "bullets": [
+        "Designed AWS data infrastructure with S3, Glue, Athena, and DynamoDB that consolidated 40+ data sources",
+        "Cut manual reporting turnaround from about 2 days to under 15 minutes by moving ETL into scheduled Glue jobs",
+        "Added automated anomaly checks to the pipeline that removed roughly 10 hours a week of manual data troubleshooting"
+      ]
+    },
+    {
+      "company": "Contoso Web Studio",
+      "location": "Dallas, TX",
+      "title": "Software Developer Intern",
+      "dates": "May 2022 – Aug 2022",
+      "bullets": [
+        "Built 4 customer-facing features in a React and Django storefront used by 20K+ monthly shoppers across two regions",
+        "Migrated 300K+ legacy order records into PostgreSQL with scripted validation and zero customer-facing data loss",
+        "Wrote integration tests for the checkout flow that caught 3 payment regressions before they reached production"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "title": "Browser Automation Agent",
+      "stack": "Python, Playwright, Flask, JSON Schema",
+      "dates": "Sep 2026 – Oct 2026",
+      "bullets": [
+        "Built a browser agent where an LLM learns a legacy web UI once and later runs replay it with no model in the loop",
+        "Designed a result contract separating success, business outcomes, and hard failures with exit codes and validation",
+        "Wrote 90+ pytest tests including 15 that drive real Chromium end to end against a synthetic legacy admin console"
+      ]
+    },
+    {
+      "title": "Clinic Booking App",
+      "stack": "TypeScript, Next.js, PostgreSQL",
+      "dates": "Jan 2025 – Mar 2025",
+      "bullets": [
+        "Shipped a booking app for a small clinic covering appointment reminders, a waitlist, and simple revenue dashboards",
+        "Set up role-based access so owners, staff, and front desk each saw only the workflows and records their role needed",
+        "Owned delivery end to end from requirements and build through deployment, onboarding, and post-launch iteration"
+      ]
+    },
+    {
+      "title": "Docs Q&A RAG Chatbot",
+      "stack": "LangChain, pgvector, Llama 3, Streamlit",
+      "dates": "Jul 2026 – Aug 2026",
+      "bullets": [
+        "Deployed a retrieval chatbot that answers questions over a 200-page docs corpus and cites the source of each answer",
+        "Added function calling for structured lookups next to semantic retrieval so exact facts came from data, not guesses",
+        "Caught and fixed a false-confidence hallucination and a retrieval-dilution bug through systematic answer evaluation"
+      ]
+    }
+  ],
+  "leadership": [
+    {
+      "label": "Leadership",
+      "text": "President, Coding Club (2022–2023)"
+    },
+    {
+      "label": "Achievements",
+      "text": "First Prize, Regional Student Hackathon 2022 · Dean's List (4 semesters)"
+    },
+    {
+      "label": "Certifications",
+      "text": "AWS Cloud Practitioner (2024) · Machine Learning Specialization (2025)"
+    }
+  ],
+  "cover_letter": {
+    "date": "October 11, 2026",
+    "recipient_lines": [
+      "Hiring Manager",
+      "Example Corp",
+      "Austin, TX"
+    ],
+    "re_line": "Re: Software Engineer",
+    "greeting": "Dear Hiring Manager,",
+    "paragraphs": [
+      "This is a renderer test paragraph. It exists only so the layout code has realistic text to place on the page and measure.",
+      "This second paragraph is also filler for tests. It is long enough to wrap over several lines so spacing and fill can be checked.",
+      "A third paragraph keeps the page realistic. Nothing in this fixture is sent to any employer or used as a real application.",
+      "The fourth paragraph closes the body. Thank you for reading this fixture."
+    ],
+    "closing": "Sincerely,",
+    "signature": "Jordan Lee"
+  },
+  "linkedin": {
+    "hiring_manager_note": "test",
+    "recruiter_note": "test",
+    "alumni_note": "test"
+  },
+  "outreach_targets": {
+    "hiring_manager_titles": [
+      "engineering manager"
+    ],
+    "recruiter_titles": [
+      "technical recruiter"
+    ],
+    "referral_ideas": []
+  },
+  "keyword_table": [],
+  "keyword_relevancy": 0,
+  "rw_score": {
+    "impact": 0,
+    "brevity": 0,
+    "style": 0,
+    "ats": 0,
+    "total": 0,
+    "failed_checks": []
+  },
+  "teardown": {
+    "skim_test": "",
+    "credibility_flags": [],
+    "timeline_questions": [],
+    "hardest_questions": [],
+    "scorecard": {
+      "relevance": 0,
+      "credibility": 0,
+      "impact": 0,
+      "readability": 0,
+      "ats": 0,
+      "formatting": 0
+    },
+    "must_fixes_applied": [],
+    "unfixable_on_paper": [],
+    "final_call": "MAYBE",
+    "final_call_reason": ""
+  },
+  "adversarial_failures": [],
+  "missing_info": []
+}

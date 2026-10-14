@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "_pager.html" import pager %}
+{% block title %}People · Job Autopilot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>People</h1><span class="sub">{{ page.total }} contact{{ '' if page.total == 1 else 's' }} · referrals are matched to jobs by company</span>
+  <span style="margin-left:auto" class="row">
+    <a class="btn primary" href="{{ url_for('person_form') }}">+ Add person</a>
+  </span>
+</div>
+
+<nav class="tabs">
+  <a class="tab {{ 'on' if not stage }}" href="{{ url_for('people', q=q or None, company=company or None) }}">All <span class="count">{{ stage_counts.values()|sum }}</span></a>
+  {% for key, label in stages.items() %}
+  <a class="tab {{ 'on' if stage == key }}" href="{{ url_for('people', stage=key, q=q or None, company=company or None) }}">{{ label }} <span class="count">{{ stage_counts.get(key, 0) }}</span></a>
+  {% endfor %}
+</nav>
+
+<form class="filters" method="get">
+  <input type="hidden" name="stage" value="{{ stage }}">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search name, company, role, how you know them, notes, phone" class="grow">
+  <select name="company" onchange="this.form.submit()"><option value="">All companies</option>
+    {% for c in companies %}<option {{ 'selected' if company == c }}>{{ c }}</option>{% endfor %}</select>
+  <button class="btn" type="submit">Search</button>
+  {% if q or company %}<a class="btn ghost" href="{{ url_for('people', stage=stage or None) }}">Clear</a>{% endif %}
+</form>
+
+<div class="card flush">
+<table class="jobs-table">
+  <thead><tr><th>Person</th><th>Company</th><th>Stage</th><th>Notes</th><th class="num">Actions</th></tr></thead>
+  {% for p in rows %}
+  <tr>
+    <td class="role">
+      <a class="title" href="{{ url_for('person_form', pid=p.id) }}">{{ p.name }}</a>
+      <div class="meta">{% if p.connection %}{{ p.connection }}{% endif %}{% if p.last_contacted %} · last contacted {{ p.last_contacted }}{% endif %}</div>
+      <div class="meta">
+        {% if p.phone %}<a href="{{ p.phone|smslink }}">{{ p.phone }}</a>{% endif %}
+        {% if p.email %}<a href="mailto:{{ p.email }}">{{ p.email }}</a>{% endif %}
+        {% if p.linkedin %}<a href="{{ p.linkedin }}" target="_blank" rel="noopener">LinkedIn ↗</a>{% endif %}
+      </div>
+    </td>
+    <td>{% if p.company %}<b>{{ p.company }}</b>{% else %}<span class="muted">—</span>{% endif %}
+      {% if p.title %}<div class="sub small">{{ p.title }}</div>{% endif %}
+      {% if p.open_jobs %}<div class="small" style="margin-top:4px">{% for j in p.open_jobs[:3] %}<div><a href="{{ url_for('job_detail', job_id=j.id) }}">{{ j.title|truncate(34) }}</a> <span class="muted">· {{ status_labels.get(j.status, j.status) }}</span></div>{% endfor %}</div>{% endif %}</td>
+    <td><span class="badge {{ 'apply' if p.stage == 'will_refer' else 'risk' if p.stage == 'warm' else 'no' if p.stage == 'avoid' else '' }}">{{ stages.get(p.stage, p.stage) }}</span></td>
+    <td class="sub small" style="max-width:300px">{{ (p.notes or '')|truncate(140) }}
+      {% if p.links %}<div>{% for u in p.links[:3] %}<a href="{{ u }}" target="_blank" rel="noopener">job link {{ loop.index }} ↗</a>{% if not loop.last %} · {% endif %}{% endfor %}{% if p.links|length > 3 %} +{{ p.links|length - 3 }}{% endif %}</div>{% endif %}</td>
+    <td class="num nowrap">
+      <a class="btn small" href="{{ url_for('person_form', pid=p.id) }}">Edit</a>
+      <form class="inline" method="post" action="{{ url_for('person_delete', pid=p.id) }}" onsubmit="return confirm('Delete {{ p.name|e }}? Their drafted referral texts are removed too.')"><button class="btn small danger">Delete</button></form>
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="5" class="empty">{% if q %}No one matches “{{ q }}”.{% else %}No contacts yet. Add someone, or import your networking spreadsheet below.{% endif %}</td></tr>{% endfor %}
+</table>
+</div>
+{{ pager(page, "people") }}
+
+<div class="card">
+  <h2>Import a spreadsheet</h2>
+  <p class="sub" style="margin-top:0">Same columns as your networking sheet: Name, Last Contacted, Number, LinkedIn, Connection, LinkedIn, Company, Post, Last Convo Status, then any job links. Re-importing updates people by name and never deletes anyone.</p>
+  <form method="post" enctype="multipart/form-data" class="row"><input type="file" name="xlsx" accept=".xlsx" required><button class="btn">Import</button></form>
+</div>
+{% endblock %}

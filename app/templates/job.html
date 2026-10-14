@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}{{ job.company }} · {{ job.title }}{% endblock %}
+{% block content %}
+{% set s = job.screen_json or {} %}{% set t = job.tailor_json or {} %}{% set c = job.checks_json or {} %}
+<div class="spread">
+  <div>
+    <h1 style="margin-bottom:4px">{{ job.title }}</h1>
+    <div class="sub">{{ job.company }} · {{ job.location }} · posted {{ job.posted_at|local }} · <a href="{{ job.url }}" target="_blank" rel="noopener">Job posting ↗</a></div>
+  </div>
+  <div class="row">
+    {% set j = job %}{% include "_verdict.html" %}
+    <span class="badge {{ 'ready' if job.status=='ready' }}">{{ status_labels.get(job.status, job.status) }}</span>
+  </div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <div class="row">
+    {% if job.status == 'ready' %}
+      <a class="btn primary" href="{{ url_for('open_application', job_id=job.id) }}" target="_blank" rel="noopener">Open application ↗</a>
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn" name="action" value="autofill">Autofill with Claude (you submit)</button></form>
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn primary" name="action" value="applied">I submitted it</button></form>
+    {% endif %}
+    {% if job.status == 'needs_decision' %}
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn primary" name="action" value="approve">Apply anyway: build documents</button></form>
+    {% endif %}
+    {% if job.status == 'below_threshold' %}
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn primary" name="action" value="build_anyway">Build documents anyway</button></form>
+    {% endif %}
+    {% if job.status == 'rejected' %}
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn" name="action" value="proceed">Proceed anyway</button></form>
+    {% endif %}
+    {% if job.status == 'filtered_out' %}
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn" name="action" value="rescreen">Screen with Claude anyway</button></form>
+    {% endif %}
+    {% if job.status in ('applied','interviewing','offer') %}
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}">
+        <button class="btn" name="action" value="interviewing">Interviewing</button>
+        <button class="btn" name="action" value="offer">Offer</button>
+        <button class="btn danger" name="action" value="closed">Rejected / closed</button>
+      </form>
+    {% endif %}
+    {% if job.status in ('ready','error','to_tailor') or job.tailor_json %}
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn" name="action" value="regenerate">Regenerate documents</button></form>
+    {% endif %}
+    {% if job.status in ('error',) %}
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn" name="action" value="rescreen">Retry screen</button></form>
+    {% endif %}
+    {% if job.status not in ('applied','interviewing','offer','closed') %}
+      <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn danger" name="action" value="skip" onclick="return confirm('Skip this job? It will be marked Don\'t apply and its resume, cover letter, and LinkedIn drafts will be deleted.')">Skip this job</button></form>
+    {% endif %}
+  </div>
+  {% if job.status_reason %}<p class="sub" style="margin:10px 0 0">{{ job.status_reason }}</p>{% endif %}
+</div>
+
+{% if ivs %}
+<div class="card"><h2>Needs you on this job</h2>
+  {% for i in ivs if i.status == 'open' %}
+  <div class="iv {{ i.kind }}"><b>{{ i.title }}</b><div class="detail">{{ i.detail }}</div>
+    {% if i.kind == 'missing_info' %}
+    <form method="post" action="{{ url_for('inbox_action', iid=i.id) }}" class="row">
+      <input type="text" name="answer" placeholder="Your answer (saved as a confirmed fact)" style="flex:1; min-width:260px">
+      <label class="sub"><input type="checkbox" name="rebuild" value="1" checked> rebuild documents</label>
+      <button class="btn primary small" name="action" value="answer">Save</button>
+    </form>
+    {% else %}
+    <form method="post" action="{{ url_for('inbox_action', iid=i.id) }}" class="row"><button class="btn small" name="action" value="resolve">Done</button><button class="btn small" name="action" value="dismiss">Dismiss</button></form>
+    {% endif %}
+  </div>
+  {% else %}<p class="muted">Nothing open.</p>{% endfor %}
+</div>
+{% endif %}
+
+{% if s %}
+<div class="grid g2">
+  <div class="card">
+    <h2>Fit verdict · {{ s.verdict }} · {{ s.match_score }}/10</h2>
+    <p class="sub" style="margin-top:0">{{ s.score_arithmetic }}</p>
+    <ul class="tight">{% for w in s.why %}<li>{{ w }}</li>{% endfor %}</ul>
+    <h3>Deal breakers</h3><ul class="tight">{% for d in s.deal_breakers %}<li>{{ d }}</li>{% else %}<li class="muted">None</li>{% endfor %}</ul>
+    <h3>Recruiter's 6-second read</h3><p>{{ s.recruiter_six_second_read }}</p>
+    {% if s.biggest_risk %}<h3>Biggest risk</h3><p>{{ s.biggest_risk }}</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Eligibility &amp; context</h2>
+    <div class="kv">
+      {% for k, g in (s.eligibility or {}).items() %}<div>{{ k|replace('_',' ')|title }}</div><div><b>{{ g.result }}</b> · {{ g.note }}</div>{% endfor %}
+      <div>Experience asked</div><div>{{ s.experience_required }}</div>
+      <div>Sponsorship in JD</div><div>{{ s.sponsorship_signal|replace('_',' ') }}</div>
+      <div>H-1B signal</div><div>{{ job.h1b_signal or h1b or job.h1b_note or 'unknown' }}</div>
+      <div>Found on</div><div>{{ job.source|source_label }}{% if job.company_stage %} · {{ job.company_stage }}{% endif %}{% if job.startup %} · <span class="badge">Startup</span>{% endif %}</div>
+      <div>Competition</div><div>{{ s.competition_level }}</div>
+      <div>Role type</div><div>{{ s.role_type }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if t %}
+<div class="card">
+  <div class="spread"><h2>Documents</h2>
+    <span class="sub">Keyword relevancy {{ t.keyword_relevancy }}% · RW-style estimate {{ t.rw_score.total }} · Recruiter call <b>{{ t.teardown.final_call }}</b></span></div>
+  <div class="row">
+    {% if job.resume_pdf %}<a class="btn" href="{{ url_for('file', p=job.resume_pdf) }}" target="_blank">Resume PDF</a>
+    <a class="btn small" href="{{ url_for('file', p=job.resume_pdf, dl=1) }}">Download</a>{% endif %}
+    {% if job.cover_pdf %}<a class="btn" href="{{ url_for('file', p=job.cover_pdf) }}" target="_blank">Cover letter PDF</a>
+    <a class="btn small" href="{{ url_for('file', p=job.cover_pdf, dl=1) }}">Download</a>{% endif %}
+    {% if job.resume_docx %}<a class="btn small" href="{{ url_for('file', p=job.resume_docx, dl=1) }}">Resume .docx</a>{% endif %}
+    {% if job.cover_docx %}<a class="btn small" href="{{ url_for('file', p=job.cover_docx, dl=1) }}">Cover .docx</a>{% endif %}
+  </div>
+  {% if c %}
+  <p class="sub">Resume: {{ c.resume.pages }} page · {{ c.resume.words }} words · bottom gap {{ c.resume.bottom_gap_pt }}pt · body {{ c.layout.body_pt }}pt / line {{ c.layout.line_pt }}pt. Cover letter: {{ c.cover.pages }} page · {{ c.cover.words }} words.</p>
+  {% if c.problems %}<h3>Checks still failing</h3><ul class="tight">{% for p in c.problems %}<li>{{ p }}</li>{% endfor %}</ul>{% else %}<p class="sub">All automated checks passed.</p>{% endif %}
+  {% endif %}
+  <p class="sub"><b>Projects:</b> {{ t.projects_selected|join(', ') }}. {{ t.selection_reason }}</p>
+</div>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Senior recruiter teardown</h2>
+    <p>{{ t.teardown.skim_test }}</p>
+    <p><b>Final call: {{ t.teardown.final_call }}.</b> {{ t.teardown.final_call_reason }}</p>
+    <h3>Fixes applied</h3><ul class="tight">{% for f in t.teardown.must_fixes_applied %}<li>{{ f }}</li>{% else %}<li class="muted">None</li>{% endfor %}</ul>
+    <h3>Unfixable on paper</h3><ul class="tight">{% for f in t.teardown.unfixable_on_paper %}<li>{{ f }}</li>{% else %}<li class="muted">None</li>{% endfor %}</ul>
+    <h3>Credibility flags</h3><ul class="tight">{% for f in t.teardown.credibility_flags %}<li>{{ f }}</li>{% else %}<li class="muted">None</li>{% endfor %}</ul>
+    <h3>Scorecard</h3>
+    <div class="kv">{% for k, v in t.teardown.scorecard.items() %}<div>{{ k|title }}</div><div>{{ v }}/10</div>{% endfor %}</div>
+  </div>
+  <div class="card">
+    <h2>Screen-call prep</h2>
+    {% for q in t.teardown.hardest_questions %}<p><b>{{ q.question }}</b><br><span class="sub">{{ q.answer_strategy }}</span></p>{% endfor %}
+    {% if t.teardown.timeline_questions %}<h3>Timeline questions</h3><ul class="tight">{% for q in t.teardown.timeline_questions %}<li>{{ q }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+</div>
+
+<div class="card" id="referrals">
+  <div class="spread"><h2 style="margin:0">Referrals at {{ job.company }}</h2>
+    <span class="row"><a class="btn small" href="{{ url_for('person_form') }}">+ Add someone you know</a>
+    {% if known %}<form class="inline" method="post" action="{{ url_for('job_referrals', job_id=job.id) }}"><button class="btn small">Draft texts</button></form>{% endif %}</span></div>
+  {% for a in asks %}
+  <div style="margin:12px 0">
+    <div class="spread"><b>{{ a.name }}</b> <span class="sub small">{{ a.title or '' }}{% if a.connection %} · {{ a.connection }}{% endif %} · <span class="badge">{{ a.status }}</span></span></div>
+    <div class="copybox"><textarea id="ref{{ a.id }}" readonly rows="4">{{ a.message }}</textarea><button class="btn small" type="button" onclick="copyText('ref{{ a.id }}', this)">Copy</button></div>
+    <div class="row" style="margin-top:6px">
+      {% if a.phone %}<a class="btn small primary" href="{{ a.phone|smslink(a.message) }}">Text {{ a.name.split()[0] }}</a>{% endif %}
+      {% if a.linkedin %}<a class="btn small" href="{{ a.linkedin }}" target="_blank" rel="noopener">LinkedIn ↗</a>{% endif %}
+      <form class="inline" method="post" action="{{ url_for('referral_action', rid=a.id) }}">
+        <button class="btn small" name="status" value="asked">I asked</button>
+        <button class="btn small" name="status" value="referred">They referred me</button>
+        <button class="btn small" name="status" value="declined">Declined</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+    {% if known %}<p class="sub">You know {{ known|length }} person(s) here: {% for c in known %}{{ c.name }} ({{ stages.get(c.stage) }}){% if not loop.last %}, {% endif %}{% endfor %}. Click <b>Draft texts</b>.</p>
+    {% else %}<p class="muted">You haven't added anyone at {{ job.company }}. Add a friend here and a referral text is drafted for this role.</p>{% endif %}
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>LinkedIn outreach</h2>
+  <p class="sub">Open the search, pick a real person, paste the note into "Add a note", and send it yourself. Then mark it sent so follow-up reminders show up.</p>
+  {% for o in outreach %}
+  <div style="margin:12px 0">
+    <div class="spread"><b>{{ o.target|replace('_',' ')|title }}</b>
+      <span class="row"><a class="btn small" href="{{ o.search_url }}" target="_blank" rel="noopener">Find people ↗</a><span class="badge">{{ o.status }}</span></span></div>
+    <div class="copybox"><textarea id="msg{{ o.id }}" readonly>{{ o.message }}</textarea><button class="btn small" type="button" onclick="copyText('msg{{ o.id }}', this)">Copy</button></div>
+    <span class="muted" style="font-size:12px">{{ o.message|length }} / 300 characters</span>
+    {% if o.status == 'drafted' %}
+    <form method="post" action="{{ url_for('outreach_action', oid=o.id) }}" class="row" style="margin-top:4px">
+      <input type="text" name="person_name" placeholder="Who did you send it to?">
+      <input type="text" name="profile_url" placeholder="Profile URL (optional)">
+      <button class="btn small primary" name="status" value="sent">Mark sent</button>
+      <button class="btn small" name="status" value="skipped">Skip</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if t.outreach_targets.referral_ideas %}<h3>Referral ideas</h3><ul class="tight">{% for r in t.outreach_targets.referral_ideas %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+</div>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Copy-paste kit for the form</h2>
+    <div class="kv">
+      {% for k in ('name','email','phone','location','linkedin','github','portfolio') %}<div>{{ k|title }}</div><div>{{ applicant.get(k, '') }}</div>{% endfor %}
+      {% for q, a in (applicant.answers or {}).items() %}<div>{{ q }}</div><div>{{ a }}</div>{% endfor %}
+    </div>
+    <p class="muted" style="font-size:12px">Edit these in profile/applicant.json. Answer sponsorship questions truthfully; the master prompt's Section XV script applies in interviews.</p>
+  </div>
+  <div class="card">
+    <h2>Keyword coverage</h2>
+    <table><tr><th>Keyword</th><th>On resume</th><th>Evidence</th></tr>
+    {% for k in t.keyword_table %}<tr><td>{{ k.keyword }}</td><td>{{ '✓ ' ~ k.locations if k.in_resume else '✗ gap' }}</td><td class="sub">{{ k.evidence_type }}</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Cover letter text</h2>
+  {% for p in t.cover_letter.paragraphs %}<p>{{ p }}</p>{% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Notes</h2>
+  <form method="post" action="{{ url_for('job_action', job_id=job.id) }}">
+    <textarea name="notes" placeholder="Referral contact, recruiter name, interview dates…">{{ job.notes or '' }}</textarea>
+    <button class="btn small" name="action" value="notes" style="margin-top:6px">Save notes</button>
+  </form>
+</div>
+
+<div class="card"><h2>Job description</h2><div class="jd">{{ job.description }}</div></div>
+{% endblock %}

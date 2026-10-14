@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Settings · Job Autopilot{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Daily runs</h2>
+    <p class="sub" style="margin-top:0">Each run fetches new postings, has Claude screen them, and builds tailored resume and cover letter PDFs for the good ones. Times are Eastern (your Mac's clock).</p>
+    <form method="post" id="sched-form">
+      <input type="hidden" name="section" value="schedule">
+      <div id="times">
+        {% for t in sched.times %}
+        <div class="row time-row" style="margin:6px 0">
+          <input type="time" name="time" value="{{ t }}" required>
+          <button type="button" class="btn small danger" onclick="this.parentNode.remove()">Remove</button>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button type="button" class="btn small" onclick="addTime()">+ Add a run time</button>
+        <button class="btn primary" type="submit">Save schedule</button>
+      </div>
+    </form>
+    <h3>Next runs</h3>
+    <ul class="tight">{% for t in sched.next %}<li>{{ t.strftime('%a %b %-d, %-I:%M %p') }}</li>{% else %}<li class="muted">None</li>{% endfor %}</ul>
+    <form method="post" action="{{ url_for('run_now') }}" class="row" style="margin-top:8px">
+      <button class="btn" name="kind" value="run">Run now</button>
+      <span class="sub">Starts a full run immediately (the schedule is unchanged).</span>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Lid closed / asleep</h2>
+    {% if sched.wake_installed and sched.wake_follows_settings %}
+      <p><span class="badge apply">Wakes the Mac</span> 2 minutes before each run, even with the lid closed or the screen locked.</p>
+      {% if sched.wakes %}
+      <p class="sub">Booked wake-ups:</p>
+      <ul class="tight">{% for w in sched.wakes[:6] %}<li>{{ w.strftime('%a %b %-d, %-I:%M %p') }}</li>{% endfor %}</ul>
+      {% if not sched.wakes_match %}<p class="sub">Updating to your new times… refresh in a few seconds.</p>{% endif %}
+      {% endif %}
+    {% elif sched.wake_installed %}
+      <p><span class="badge risk">Fixed at 7:58 AM and 2:58 PM</span> Your wake helper is the earlier version, which doesn't follow changes made here.</p>
+      <p class="sub">Run this once in Terminal (it asks for your Mac password), and from then on wake-ups always follow the times on this page:</p>
+      <pre class="log">sudo ~/job-autopilot/scripts/install_wake.sh</pre>
+    {% else %}
+      <p><span class="badge risk">Not set up</span> Runs happen only while the Mac is awake (or right after it wakes).</p>
+      <p class="sub">To run while the lid is closed, run this once in Terminal (it asks for your Mac password):</p>
+      <pre class="log">sudo ~/job-autopilot/scripts/install_wake.sh</pre>
+    {% endif %}
+    <p class="sub">Keep the Mac plugged in overnight: on battery, macOS cuts lid-closed background wakes short, so a run may finish only when you open the lid.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Pipeline</h2>
+  <form method="post">
+    <input type="hidden" name="section" value="pipeline">
+    <div class="grid g2">
+      {% for key, label, kind, help, rng in tunables %}
+      <div>
+        <label><b>{{ label }}</b></label><br>
+        {% if kind == 'int' %}
+          <input type="number" name="{{ key }}" value="{{ current[key] }}" min="{{ rng[0] }}" max="{{ rng[1] }}" style="width:120px">
+        {% elif kind == 'choice' %}
+          <select name="{{ key }}">{% for c in rng %}<option value="{{ c }}" {{ 'selected' if current[key] == c }}>{{ c }}</option>{% endfor %}</select>
+        {% else %}
+          <label class="sub"><input type="checkbox" name="{{ key }}" value="1" {{ 'checked' if current[key] == '1' }}> on</label>
+        {% endif %}
+        <div class="muted" style="font-size:12px">{{ help }}</div>
+      </div>
+      {% endfor %}
+      <div>
+        <label><b>Job feeds</b></label><br>
+        <label class="sub"><input type="checkbox" name="feed_jobright" value="1" {{ 'checked' if feeds.get('jobright', {}).get('enabled') }}> Jobright new-grad lists</label><br>
+        <label class="sub"><input type="checkbox" name="feed_simplify" value="1" {{ 'checked' if feeds.get('simplify', {}).get('enabled') }}> SimplifyJobs</label><br>
+        <label class="sub"><input type="checkbox" name="feed_hn_who_is_hiring" value="1" {{ 'checked' if feeds.get('hn_who_is_hiring', {}).get('enabled') }}> Hacker News "Who is hiring?" (startups)</label>
+      </div>
+      <div>
+        <label><b>H-1B filter</b></label><br>
+        <label class="sub"><input type="checkbox" name="require_h1b_signal" value="1" {{ 'checked' if feeds.get('require_h1b_signal', True) }}> Only queue feed jobs with an H-1B sponsorship signal</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" type="submit">Save pipeline settings</button></div>
+  </form>
+  <form method="post" action="{{ url_for('restart_dashboard') }}" class="row" style="margin-top:10px">
+    <button class="btn small">Restart dashboard</button><span class="sub">Needed only after changing "Jobs at once". Queued work resumes on its own.</span>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Your profile and prompt</h2>
+  <p class="sub" style="margin-top:0">Edit the master prompt (your entire profile and every resume and cover letter rule), confirmed facts, and form presets.</p>
+  <a class="btn primary" href="{{ url_for('profile_page') }}">Open the profile editor</a>
+</div>
+
+<script>
+  function addTime() {
+    const row = document.createElement("div");
+    row.className = "row time-row"; row.style.margin = "6px 0";
+    const inp = document.createElement("input"); inp.type = "time"; inp.name = "time"; inp.required = true; inp.value = "12:00";
+    const rm = document.createElement("button"); rm.type = "button"; rm.className = "btn small danger"; rm.textContent = "Remove";
+    rm.onclick = () => row.remove();
+    row.append(inp, rm);
+    document.getElementById("times").appendChild(row);
+    inp.focus();
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% macro pager(page, noun="jobs") %}
+{% if page.total %}
+<div class="pager">
+  <span class="sub">Showing {{ '{:,}'.format(page.first) }}–{{ '{:,}'.format(page.last) }} of {{ '{:,}'.format(page.total) }} {{ noun }}</span>
+  {% if page.pages > 1 %}
+  <nav class="row" aria-label="Pages">
+    {% if page.page > 1 %}<a class="btn small" href="{{ page.url(page.page - 1) }}" rel="prev">‹ Prev</a>{% else %}<span class="btn small disabled">‹ Prev</span>{% endif %}
+    {% for n in page.window() %}
+      {% if n is none %}<span class="muted">…</span>
+      {% elif n == page.page %}<span class="btn small primary" aria-current="page">{{ n }}</span>
+      {% else %}<a class="btn small" href="{{ page.url(n) }}">{{ n }}</a>{% endif %}
+    {% endfor %}
+    {% if page.page < page.pages %}<a class="btn small" href="{{ page.url(page.page + 1) }}" rel="next">Next ›</a>{% else %}<span class="btn small disabled">Next ›</span>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endif %}
+{% endmacro %}

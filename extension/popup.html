@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { width: 320px; margin: 0; padding: 14px; font: 13px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; color: #0b0b0b; background: #fcfcfb; }
+  h1 { font-size: 15px; margin: 0 0 8px; }
+  .muted { color: #6b6a66; }
+  .ok { color: #0a7d0a; } .bad { color: #c23030; }
+  select, button { width: 100%; font: inherit; margin-top: 8px; padding: 7px; border-radius: 8px; border: 1px solid #d8d7d2; background: #fff; }
+  button.primary { background: #2a78d6; border-color: #2a78d6; color: #fff; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .job { margin-top: 8px; padding: 8px; border-radius: 8px; background: #f0efec; }
+  a { color: #2a78d6; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a19; color: #fff; } .muted { color: #a3a29a; } .job { background: #262624; }
+    select, button { background: #242422; color: #fff; border-color: #383835; } .ok { color: #3fcf3f; } .bad { color: #f07070; }
+  }
+</style>
+</head>
+<body>
+  <h1>Job Autopilot</h1>
+  <div id="server" class="muted">Checking the local app…</div>
+  <div id="jobbox" class="job" style="display:none"></div>
+  <select id="pick" style="display:none"></select>
+  <button id="fill" class="primary" disabled>Autofill this page</button>
+  <p class="muted" style="margin:10px 0 0">Fills from your profile and keeps filling each next page after you click Next. It never clicks Next or Submit and never fills sign-in pages. <a href="http://127.0.0.1:5055/" target="_blank">Open dashboard</a></p>
+  <script src="popup.js"></script>
+</body>
+</html>

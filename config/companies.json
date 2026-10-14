@@ -1,0 +1,621 @@
+{
+ "_comment": "Companies to watch. ats is greenhouse|lever|ashby and slug is the board name in the public job-board URL. h1b is your note on sponsorship history; verify with the USCIS H-1B Employer Data Hub (import it on the Sources page). enabled=false skips a company.",
+ "companies": [
+  {
+   "name": "Airbnb",
+   "ats": "greenhouse",
+   "slug": "airbnb",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Stripe",
+   "ats": "greenhouse",
+   "slug": "stripe",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Databricks",
+   "ats": "greenhouse",
+   "slug": "databricks",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Robinhood",
+   "ats": "greenhouse",
+   "slug": "robinhood",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Coinbase",
+   "ats": "greenhouse",
+   "slug": "coinbase",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Dropbox",
+   "ats": "greenhouse",
+   "slug": "dropbox",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Pinterest",
+   "ats": "greenhouse",
+   "slug": "pinterest",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Lyft",
+   "ats": "greenhouse",
+   "slug": "lyft",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Instacart",
+   "ats": "greenhouse",
+   "slug": "instacart",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Figma",
+   "ats": "greenhouse",
+   "slug": "figma",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Datadog",
+   "ats": "greenhouse",
+   "slug": "datadog",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Cloudflare",
+   "ats": "greenhouse",
+   "slug": "cloudflare",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "MongoDB",
+   "ats": "greenhouse",
+   "slug": "mongodb",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Elastic",
+   "ats": "greenhouse",
+   "slug": "elastic",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Twilio",
+   "ats": "greenhouse",
+   "slug": "twilio",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "GitLab",
+   "ats": "greenhouse",
+   "slug": "gitlab",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Affirm",
+   "ats": "greenhouse",
+   "slug": "affirm",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Brex",
+   "ats": "greenhouse",
+   "slug": "brex",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Samsara",
+   "ats": "greenhouse",
+   "slug": "samsara",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Scale AI",
+   "ats": "greenhouse",
+   "slug": "scaleai",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Anthropic",
+   "ats": "greenhouse",
+   "slug": "anthropic",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Asana",
+   "ats": "greenhouse",
+   "slug": "asana",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Discord",
+   "ats": "greenhouse",
+   "slug": "discord",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Reddit",
+   "ats": "greenhouse",
+   "slug": "reddit",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Duolingo",
+   "ats": "greenhouse",
+   "slug": "duolingo",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Squarespace",
+   "ats": "greenhouse",
+   "slug": "squarespace",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Toast",
+   "ats": "greenhouse",
+   "slug": "toast",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Chime",
+   "ats": "greenhouse",
+   "slug": "chime",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Okta",
+   "ats": "greenhouse",
+   "slug": "okta",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Nuro",
+   "ats": "greenhouse",
+   "slug": "nuro",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Gusto",
+   "ats": "greenhouse",
+   "slug": "gusto",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Carta",
+   "ats": "greenhouse",
+   "slug": "carta",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Flexport",
+   "ats": "greenhouse",
+   "slug": "flexport",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Roblox",
+   "ats": "greenhouse",
+   "slug": "roblox",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Vercel",
+   "ats": "greenhouse",
+   "slug": "vercel",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Airtable",
+   "ats": "greenhouse",
+   "slug": "airtable",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Peloton",
+   "ats": "greenhouse",
+   "slug": "peloton",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Block",
+   "ats": "greenhouse",
+   "slug": "block",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Jump Trading",
+   "ats": "greenhouse",
+   "slug": "jumptrading",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Point72",
+   "ats": "greenhouse",
+   "slug": "point72",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Jane Street",
+   "ats": "greenhouse",
+   "slug": "janestreet",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Yext",
+   "ats": "greenhouse",
+   "slug": "yext",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Klaviyo",
+   "ats": "greenhouse",
+   "slug": "klaviyo",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "IMC Trading",
+   "ats": "greenhouse",
+   "slug": "imc",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Oscar",
+   "ats": "greenhouse",
+   "slug": "oscar",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "ZipRecruiter",
+   "ats": "greenhouse",
+   "slug": "ziprecruiter",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Fivetran",
+   "ats": "greenhouse",
+   "slug": "fivetran",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Mixpanel",
+   "ats": "greenhouse",
+   "slug": "mixpanel",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Intercom",
+   "ats": "greenhouse",
+   "slug": "intercom",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Verkada",
+   "ats": "greenhouse",
+   "slug": "verkada",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Waymo",
+   "ats": "greenhouse",
+   "slug": "waymo",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Lucid Motors",
+   "ats": "greenhouse",
+   "slug": "lucidmotors",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "SoFi",
+   "ats": "greenhouse",
+   "slug": "sofi",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Betterment",
+   "ats": "greenhouse",
+   "slug": "betterment",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Appian",
+   "ats": "greenhouse",
+   "slug": "appian",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "PagerDuty",
+   "ats": "greenhouse",
+   "slug": "pagerduty",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "New Relic",
+   "ats": "greenhouse",
+   "slug": "newrelic",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Sumo Logic",
+   "ats": "greenhouse",
+   "slug": "sumologic",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Palantir",
+   "ats": "lever",
+   "slug": "palantir",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Spotify",
+   "ats": "lever",
+   "slug": "spotify",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Zoox",
+   "ats": "lever",
+   "slug": "zoox",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Outreach",
+   "ats": "lever",
+   "slug": "outreach",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Anyscale",
+   "ats": "lever",
+   "slug": "anyscale",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Match Group",
+   "ats": "lever",
+   "slug": "matchgroup",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Kraken",
+   "ats": "lever",
+   "slug": "kraken",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "WHOOP",
+   "ats": "lever",
+   "slug": "whoop",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Quantcast",
+   "ats": "lever",
+   "slug": "quantcast",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "OpenAI",
+   "ats": "ashby",
+   "slug": "openai",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Notion",
+   "ats": "ashby",
+   "slug": "notion",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Ramp",
+   "ats": "ashby",
+   "slug": "ramp",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Linear",
+   "ats": "ashby",
+   "slug": "linear",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Snowflake",
+   "ats": "ashby",
+   "slug": "snowflake",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Cursor",
+   "ats": "ashby",
+   "slug": "cursor",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Perplexity",
+   "ats": "ashby",
+   "slug": "perplexity",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Replit",
+   "ats": "ashby",
+   "slug": "replit",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Vanta",
+   "ats": "ashby",
+   "slug": "vanta",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Plaid",
+   "ats": "ashby",
+   "slug": "plaid",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Cohere",
+   "ats": "ashby",
+   "slug": "cohere",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Modal",
+   "ats": "ashby",
+   "slug": "modal",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "ElevenLabs",
+   "ats": "ashby",
+   "slug": "elevenlabs",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Harvey",
+   "ats": "ashby",
+   "slug": "harvey",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Sierra",
+   "ats": "ashby",
+   "slug": "sierra",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "PostHog",
+   "ats": "ashby",
+   "slug": "posthog",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Supabase",
+   "ats": "ashby",
+   "slug": "supabase",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "ClickHouse",
+   "ats": "ashby",
+   "slug": "clickhouse",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Hex",
+   "ats": "ashby",
+   "slug": "hex",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Deel",
+   "ats": "ashby",
+   "slug": "deel",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  },
+  {
+   "name": "Mercury",
+   "ats": "ashby",
+   "slug": "mercury",
+   "h1b": "known sponsor - verify in USCIS data hub",
+   "enabled": true
+  }
+ ]
+}

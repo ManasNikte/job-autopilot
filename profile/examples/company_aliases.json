@@ -1,0 +1,5 @@
+{
+  "_comment": "Optional. Fix company names spelled differently in your networking sheet so people match job postings.",
+  "fixes": {"redhat": "Red Hat"},
+  "not_companies": []
+}

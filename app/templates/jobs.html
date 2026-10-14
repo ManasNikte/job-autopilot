@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "_pager.html" import pager %}
+{% block title %}Jobs · Job Autopilot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if status == 'applied_all' %}Applied jobs{% else %}Jobs{% endif %}</h1>
+  <span class="sub">{{ '{:,}'.format(page.total) }} match{{ '' if page.total == 1 else 'es' }}{% if q %} for “{{ q }}”{% endif %}</span>
+</div>
+
+<nav class="tabs" aria-label="Job status">
+  {% for key, label, _ in tabs %}
+  <a href="{{ url_for('jobs', status=key, q=q or None, source=source or None, startup='1' if startup else None, min_match=min_match or None) }}"
+     class="tab {{ 'on' if status == key }}">{{ label }} <span class="count">{{ '{:,}'.format(counts[key]) }}</span></a>
+  {% endfor %}
+</nav>
+
+<form class="filters" method="get" id="job-filters">
+  <input type="hidden" name="status" value="{{ status }}">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search company, title, or location" class="grow" autocomplete="off">
+  <select name="source" onchange="this.form.submit()" aria-label="Source">
+    <option value="">All sources</option>
+    {% for v, l in [('companies','Your companies'),('discovered','Discovered boards'),('jobright','Jobright'),('simplify','Simplify'),('hn','HN startups'),('web','Added by you')] %}
+    <option value="{{ v }}" {{ 'selected' if source == v }}>{{ l }}</option>{% endfor %}
+  </select>
+  <select name="min_match" onchange="this.form.submit()" aria-label="Minimum match">
+    <option value="">Any match</option>
+    {% for n in [9, 8, 7, 6, 5] %}<option value="{{ n }}" {{ 'selected' if min_match == n|string }}>{{ n }}+/10</option>{% endfor %}
+  </select>
+  <select name="sort" onchange="this.form.submit()" aria-label="Sort">
+    {% for k, (label, _) in sorts.items() %}<option value="{{ k }}" {{ 'selected' if sort == k }}>{{ label }}</option>{% endfor %}
+  </select>
+  <label class="check"><input type="checkbox" name="startup" value="1" {{ 'checked' if startup }} onchange="this.form.submit()"> Startups</label>
+  <button class="btn" type="submit">Search</button>
+  {% if q or source or startup or min_match %}<a class="btn ghost" href="{{ url_for('jobs', status=status or None) }}">Clear</a>{% endif %}
+</form>
+
+<div class="card flush">
+<table class="jobs-table">
+  <thead><tr><th>Role</th><th>Found on</th><th>Posted</th><th>Match</th><th>Status</th><th class="num">Documents</th></tr></thead>
+  <tbody>
+  {% for j in jobs %}
+  <tr>
+    <td class="role">
+      <a class="title" href="{{ url_for('job_detail', job_id=j.id) }}">{{ j.title }}</a>
+      <div class="meta">
+        <b>{{ j.company }}</b>{% if j.location %} · {{ j.location|truncate(48) }}{% endif %}
+        {% if j.startup %}<span class="badge" title="{{ j.company_stage }}">Startup</span>{% endif %}
+      </div>
+      {% if j.status in ('filtered_out','rejected','error','below_threshold') and j.status_reason %}<div class="reason">{{ j.status_reason|truncate(120) }}</div>{% endif %}
+    </td>
+    <td class="sub small">{{ j.source|source_label }}{% if j.h1b_level == 'strong' %}<div><span class="badge apply" title="{{ j.h1b_signal }}">H-1B</span></div>{% endif %}</td>
+    <td class="sub small nowrap">{{ j.posted_at|ago }}{% if j.applied_at %}<div>applied {{ j.applied_at|ago }}</div>{% endif %}</td>
+    <td class="nowrap">{% if j.match_score is not none %}<span class="score s{{ j.match_score }}" title="{{ j.verdict }}">{{ j.match_score }}/10</span>{% else %}<span class="muted">—</span>{% endif %}
+      {% if j.final_call %}<div class="sub small" title="Recruiter teardown">{{ j.final_call|lower|capitalize }}</div>{% endif %}</td>
+    <td><span class="badge {{ 'ready' if j.status == 'ready' else 'apply' if j.status in ('applied','interviewing','offer') else 'no' if j.status in ('rejected','error') else '' }}">{{ status_labels.get(j.status, j.status) }}</span></td>
+    <td class="num nowrap">
+      {% if j.resume_pdf %}<a class="btn small" href="{{ url_for('file', p=j.resume_pdf) }}" target="_blank" title="Resume PDF">Resume</a>{% endif %}
+      {% if j.cover_pdf %}<a class="btn small" href="{{ url_for('file', p=j.cover_pdf) }}" target="_blank" title="Cover letter PDF">Cover</a>{% endif %}
+      {% if not j.resume_pdf %}<span class="muted">—</span>{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="empty">{% if q %}No jobs match “{{ q }}”. Try fewer words or clear the filters.{% else %}No jobs here yet.{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ pager(page) }}
+{% endblock %}
