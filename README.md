@@ -149,7 +149,7 @@ real files stay **gitignored**, so they never reach the repository:
 
 | File | What to put there |
 |---|---|
-| `profile/system_prompt.md` | **Your master prompt**: your full background (Section I), project library (Section I-B), and your rules for fit verdicts, resumes, and cover letters. The template shows the section headings the app refers to. Claude reads it fresh on every call. |
+| `profile/system_prompt.md` | **Your master prompt.** It starts from a complete, battle-tested template: every rule for fit verdicts, harsh scoring, ATS checks, one-page resume layout, cover letters, and the recruiter teardown is included. You fill in your profile (Section I), your project library (Section I-B), and the bracketed placeholders (search for `[`). Claude reads it fresh on every call. |
 | `profile/applicant.json` | Contact details and fixed form answers (work authorization, start date, EEO) for autofill |
 | `profile/answers.md` | Facts you confirm on **Needs you** are appended here automatically |
 | `profile/company_aliases.json` | Optional company-name fixes for your networking spreadsheet |
