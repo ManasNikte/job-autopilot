@@ -88,8 +88,11 @@ def pins(jobs: list[dict]) -> tuple[list[dict], int]:
             if c and c["ok"]:
                 rejected = j["status"] == "closed"          # rejected applications get their own (red) pin
                 key = (round(c["lat"], 3), round(c["lng"], 3), rejected)
-                pin = by_place.setdefault(key, {"lat": c["lat"], "lng": c["lng"] + (0.12 if rejected else 0), "place": p, "jobs": []})
+                pin = by_place.setdefault(key, {"lat": c["lat"], "lng": c["lng"], "place": p, "jobs": []})
                 pin["jobs"].append({"id": j["id"], "company": j["company"], "title": j["title"], "status": j["status"]})
                 hit = True
         unmapped += not hit
+    for (lat, lng, rejected), pin in by_place.items():   # nudge a red pin aside only if it shares a city with others
+        if rejected and (lat, lng, False) in by_place:
+            pin["lng"] += 0.12
     return list(by_place.values()), unmapped

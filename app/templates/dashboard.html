@@ -28,15 +28,16 @@
         <div class="seg" role="group" aria-label="Time range">
           <button type="button" class="on" data-set="today">Applied today</button><button type="button" data-set="all">All time</button>
         </div>
-        <label class="check small"><input type="checkbox" id="map-rejected"> Show rejected</label>
       </div>
     </div>
     <div class="jmap" id="map-applied" role="img" aria-label="Map of submitted applications"></div>
-    <div class="row small sub" style="margin-top:6px;gap:14px">
-      <span><i class="dot-key" style="background:var(--good)"></i>Applied</span>
-      <span><i class="dot-key" style="background:var(--accent)"></i>Interviewing / offer</span>
-      <span id="rej-key" hidden><i class="dot-key" style="background:var(--critical)"></i>Rejected</span>
-      <span id="map-applied-note" style="margin-left:auto"></span>
+    <div class="row small" style="margin-top:8px;gap:6px">
+      <span class="sub">Show:</span>
+      <button type="button" class="chip" data-show="applied" aria-pressed="true"><i class="dot-key" style="background:var(--good)"></i>Applied</button>
+      <button type="button" class="chip" data-show="interviewing" aria-pressed="true"><i class="dot-key" style="background:var(--accent)"></i>Interviewing / offer</button>
+      <button type="button" class="chip" data-show="rejected" aria-pressed="false"><i class="dot-key" style="background:var(--critical)"></i>Rejected</button>
+      <button type="button" class="chip-link" id="map-only-reset" hidden>Show all</button>
+      <span id="map-applied-note" class="sub" style="margin-left:auto"></span>
     </div>
   </div>
 </div>
@@ -79,8 +80,11 @@
     return box;
   }
 
+  const seq = {};
   async function load(key, query, noteId) {
+    const mine = seq[key] = (seq[key] || 0) + 1;     // quick toggles fire several requests: only the newest may draw
     let d; try { d = await (await fetch("{{ url_for('map_json') }}?" + query)).json(); } catch (e) { return; }
+    if (mine !== seq[key]) return;
     const m = maps[key]; m._layer.clearLayers();
     const pts = [];
     for (const pin of d.pins) {
@@ -98,13 +102,33 @@
     if (d.pending) setTimeout(() => load(key, query, noteId), 6000);   // geocoding runs in the background, 1 place a second
   }
 
-  let set = "today";
-  const rej = document.getElementById("map-rejected");
-  const applied = () => { document.getElementById("rej-key").hidden = !rej.checked;
-    load("applied", `set=${set}&rejected=${rej.checked ? 1 : 0}`, "map-applied-note"); };
+  // Filters: time range + any mix of status chips (each chip toggles on its own). Remembered per browser.
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem("mapFilters") || "{}"); } catch (e) {}
+  let set = saved.set || "today";
+  const chips = [...document.querySelectorAll(".chip[data-show]")];
+  if (Array.isArray(saved.show)) chips.forEach(c => c.setAttribute("aria-pressed", String(saved.show.includes(c.dataset.show))));
+  document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x.dataset.set === set));
+  const shown = () => chips.filter(c => c.getAttribute("aria-pressed") === "true").map(c => c.dataset.show);
+  const applied = () => {
+    const show = shown();
+    try { localStorage.setItem("mapFilters", JSON.stringify({ set, show })); } catch (e) {}
+    document.getElementById("map-only-reset").hidden = show.length === chips.length;
+    if (!show.length) {
+      seq.applied = (seq.applied || 0) + 1;            // cancel any request still in flight
+      maps.applied._layer.clearLayers();
+      document.getElementById("map-applied-note").textContent = "Nothing selected: turn on a status";
+      return;
+    }
+    load("applied", `set=${set}&show=${show.join(",")}`, "map-applied-note");
+  };
+  chips.forEach(c => {
+    c.addEventListener("click", () => { c.setAttribute("aria-pressed", String(c.getAttribute("aria-pressed") !== "true")); applied(); });
+    c.addEventListener("dblclick", () => { chips.forEach(x => x.setAttribute("aria-pressed", String(x === c))); applied(); });   // double-click: only this one
+    c.title = "Click to show or hide · double-click to show only this";
+  });
+  document.getElementById("map-only-reset").addEventListener("click", () => { chips.forEach(x => x.setAttribute("aria-pressed", "true")); applied(); });
   document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
     document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x === b)); set = b.dataset.set; applied(); }));
-  rej.addEventListener("change", applied);
   load("ready", "set=ready", "map-ready-note");
   applied();
 })();

@@ -228,3 +228,9 @@ label input, label select, label textarea { margin-top: 4px; font-size: 14px; }
 :root[data-theme="dark"] .leaflet-control-attribution { background: rgba(0,0,0,.5); color: var(--muted); }
 :root[data-theme="dark"] .leaflet-control-attribution a { color: var(--text-2); }
 :root[data-theme="dark"] .leaflet-bar a { background: var(--surface); color: var(--text); border-color: var(--border); }
+.chip { display: inline-flex; align-items: center; gap: 2px; font: inherit; font-size: 12px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); border-color: var(--accent); }
+.chip[aria-pressed="false"] .dot-key { opacity: .35; }
+.chip:focus-visible, .chip-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.chip-link { background: none; border: 0; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; padding: 3px 4px; }

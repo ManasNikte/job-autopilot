@@ -441,13 +441,18 @@ def run_now():
 
 @app.route("/api/map")
 def map_json():
-    """Pins for the dashboard maps. set = ready | today | all; rejected=1 adds applications that were rejected."""
+    """Pins for the dashboard maps. set = ready | today | all; show = applied,interviewing,rejected (any mix)."""
     from . import geo
     which = request.args.get("set", "ready")
     start_utc = datetime.combine(datetime.now().astimezone().date(), datetime.min.time()).astimezone().astimezone(timezone.utc).isoformat()
-    statuses = ["ready"] if which == "ready" else ["applied", "interviewing", "offer"]
-    if which != "ready" and request.args.get("rejected") == "1":
-        statuses.append("closed")
+    # show = any of applied, interviewing (incl. offers), rejected; each chip on the map toggles one
+    groups = {"applied": ["applied"], "interviewing": ["interviewing", "offer"], "rejected": ["closed"]}
+    show = [g for g in request.args.get("show", "applied,interviewing").split(",") if g in groups]
+    if request.args.get("rejected") == "1" and "rejected" not in show:      # older dashboards
+        show.append("rejected")
+    statuses = ["ready"] if which == "ready" else [st for g in show for st in groups[g]]
+    if not statuses:
+        return jsonify({"pins": [], "total": 0, "unmapped": 0, "pending": 0})
     where = f"status IN ({','.join('?' * len(statuses))})"
     params: tuple = tuple(statuses)
     if which == "today":
