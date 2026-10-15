@@ -376,13 +376,13 @@ def _tailor_prompt(job: dict) -> str:
 
 
 def _revise_prompt(job: dict, prev: dict, problems: list[str]) -> str:
-    doc = {k: prev[k] for k in ("career_objective", "education", "skills", "experience", "projects", "leadership", "cover_letter")}
+    doc = {k: prev[k] for k in ("summary", "career_objective", "education", "skills", "experience", "projects", "leadership", "cover_letter") if k in prev}
     return (
         "CALL TYPE: REVISE (PATCH)\n\nThe app rendered your package and its checks found these problems. Fix every one "
         "honestly (real facts only, per Section I / I-B) with the SMALLEST set of changes, leaving everything else "
         "untouched. Return only the changed fields as patches:\n"
-        "- path is one of: career_objective | experience[i].bullets[j] | projects[i].bullets[j] | skills[i].items | "
-        "leadership[i].text | education[i].coursework (comma-separated courses) | cover_letter.paragraphs[i] | "
+        "- path is one of: summary | experience[i].bullets[j] | projects[i].bullets[j] | skills[i].items | "
+        "leadership[i].text | leadership[i].date | education[i].coursework (comma-separated courses) | cover_letter.paragraphs[i] | "
         "cover_letter.re_line | cover_letter.greeting | cover_letter.closing  (indexes start at 0)\n"
         "- op: set (replace the value), append (add a new bullet: use experience[i].bullets or projects[i].bullets), "
         "delete (remove that item).\n"
@@ -450,8 +450,8 @@ def render(job: dict, data: dict) -> dict:
     }
 
 
-PATH_RE = re.compile(r"^(career_objective|cover_letter\.(re_line|greeting|closing)|cover_letter\.paragraphs\[(\d+)\]|"
-                     r"(experience|projects)\[(\d+)\]\.bullets(\[(\d+)\])?|skills\[(\d+)\]\.items|leadership\[(\d+)\]\.text|"
+PATH_RE = re.compile(r"^(summary|career_objective|cover_letter\.(re_line|greeting|closing)|cover_letter\.paragraphs\[(\d+)\]|"
+                     r"(experience|projects)\[(\d+)\]\.bullets(\[(\d+)\])?|skills\[(\d+)\]\.items|leadership\[(\d+)\]\.(text|date)|"
                      r"education\[(\d+)\]\.coursework)$")
 
 
@@ -465,8 +465,8 @@ def apply_patch(data: dict, changes: list[dict]) -> tuple[dict, int]:
         if not m:
             continue
         try:
-            if path == "career_objective":
-                out["career_objective"] = val
+            if path in ("summary", "career_objective"):
+                out["summary" if "summary" in out else "career_objective"] = val
             elif m.group(2):
                 out["cover_letter"][m.group(2)] = val
             elif m.group(3):
@@ -489,9 +489,9 @@ def apply_patch(data: dict, changes: list[dict]) -> tuple[dict, int]:
             elif m.group(8):
                 out["skills"][int(m.group(8))]["items"] = val
             elif m.group(9):
-                out["leadership"][int(m.group(9))]["text"] = val
-            elif m.group(10):
-                out["education"][int(m.group(10))]["coursework"] = [x.strip() for x in val.split(",") if x.strip()]
+                out["leadership"][int(m.group(9))][m.group(10)] = val
+            elif m.group(11):
+                out["education"][int(m.group(11))]["coursework"] = [x.strip() for x in val.split(",") if x.strip()]
             applied += 1
         except (IndexError, KeyError, ValueError):
             continue

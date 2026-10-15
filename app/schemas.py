@@ -49,12 +49,13 @@ TAILOR = obj(
     projects_selected=arr(S),
     selection_reason=S,
     header=obj(name=S, line2=arr(LINK), line3=arr(LINK)),
-    career_objective=S,
+    summary_title=S,          # the section title your master prompt uses (e.g. "SUMMARY")
+    summary=S,
     education=arr(obj(degree=S, institution=S, location=S, dates=S, coursework=arr(S))),
     skills=arr(obj(label=S, items=S)),
     experience=arr(obj(company=S, location=S, title=S, dates=S, bullets=arr(S))),
     projects=arr(obj(title=S, stack=S, dates=S, bullets=arr(S))),
-    leadership=arr(obj(label=S, text=S)),
+    leadership=arr(obj(label=S, text=S, date=S)),   # date: right-aligned "Mon YYYY" (or "" if undated)
     cover_letter=obj(
         date=S, recipient_lines=arr(S), re_line=S, greeting=S, paragraphs=arr(S), closing=S, signature=S,
     ),

@@ -191,3 +191,25 @@ def test_skip_marks_dont_apply_and_deletes_documents(tmp_path, monkeypatch):
     assert j["status"] == "rejected" and j["verdict"] == "DON'T APPLY" and j["resume_pdf"] is None
     assert not folder.exists() and outside.exists()
     assert db.fetchall("SELECT * FROM outreach WHERE job_id='x:2'") == []
+
+
+def test_summary_title_and_right_aligned_dates(tmp_path):
+    """The section title comes from the package (the master prompt), and achievement dates sit flush right."""
+    from pypdf import PdfReader
+    out = tmp_path / "s.pdf"
+    pdfgen.build_resume(_fitting_fixture(), str(out))
+    text = PdfReader(str(out)).pages[0].extract_text()
+    assert "SUMMARY" in text and "CAREER OBJECTIVE" not in text
+    assert "(Sep 2022" not in text and "Sep 2022 – Apr 2023" in text
+
+
+def test_older_packages_with_career_objective_still_render(tmp_path):
+    from pypdf import PdfReader
+    data = _fitting_fixture()
+    data["career_objective"] = data.pop("summary")
+    data.pop("summary_title")
+    for item in data["leadership"]:
+        item.pop("date")
+    out = tmp_path / "old.pdf"
+    pdfgen.build_resume(data, str(out))
+    assert "CAREER OBJECTIVE" in PdfReader(str(out)).pages[0].extract_text()

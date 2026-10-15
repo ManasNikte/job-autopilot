@@ -63,12 +63,12 @@ def resume_line_checks(data: dict, body_pt: float) -> list[str]:
                 problems.append(f"{label} {i} WRAPS to two lines ({fill:.0%} of one line, cut ~{int((fill - 1) * 95) + 2} characters): \"{b}\"")
             elif fill < 0.95:
                 problems.append(f"{label} {i} is SHORT ({fill:.0%} of the line, add ~{int((0.97 - fill) * 95)} characters of real detail): \"{b}\"")
-    obj = data["career_objective"]
+    obj, name = summary_text(data), summary_title(data).title()
     w = text_width_pt(obj, body_pt)
     if w and w > 2 * OBJECTIVE_WIDTH_PT:
-        problems.append(f"Career Objective runs past 2 lines ({w / OBJECTIVE_WIDTH_PT:.2f} lines)")
+        problems.append(f"{name} runs past 2 lines ({w / OBJECTIVE_WIDTH_PT:.2f} lines)")
     elif w and w < 1.9 * OBJECTIVE_WIDTH_PT:
-        problems.append(f"Career Objective line 2 is short ({w / OBJECTIVE_WIDTH_PT - 1:.0%} of the line; needs >= 90%)")
+        problems.append(f"{name} line 2 is short ({w / OBJECTIVE_WIDTH_PT - 1:.0%} of the line; needs >= 90%)")
     for s in data["skills"]:
         lw = text_width_pt(s["items"], body_pt)
         if lw and lw > 8767 / 20:
@@ -83,6 +83,8 @@ def resume_line_checks(data: dict, body_pt: float) -> list[str]:
             problems.append(f"{ed['degree']} coursework wraps ({cw / cell:.0%} of its cell); drop or shorten a course")
     for item in data["leadership"]:
         lw = (text_width_pt(item["label"].rstrip(":") + ": ", body_pt, "bold") or 0) + (text_width_pt(item["text"], body_pt) or 0)
+        if item.get("date"):
+            lw += (text_width_pt(item["date"], body_pt, "bold") or 0) + 12   # right-aligned date plus a gap
         if lw > OBJECTIVE_WIDTH_PT:
             problems.append(f"Leadership & Achievements line '{item['label']}' wraps ({lw / OBJECTIVE_WIDTH_PT:.0%} of a line); shorten it")
     if len(data["skills"]) != 4:
@@ -107,3 +109,13 @@ def cover_letter_checks(letter: dict) -> list[str]:
             if len(s.split()) > 30:
                 problems.append(f"Cover letter sentence over 30 words: \"{s[:100]}…\"")
     return problems
+
+
+def summary_text(data: dict) -> str:
+    """The summary paragraph; packages built before v18 prompts called it career_objective."""
+    return (data.get("summary") or data.get("career_objective") or "").strip()
+
+
+def summary_title(data: dict) -> str:
+    """Section title from the package (the master prompt decides it), e.g. 'SUMMARY'."""
+    return (data.get("summary_title") or ("Summary" if "summary" in data else "Career Objective")).strip()

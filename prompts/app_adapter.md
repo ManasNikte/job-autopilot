@@ -41,13 +41,16 @@ wording, selection, and scoring. This adapter only changes the OUTPUT MECHANICS:
      spaces (wide letters like M/W need fewer, narrow ones like i/l/t allow more).
      Aim for that range on the first pass; the app measures each bullet exactly
      against the 509.5pt width and asks only for the lines that miss.
-   • Career Objective: exactly 2 full lines, about 205–225 characters.
+   • Summary: `summary_title` is the section title exactly as the master prompt names it
+     (e.g. "SUMMARY"); `summary` is its text: exactly 2 full lines, about 205–225 characters.
    • Each Technical Skills row and each Leadership & Achievements line must fit on one
      line (about 95 characters for skills items, about 105 for leadership text).
    • Dates exactly as the master prompt specifies ("Mon YYYY – Mon YYYY", en dash).
    • Skills: exactly 4 rows; `label` without a colon and at most ~14 characters
      (e.g. "Languages", "Backend & Web", "Cloud & Data", "AI & Tools").
-   • Leadership & Achievements lines: give the label and the text separately.
+   • Leadership & Achievements lines: give the label, the text, and the date separately.
+     `date` is printed bold and right-aligned (e.g. "Apr 2025", "Sep 2023 – Apr 2024");
+     never put dates in the text or in parentheses. Use "" for an undated line.
    • Cover letter `paragraphs`: body paragraphs only (no greeting, no sign off);
      ZERO "-", "–", or "—" characters anywhere in recipient lines, re line, greeting,
      paragraphs, or closing.

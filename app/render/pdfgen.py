@@ -183,9 +183,10 @@ def _resume_pass(c, data: dict, L: Layout) -> float:
         y += extra_before + L.line
         return y - L.line * 0.27
 
-    # Career objective: distributed, both lines flush (IX-V.4)
-    title("Career Objective")
-    obj_lines = wrap(data["career_objective"].strip(), "R", L.body, R_TEXT_W)
+    # Summary (title from the package, e.g. "SUMMARY"): distributed, both lines flush (IX-V.4)
+    from .pdf import summary_text, summary_title
+    title(summary_title(data))
+    obj_lines = wrap(summary_text(data), "R", L.body, R_TEXT_W)
     for j, ln in enumerate(obj_lines):
         last_short = j == len(obj_lines) - 1 and width(ln, "R", L.body) < 0.92 * R_TEXT_W
         pg.justified(0, body_line(), ln, "R", L.body, R_TEXT_W, stretch=not last_short)
@@ -242,9 +243,13 @@ def _resume_pass(c, data: dict, L: Layout) -> float:
     for item in data["leadership"]:
         label = item["label"].rstrip(":") + ": "
         indent = width(label, "B", L.body)
-        for j, ln in enumerate(wrap(item["text"], "R", L.body, R_TEXT_W - indent)):
+        date = (item.get("date") or "").strip()
+        room = R_TEXT_W - indent - (width(date, "B", L.body) + 12 if date else 0)
+        for j, ln in enumerate(wrap(item["text"], "R", L.body, room)):
             b = body_line()
             pg.runs(0 if j == 0 else indent, b, ([(label, "B", L.body)] if j == 0 else []) + [(ln, "R", L.body)])
+            if j == 0 and date:
+                pg.right(b, date, "B", L.body)          # bold, flush right, like every other date
     return y
 
 

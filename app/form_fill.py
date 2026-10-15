@@ -296,7 +296,7 @@ def _close_menus(frame) -> None:
 def plan(job: dict, fields: list[dict], page_url: str = "") -> list[dict]:
     t = job.get("tailor_json") or {}
     package = {
-        "career_objective": t.get("career_objective"),
+        "summary": t.get("summary") or t.get("career_objective"),
         "cover_letter_paragraphs": (t.get("cover_letter") or {}).get("paragraphs"),
         "exact_role_title": t.get("exact_role_title"),
     }
