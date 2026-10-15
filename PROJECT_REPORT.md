@@ -7,7 +7,7 @@ including overnight with the laptop lid closed, so the candidate's time goes onl
 |---|---|
 | **Type** | Personal tool, built end to end (backend, LLM integration, PDF rendering, browser extension, scheduling) |
 | **Stack** | Python, Flask, SQLite, Claude (Claude Code CLI or Anthropic API, with web search), reportlab, Leaflet maps, Chrome extension (MV3), Playwright, macOS launchd/pmset |
-| **Size** | About 7,800 lines across the app, extension, and templates · 50 automated tests |
+| **Size** | About 8,000 lines across the app, extension, and templates · 57 automated tests |
 | **Status** | In daily use since October 2026 |
 
 ---
@@ -68,31 +68,33 @@ ready for the best matches, and a **Needs you** inbox with only these items:
 
 The dashboard opens with today's numbers (**applied today**, ready to submit, waiting on your call) and **two
 maps**: one pins every job that's ready to submit, and the other pins submitted applications. The second map
-can be toggled between today and all time, with a filter that shows rejected applications in red. One
-glance shows where the search is concentrated and where the open opportunities are.
+switches between **Today** (applied, moved forward, or rejected today) and **All time**, and three toggle chips,
+**Applied**, **Interviewing / offer**, and **Rejected**, show any mix, such as only rejections or only active
+applications. Jobs that can't be pinned (remote, country-wide) are listed under the map, never dropped. One
+glance shows where the search is concentrated, where it's working, and where the open opportunities are.
 
 ![Application maps](docs/screenshots/maps.png)
 
 ## 3. Time and mental energy saved
 
-These figures come from the app's own database and timing logs over its first four days of use
-(October 11–14, 2026).
+These figures come from the app's own database and timing logs over its first five days of use
+(October 11–15, 2026).
 
 | Stage | Volume | What it would take by hand | What it takes now |
 |---|---|---|---|
 | Postings swept per run | ~160,000 across ~4,100 boards | Not feasible manually | ~4 minutes, unattended |
-| Rule-filtered jobs stored for review | 605 | ~1–2 min each to skim and reject | 0 minutes |
-| Jobs screened in depth by Claude | 414 | ~5 min each to read ~600 words and check fit and visa (~35 hours) | ~22 s each, unattended |
-| Rejected with a written reason | 265 of 414 (64%) | The same reading, then the same "no" | 0 minutes; the reason is one click away |
-| Tailored resume and cover-letter packages | 89 | ~45–60 min each (~67–89 hours) | ~4–5 min each, unattended, plus a few minutes of review |
-| Jobs dropped for listed pay under $100K | 27 | Finding the pay line in each description | 0 minutes |
-| Companies with unknown sponsorship checked online | 39 | ~5–10 min each searching H-1B disclosure sites | ~17 s each, cached for 90 days |
-| Applications submitted | 45 | Retyping the same answers into every portal | One autofill click, then Submit |
+| Rule-filtered jobs stored for review | 645 | ~1–2 min each to skim and reject | 0 minutes |
+| Jobs screened in depth by Claude | 457 | ~5 min each to read ~600 words and check fit and visa (~38 hours) | ~22 s each, unattended |
+| Rejected with a written reason | 300 of 457 (66%) | The same reading, then the same "no" | 0 minutes; the reason is one click away |
+| Tailored resume and cover-letter packages | 92 | ~45–60 min each (~69–92 hours) | ~4–5 min each, unattended, plus a few minutes of review |
+| Jobs dropped for listed pay under $100K | 28 | Finding the pay line in each description | 0 minutes |
+| Companies with unknown sponsorship checked online | 47 | ~5–10 min each searching H-1B disclosure sites | ~17 s each, cached for 90 days |
+| Applications submitted | 75 | Retyping the same answers into every portal | One autofill click, then Submit |
 
 *Manual times are conservative assumptions, not measurements. The automated times are measured medians from the app's
 timing table (screen 21.8 s; document draft 252 s plus 40 s per revision round; PDF render 2.1 s; sponsor lookup about 17 s).*
 
-**Estimated savings in the first four days: over 100 hours of screening and drafting.**
+**Estimated savings in the first five days: over 100 hours of screening and drafting.**
 
 The bigger gain is **mental energy**. About two out of three screened jobs are rejected, and the candidate never
 reads them. Every rejection still has its reason on record ("requires 5+ years", "JD says it will not sponsor",
@@ -162,15 +164,15 @@ applied to within hours of going live, while applicant counts are still low.
   attestations and CAPTCHAs, and LinkedIn prohibits automation. Sites behind a login or bot protection
   (Indeed, Handshake, LinkedIn) are not scraped. Only public APIs and public data are used.
 
-## 6. Results so far (first four days)
+## 6. Results so far (first five days)
 
-- **1,019** relevant postings tracked, **414** screened by Claude, **89** tailored document packages, **45**
-  applications submitted, **32** ready to submit
+- **1,102** relevant postings tracked, **457** screened by Claude, **92** tailored document packages, **75**
+  applications submitted, and the first application already **moved forward to interviews**
 - **~4,100** company boards and **~160,000** postings swept per run in about 4 minutes
-- **42,984** USCIS sponsor records loaded, **180** sponsors learned from feeds and screens, and **39** companies
+- **42,984** USCIS sponsor records loaded, **183** sponsors learned from feeds and screens, and **47** companies
   verified online
-- **56** job locations geocoded and pinned on the dashboard maps
-- **50** automated tests, including Chromium-driven form-fill tests and regression tests for real failures:
+- **55** job locations geocoded and pinned on the dashboard maps
+- **57** automated tests, including Chromium-driven form-fill tests and regression tests for real failures:
   sponsorship-refusal wording, pay parsing, and PDF word-spacing leaks
 
 ## 7. Lessons learned

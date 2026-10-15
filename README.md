@@ -56,8 +56,10 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
   applications chart, a pipeline funnel, live per-job progress bars with an honest "not started / running /
   paused" status, server-side pagination and search everywhere, and dark, light, and system themes.
 - **Application maps.** One map pins every job ready to submit. A second map pins submitted applications,
-  with **Applied today / All time** toggles and a **Show rejected** filter. Locations are geocoded once
-  through OpenStreetMap and cached; clicking a pin lists its jobs.
+  with a **Today / All time** switch (today = applied, moved forward, or rejected today) and three toggle chips,
+  **Applied**, **Interviewing / offer**, and **Rejected**, to show any mix (double-click a chip for only that
+  status). Locations are geocoded once through OpenStreetMap and cached. Building or street names fall back to
+  the company's location, and remote or country-wide jobs are listed under the map. Clicking a pin lists its jobs.
 
 ## How it works
 
@@ -80,11 +82,12 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
 | Browser | Chrome extension (MV3, shadow-DOM side panel), Playwright for the optional in-app autofill and tests |
 | Scheduling | macOS launchd (user agents plus a root LaunchDaemon for `pmset` wake) |
 | Maps | Leaflet with Esri gray canvas tiles (light and dark), OpenStreetMap Nominatim geocoding (cached) |
-| Tests | pytest (50 tests, including Chromium-driven form-fill tests) |
+| Tests | pytest (57 tests, including Chromium-driven form-fill tests) |
 
 ## Screenshots
 
-**Maps**: jobs ready to submit, and submitted applications (here: all time, rejected shown in red).
+**Maps**: jobs ready to submit, and submitted applications (here: all time, with Applied, Interviewing / offer,
+and Rejected all switched on; rejected pins are red).
 
 ![Application maps](docs/screenshots/maps.png)
 
