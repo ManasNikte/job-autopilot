@@ -61,7 +61,7 @@ def _lookup(q: str) -> None:
 
 
 def _queries(job: dict) -> list[str]:
-    """Places to geocode for a job; if none of them resolves (e.g. "Seamco Bldg"), the company itself."""
+    """Places to geocode for a job; if none of them resolves (e.g. a building name like "Science Hall 2"), the company itself."""
     ps = places(job.get("location") or "")
     if ps and job.get("company") and all((c := cached(p)) and not c["ok"] for p in ps):
         return [job["company"]]
