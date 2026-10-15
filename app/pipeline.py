@@ -554,7 +554,9 @@ def tailor_job(job_id: str, log: Log = _print) -> bool:
     if not db.claim(job_id, "to_tailor", "tailoring"):   # built or taken by another thread; never pay twice
         log(f"Skipping {job['company']} | {job['title']}: status is {job['status']}")
         return False
-    log(f"Tailoring: {job['company']} | {job['title']}")
+    pv = llm.prompt_version()   # the prompt file is read fresh on every call below; record which save it was
+    log(f"Tailoring: {job['company']} | {job['title']} (master prompt saved {pv.replace('T', ' ')})")
+    db.update_job(job_id, prompt_version=pv)
     model = env("MODEL_TAILOR", "claude-opus-5-5")
     effort, revise_effort = env("EFFORT_TAILOR", "medium"), env("EFFORT_REVISE", "low")
     P = lambda stage, base, span=0, step="": progress.set_stage(job_id, "tailor", stage, base, span, step)

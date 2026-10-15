@@ -101,18 +101,21 @@
   <div class="spread"><h2>Documents</h2>
     <span class="sub">Keyword relevancy {{ t.keyword_relevancy }}% · RW-style estimate {{ t.rw_score.total }} · Recruiter call <b>{{ t.teardown.final_call }}</b></span></div>
   <div class="row">
-    {% if job.resume_pdf %}<a class="btn" href="{{ url_for('file', p=job.resume_pdf) }}" target="_blank">Resume PDF</a>
-    <a class="btn small" href="{{ url_for('file', p=job.resume_pdf, dl=1) }}">Download</a>{% endif %}
-    {% if job.cover_pdf %}<a class="btn" href="{{ url_for('file', p=job.cover_pdf) }}" target="_blank">Cover letter PDF</a>
-    <a class="btn small" href="{{ url_for('file', p=job.cover_pdf, dl=1) }}">Download</a>{% endif %}
-    {% if job.resume_docx %}<a class="btn small" href="{{ url_for('file', p=job.resume_docx, dl=1) }}">Resume .docx</a>{% endif %}
-    {% if job.cover_docx %}<a class="btn small" href="{{ url_for('file', p=job.cover_docx, dl=1) }}">Cover .docx</a>{% endif %}
+    {% if job.resume_pdf %}<a class="btn" href="{{ url_for('file', p=job.resume_pdf, v=job.updated_at) }}" target="_blank">Resume PDF</a>
+    <a class="btn small" href="{{ url_for('file', p=job.resume_pdf, dl=1, v=job.updated_at) }}">Download</a>{% endif %}
+    {% if job.cover_pdf %}<a class="btn" href="{{ url_for('file', p=job.cover_pdf, v=job.updated_at) }}" target="_blank">Cover letter PDF</a>
+    <a class="btn small" href="{{ url_for('file', p=job.cover_pdf, dl=1, v=job.updated_at) }}">Download</a>{% endif %}
+    {% if job.resume_docx %}<a class="btn small" href="{{ url_for('file', p=job.resume_docx, dl=1, v=job.updated_at) }}">Resume .docx</a>{% endif %}
+    {% if job.cover_docx %}<a class="btn small" href="{{ url_for('file', p=job.cover_docx, dl=1, v=job.updated_at) }}">Cover .docx</a>{% endif %}
   </div>
   {% if c %}
   <p class="sub">Resume: {{ c.resume.pages }} page · {{ c.resume.words }} words · bottom gap {{ c.resume.bottom_gap_pt }}pt · body {{ c.layout.body_pt }}pt / line {{ c.layout.line_pt }}pt. Cover letter: {{ c.cover.pages }} page · {{ c.cover.words }} words.</p>
   {% if c.problems %}<h3>Checks still failing</h3><ul class="tight">{% for p in c.problems %}<li>{{ p }}</li>{% endfor %}</ul>{% else %}<p class="sub">All automated checks passed.</p>{% endif %}
   {% endif %}
   <p class="sub"><b>Projects:</b> {{ t.projects_selected|join(', ') }}. {{ t.selection_reason }}</p>
+  {% if job.prompt_version %}<p class="sub" style="margin-bottom:0">Built with your master prompt saved {{ job.prompt_version|replace('T', ' ') }}.
+    {% if current_prompt and current_prompt > job.prompt_version %}<span class="badge risk">Your prompt changed since</span> click <b>Regenerate documents</b> to rebuild with the latest version.{% endif %}</p>
+  {% elif current_prompt %}<p class="sub" style="margin-bottom:0">Built before prompt versions were tracked. Regenerate to rebuild with your prompt saved {{ current_prompt|replace('T', ' ') }}.</p>{% endif %}
 </div>
 
 <div class="grid g2">

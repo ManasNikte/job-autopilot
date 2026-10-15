@@ -216,7 +216,9 @@ def job_detail(job_id):
     ivs = db.fetchall("SELECT * FROM interventions WHERE job_id=? ORDER BY status='open' DESC, id DESC", (job_id,))
     outreach = db.fetchall("SELECT * FROM outreach WHERE job_id=? ORDER BY target", (job_id,))
     from . import contacts
-    return render_template("job.html", job=job, ivs=ivs, outreach=outreach, applicant=applicant(), h1b=h1b.lookup(job["company"]),
+    from .llm import prompt_version
+    current_prompt = prompt_version()
+    return render_template("job.html", job=job, current_prompt=current_prompt, ivs=ivs, outreach=outreach, applicant=applicant(), h1b=h1b.lookup(job["company"]),
                            asks=contacts.asks_for_job(job_id), known=contacts.contacts_for_company(job["company"], referable_only=False),
                            stages=contacts.STAGES)
 
@@ -256,9 +258,12 @@ def job_action(job_id):
         db.update_job(job_id, status="to_screen")
         worker.submit("screen", job_id)
     elif act == "regenerate":
+        from .llm import prompt_version
         db.update_job(job_id, status="to_tailor")
         worker.submit("tailor", job_id)
-        flash("Regenerating documents in the background.")
+        pv = prompt_version()
+        flash("Regenerating documents in the background with your master prompt"
+              + (f" saved {datetime.fromisoformat(pv):%b %d, %I:%M %p}" if pv else "") + ". The links update when the new PDFs are ready.")
     elif act == "autofill":
         import importlib.util
         if importlib.util.find_spec("playwright") is None:

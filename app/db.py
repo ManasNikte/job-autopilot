@@ -124,7 +124,7 @@ def connect():
 
 MIGRATIONS = {   # columns added after the first release; applied idempotently on startup
     "jobs": {"source": "TEXT", "h1b_signal": "TEXT", "h1b_level": "TEXT", "startup": "INTEGER DEFAULT 0", "company_stage": "TEXT",
-             "salary": "TEXT", "salary_max": "INTEGER"},
+             "salary": "TEXT", "salary_max": "INTEGER", "prompt_version": "TEXT"},
     "runs": {"source": "TEXT"},
 }
 

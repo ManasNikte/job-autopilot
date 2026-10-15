@@ -70,6 +70,12 @@ def system_prompt() -> str:
     return "\n\n".join(parts)
 
 
+def prompt_version() -> str:
+    """When the master prompt was last saved (local time), shown next to the documents it produced."""
+    from datetime import datetime
+    return datetime.fromtimestamp(SYSTEM_PROMPT_FILE.stat().st_mtime).isoformat(timespec="seconds") if SYSTEM_PROMPT_FILE.exists() else ""
+
+
 def find_claude_cli() -> str | None:
     if env("CLAUDE_CLI_PATH") and Path(env("CLAUDE_CLI_PATH")).exists():
         return env("CLAUDE_CLI_PATH")

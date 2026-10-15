@@ -54,8 +54,8 @@
       {% if j.final_call %}<div class="sub small" title="Recruiter teardown">{{ j.final_call|lower|capitalize }}</div>{% endif %}</td>
     <td><span class="badge {{ 'ready' if j.status == 'ready' else 'apply' if j.status in ('applied','interviewing','offer') else 'no' if j.status in ('rejected','error') else '' }}">{{ status_labels.get(j.status, j.status) }}</span></td>
     <td class="num nowrap">
-      {% if j.resume_pdf %}<a class="btn small" href="{{ url_for('file', p=j.resume_pdf) }}" target="_blank" title="Resume PDF">Resume</a>{% endif %}
-      {% if j.cover_pdf %}<a class="btn small" href="{{ url_for('file', p=j.cover_pdf) }}" target="_blank" title="Cover letter PDF">Cover</a>{% endif %}
+      {% if j.resume_pdf %}<a class="btn small" href="{{ url_for('file', p=j.resume_pdf, v=j.updated_at) }}" target="_blank" title="Resume PDF">Resume</a>{% endif %}
+      {% if j.cover_pdf %}<a class="btn small" href="{{ url_for('file', p=j.cover_pdf, v=j.updated_at) }}" target="_blank" title="Cover letter PDF">Cover</a>{% endif %}
       {% if not j.resume_pdf %}<span class="muted">—</span>{% endif %}
     </td>
   </tr>
