@@ -455,13 +455,13 @@ def map_json():
         return jsonify({"pins": [], "total": 0, "unmapped": 0, "pending": 0})
     where = f"status IN ({','.join('?' * len(statuses))})"
     params: tuple = tuple(statuses)
-    if which == "today":
-        where += " AND applied_at >= ?"
-        params += (start_utc,)
+    if which == "today":   # applied today, or moved forward / rejected today
+        where += " AND (applied_at >= ? OR (status != 'applied' AND coalesce(status_changed_at, updated_at) >= ?))"
+        params += (start_utc, start_utc)
     jobs = db.fetchall(f"SELECT id, company, title, location, status FROM jobs WHERE {where}", params)
-    pending = geo.warm([j["location"] for j in jobs])
+    pending = geo.warm(jobs)
     pins, unmapped = geo.pins(jobs)
-    return jsonify({"pins": pins, "total": len(jobs), "unmapped": unmapped, "pending": pending})
+    return jsonify({"pins": pins, "total": len(jobs), "unmapped": len(unmapped), "unmapped_jobs": unmapped[:40], "pending": pending})
 
 
 @app.route("/progress")

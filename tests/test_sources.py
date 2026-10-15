@@ -55,3 +55,15 @@ def test_only_offered_sponsorship_counts_as_a_signal():
     from app.sources.feeds import SPONSOR_OFFERED
     assert SPONSOR_OFFERED.search("Visa sponsorship is available for this role")
     assert not SPONSOR_OFFERED.search("We are unable to offer visa sponsorship")
+
+
+@pytest.mark.parametrize("loc,expected", [
+    ("Remote in USA", []),
+    ("Remote Office", []),
+    ("San Francisco (United States) • Remote", ["San Francisco"]),
+    ("US-CA-Menlo Park (United States)", ["Menlo Park, CA"]),
+    ("Menlo Park, CA; New York, NY", ["Menlo Park, CA", "New York, NY"]),
+])
+def test_map_places(loc, expected):
+    from app import geo
+    assert geo.places(loc) == expected

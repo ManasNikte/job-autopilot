@@ -20,13 +20,14 @@
   <div class="card">
     <div class="spread"><h2 style="margin:0">Ready to submit</h2><span class="sub small" id="map-ready-note"></span></div>
     <div class="jmap" id="map-ready" role="img" aria-label="Map of jobs ready to submit"></div>
+    <details class="unmapped" id="map-ready-unmapped" hidden><summary></summary><ul class="map-pop"></ul></details>
   </div>
   <div class="card">
     <div class="spread">
       <h2 style="margin:0">Submitted</h2>
       <div class="row">
         <div class="seg" role="group" aria-label="Time range">
-          <button type="button" class="on" data-set="today">Applied today</button><button type="button" data-set="all">All time</button>
+          <button type="button" class="on" data-set="today" title="Applied, moved forward, or rejected today">Today</button><button type="button" data-set="all">All time</button>
         </div>
       </div>
     </div>
@@ -39,6 +40,7 @@
       <button type="button" class="chip-link" id="map-only-reset" hidden>Show all</button>
       <span id="map-applied-note" class="sub" style="margin-left:auto"></span>
     </div>
+    <details class="unmapped" id="map-applied-unmapped" hidden><summary></summary><ul class="map-pop"></ul></details>
   </div>
 </div>
 <script>window.L_DISABLE_3D = true;   // 2D tile positioning: no hairline seams between tiles on Retina screens</script>
@@ -98,7 +100,17 @@
     if (pts.length) m.fitBounds(pts, { padding: [28, 28], maxZoom: 7 });
     else m.setView([39.5, -98.35], 4);
     document.getElementById(noteId).textContent = `${d.total} job${d.total === 1 ? "" : "s"} · ${d.pins.length} place${d.pins.length === 1 ? "" : "s"}` +
-      (d.unmapped ? ` · ${d.unmapped} remote or unmapped` : "") + (d.pending ? ` · locating ${d.pending} place(s)…` : "");
+      (d.pending ? ` · locating ${d.pending} place(s)…` : "");
+    // Jobs with no mappable place (remote, "United States", unknown building) are listed under the map, never dropped
+    const box = document.getElementById(key === "ready" ? "map-ready-unmapped" : "map-applied-unmapped");
+    const list = (d.unmapped_jobs || []).filter(j => !j.pending);
+    box.hidden = !list.length;
+    box.querySelector("summary").textContent = `${list.length} not on the map (remote, country-wide, or no recognizable city)`;
+    const ul = box.querySelector("ul"); ul.replaceChildren();
+    list.forEach(j => { const li = document.createElement("li"); const a = document.createElement("a");
+      a.href = jobUrl(j.id); a.textContent = `${j.company} · ${j.title}`; li.appendChild(a);
+      const tag = j.status === "closed" ? "rejected" : j.status === "interviewing" || j.status === "offer" ? j.status : "";
+      li.append(` (${[j.location || "no location", tag].filter(Boolean).join(", ")})`); ul.appendChild(li); });
     if (d.pending) setTimeout(() => load(key, query, noteId), 6000);   // geocoding runs in the background, 1 place a second
   }
 
@@ -116,6 +128,7 @@
     if (!show.length) {
       seq.applied = (seq.applied || 0) + 1;            // cancel any request still in flight
       maps.applied._layer.clearLayers();
+      document.getElementById("map-applied-unmapped").hidden = true;
       document.getElementById("map-applied-note").textContent = "Nothing selected: turn on a status";
       return;
     }

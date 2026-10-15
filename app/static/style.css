@@ -234,3 +234,6 @@ label input, label select, label textarea { margin-top: 4px; font-size: 14px; }
 .chip[aria-pressed="false"] .dot-key { opacity: .35; }
 .chip:focus-visible, .chip-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .chip-link { background: none; border: 0; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; padding: 3px 4px; }
+.unmapped { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.unmapped summary { cursor: pointer; }
+.unmapped .map-pop { max-width: none; }

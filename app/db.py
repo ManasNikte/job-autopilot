@@ -124,7 +124,7 @@ def connect():
 
 MIGRATIONS = {   # columns added after the first release; applied idempotently on startup
     "jobs": {"source": "TEXT", "h1b_signal": "TEXT", "h1b_level": "TEXT", "startup": "INTEGER DEFAULT 0", "company_stage": "TEXT",
-             "salary": "TEXT", "salary_max": "INTEGER", "prompt_version": "TEXT"},
+             "salary": "TEXT", "salary_max": "INTEGER", "prompt_version": "TEXT", "status_changed_at": "TEXT"},
     "runs": {"source": "TEXT"},
 }
 
@@ -170,6 +170,8 @@ def init() -> None:
                 if col not in have:
                     c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
         c.execute("UPDATE jobs SET source=ats WHERE source IS NULL")
+        c.execute("UPDATE jobs SET status_changed_at=coalesce(CASE WHEN status='applied' THEN applied_at END, updated_at) "
+                  "WHERE status_changed_at IS NULL AND status IN ('applied','interviewing','offer','closed')")
 
 
 def upsert_job(job: dict) -> bool:
@@ -183,7 +185,12 @@ def upsert_job(job: dict) -> bool:
         return True
 
 
+TRACKED_STATUSES = ("applied", "interviewing", "offer", "closed")   # outcome changes the dashboard counts "today"
+
+
 def update_job(job_id: str, **fields) -> None:
+    if fields.get("status") in TRACKED_STATUSES:
+        fields.setdefault("status_changed_at", now())
     for k, v in list(fields.items()):
         if isinstance(v, (dict, list)):
             fields[k] = json.dumps(v)
