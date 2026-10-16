@@ -87,6 +87,8 @@ def _loop() -> None:
                     submit("tailor", arg)
             elif kind == "tailor":
                 pipeline.tailor_job(arg, _log)
+            elif kind == "refit":
+                pipeline.refit_job(arg, _log)
             elif kind == "referrals":
                 from . import contacts
                 contacts.queue_referral_asks(arg, _log)

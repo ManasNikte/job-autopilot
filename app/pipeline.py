@@ -336,6 +336,7 @@ def screen_job(job_id: str, log: Log = _print) -> dict | None:
         log(f"  ✗ screen failed: {e}")
         return None
     progress.clear(job_id)
+    db.resolve_interventions(job_id, ("error",), "screened successfully")
 
     verdict = res["verdict"]
     fields = dict(screen_json=res, verdict=verdict, match_score=res["match_score"])
@@ -633,6 +634,64 @@ def tailor_job(job_id: str, log: Log = _print) -> bool:
     progress.clear(job_id)
     log(f"  ✓ ready: KW {data['keyword_relevancy']}% · RW {data['rw_score']['total']} · recruiter {td['final_call']}")
     return True
+
+
+FIT_PROBLEM = re.compile(r"overflows one A4 page|WRAPS to two lines|runs past one page|runs past 2 lines|Resume has \d+ words", re.I)
+
+
+def refit_job(job_id: str, log: Log = _print) -> bool:
+    """'Fix it' for document-quality warnings. First re-fit the existing text with no Claude call (letter-spacing
+    squeeze for lines a hair too long, then the smaller sizes the prompt allows). Only if lines still wrap or the
+    page still overflows, ask Claude for small trim patches (up to MAX_REVISIONS rounds)."""
+    job = db.get_job(job_id)
+    data = job and job.get("tailor_json")
+    if not data:
+        log(f"Fix skipped: {job_id} has no documents to fix")
+        return False
+    P = lambda stage, base, span=0, step="": progress.set_stage(job_id, "tailor", stage, base, span, step)
+    log(f"Fixing documents: {job['company']} | {job['title']}")
+    P("Re-fitting to one page: tighter spacing within your rules (no Claude call)", 10, 20, "render")
+    old = {"resume_pdf": job.get("resume_pdf"), "cover_pdf": job.get("cover_pdf")}
+    try:
+        out = render(job, data)
+        model, revise_effort = env("MODEL_TAILOR", "claude-opus-5-5"), env("EFFORT_REVISE", "low")
+        rounds = max(1, env_int("MAX_REVISIONS", 2))
+        for attempt in range(rounds):
+            fit = [p for p in out["checks"]["problems"] if FIT_PROBLEM.search(p)]
+            if not fit:
+                break
+            log(f"  still {len(fit)} fit problem(s) after re-fitting; asking Claude for a trim (round {attempt + 1})")
+            P(f"Claude is trimming {len(fit)} line(s) so everything fits (round {attempt + 1})", 30 + attempt * 30, 25, "revise")
+            patch = llm.structured(user=_revise_prompt(job, data, fit), schema=REVISE_PATCH, model=model,
+                                   effort=revise_effort, max_tokens=16000, label="revise")
+            data2, n = apply_patch(data, patch.get("changes") or [])
+            if not n:
+                break
+            out2 = render(job, data2)
+            if len([p for p in out2["checks"]["problems"] if FIT_PROBLEM.search(p)]) <= len(fit):
+                data, out = data2, out2
+    except llm.BackendUnavailable:
+        progress.clear(job_id)
+        raise
+    except Exception as e:
+        progress.clear(job_id)
+        log(f"  ✗ fix failed: {e}")
+        return False
+    if old["resume_pdf"] and old["resume_pdf"] != out["resume_pdf"]:
+        delete_documents(old)               # the re-fit wrote today's folder; drop the old copies
+    db.update_job(job_id, tailor_json=data, checks_json=out["checks"], resume_pdf=out["resume_pdf"], cover_pdf=out["cover_pdf"])
+    left = [p for p in out["checks"]["problems"] if FIT_PROBLEM.search(p)]
+    title = "Documents do not fit on one page after revisions"
+    if left:
+        db.execute("UPDATE interventions SET status='open', detail=?, resolved_at=NULL WHERE job_id=? AND kind='quality' AND title=?",
+                   ("\n".join(f"• {p}" for p in left), job_id, title))
+        log(f"  ⚠ {len(left)} fit problem(s) remain; they need a human edit")
+    else:
+        db.resolve_interventions(job_id, ("quality",), "fixed: fits one page")
+        lay = out["checks"]["layout"]
+        log(f"  ✓ fits one page ({lay['body_pt']}pt body, {lay['line_pt']}pt lines)")
+    progress.clear(job_id)
+    return not left
 
 
 def _already_asked(question: str) -> bool:

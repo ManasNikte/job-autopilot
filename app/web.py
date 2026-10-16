@@ -301,8 +301,13 @@ def job_action(job_id):
         flash(f"Skipped {job['company']} · {job['title']}: marked Don't apply"
               + (f" and deleted its {removed} document file(s)." if removed else "."))
     elif act == "rescreen":
+        worker.resume()
         db.update_job(job_id, status="to_screen")
         worker.submit("screen", job_id)
+    elif act == "fix_docs":
+        worker.resume()
+        worker.submit("refit", job_id)
+        flash("Fixing the documents in the background: tighter spacing within your rules first, then a small Claude trim only if needed.")
     elif act == "regenerate":
         from .llm import prompt_version
         db.update_job(job_id, status="to_tailor")
@@ -374,6 +379,20 @@ def inbox_action(iid):
             if iv["job_id"] and request.form.get("rebuild"):
                 worker.submit("tailor", iv["job_id"])
             flash("Saved to profile/answers.md. Every future run uses it.")
+    elif act == "fix" and iv["job_id"]:
+        worker.resume()
+        worker.submit("refit", iv["job_id"])
+        flash("Fixing in the background: tighter spacing within your rules first, then a small Claude trim only if needed.")
+    elif act == "retry" and iv["job_id"]:
+        worker.resume()
+        job = db.get_job(iv["job_id"])
+        if iv["title"].startswith("Tailoring"):
+            db.update_job(iv["job_id"], status="to_tailor")
+            worker.submit("tailor", iv["job_id"])
+        else:
+            db.update_job(iv["job_id"], status="to_screen")
+            worker.submit("screen", iv["job_id"])
+        flash(f"Retrying {job['company'] if job else 'the job'} in the background. The card clears itself when it works.")
     else:
         db.execute("UPDATE interventions SET status=?, resolved_at=? WHERE id=?",
                    ("dismissed" if act == "dismiss" else "resolved", db.now(), iid))

@@ -9,6 +9,7 @@ from pypdf import PdfReader
 A4_HEIGHT_PT = 841.89
 BOTTOM_MARGIN_PT = 28.8          # 0.4"
 BULLET_WIDTH_PT = 509.5          # 10610 - 420 twips
+SQUEEZE = 1.03                   # up to 3% over still renders on one line (tighter letter spacing; see pdfgen)
 OBJECTIVE_WIDTH_PT = 530.5
 
 
@@ -59,7 +60,7 @@ def resume_line_checks(data: dict, body_pt: float) -> list[str]:
                 return ["(font file not found; line-fill not measured)"]
             if b.strip().endswith("."):
                 problems.append(f"{label} {i} ends with a period: \"{b}\"")
-            if fill > 1.0:
+            if fill > SQUEEZE:
                 problems.append(f"{label} {i} WRAPS to two lines ({fill:.0%} of one line, cut ~{int((fill - 1) * 95) + 2} characters): \"{b}\"")
             elif fill < 0.95:
                 problems.append(f"{label} {i} is SHORT ({fill:.0%} of the line, add ~{int((0.97 - fill) * 95)} characters of real detail): \"{b}\"")

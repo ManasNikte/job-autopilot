@@ -213,3 +213,26 @@ def test_older_packages_with_career_objective_still_render(tmp_path):
     out = tmp_path / "old.pdf"
     pdfgen.build_resume(data, str(out))
     assert "CAREER OBJECTIVE" in PdfReader(str(out)).pages[0].extract_text()
+
+
+def test_bullet_a_hair_too_long_stays_on_one_line(tmp_path):
+    """Up to 3% over the line is squeezed (tighter letter spacing) instead of wrapping; more than that still wraps."""
+    from pypdf import PdfReader
+    data = _fitting_fixture()
+    base = data["experience"][1]["bullets"][0]
+    while pdfgen.width(base, "R", 10.5) < pdfgen.BULLET_W * 1.015:
+        base += " x"
+    data["experience"][1]["bullets"][0] = base
+    assert not any("WRAPS" in p for p in pdfx.resume_line_checks(data, 10.5))
+    out = tmp_path / "sq.pdf"
+    pdfgen.build_resume(data, str(out))
+    text = PdfReader(str(out)).pages[0].extract_text()
+    assert base.split()[-3] in text and len(PdfReader(str(out)).pages) == 1
+    data["experience"][1]["bullets"][0] = base + " far too long now for any squeeze to save it"
+    assert any("WRAPS" in p for p in pdfx.resume_line_checks(data, 10.5))
+
+
+def test_network_errors_pause_instead_of_failing():
+    from app import llm
+    assert llm.NETWORK_RE.search("API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)")
+    assert not llm.NETWORK_RE.search("Claude declined this request")

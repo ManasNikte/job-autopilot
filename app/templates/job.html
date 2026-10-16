@@ -110,7 +110,9 @@
   </div>
   {% if c %}
   <p class="sub">Resume: {{ c.resume.pages }} page · {{ c.resume.words }} words · bottom gap {{ c.resume.bottom_gap_pt }}pt · body {{ c.layout.body_pt }}pt / line {{ c.layout.line_pt }}pt. Cover letter: {{ c.cover.pages }} page · {{ c.cover.words }} words.</p>
-  {% if c.problems %}<h3>Checks still failing</h3><ul class="tight">{% for p in c.problems %}<li>{{ p }}</li>{% endfor %}</ul>{% else %}<p class="sub">All automated checks passed.</p>{% endif %}
+  {% if c.problems %}<div class="spread"><h3 style="margin:0">Checks still failing</h3>
+    <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn small primary" name="action" value="fix_docs" title="Re-fit with tighter spacing and font size inside your prompt's limits; ask Claude to trim only if that is not enough">Fix it</button></form></div>
+    <ul class="tight">{% for p in c.problems %}<li>{{ p }}</li>{% endfor %}</ul>{% else %}<p class="sub">All automated checks passed.</p>{% endif %}
   {% endif %}
   <p class="sub"><b>Projects:</b> {{ t.projects_selected|join(', ') }}. {{ t.selection_reason }}</p>
   {% if job.prompt_version %}<p class="sub" style="margin-bottom:0">Built with your master prompt saved {{ job.prompt_version|replace('T', ' ') }}.

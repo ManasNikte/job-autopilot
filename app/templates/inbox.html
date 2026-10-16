@@ -43,6 +43,16 @@
       <form class="inline" method="post" action="{{ url_for('job_action', job_id=i.job_id) }}"><button class="btn primary small" name="action" value="approve">Build documents</button></form>
       <form class="inline" method="post" action="{{ url_for('job_action', job_id=i.job_id) }}"><button class="btn small" name="action" value="skip" onclick="return confirm('Skip this job? It will be marked Don\'t apply and any documents will be deleted.')">Skip job</button></form>
     </div>
+    {% elif kind == 'quality' and i.job_id %}
+    <form method="post" action="{{ url_for('inbox_action', iid=i.id) }}" class="row">
+      <button class="btn primary small" name="action" value="fix" title="Re-fit with tighter spacing and font size inside your prompt's limits; ask Claude to trim only if that is not enough">Fix it</button>
+      <button class="btn small" name="action" value="resolve">Done</button><button class="btn small" name="action" value="dismiss">Dismiss</button>
+    </form>
+    {% elif kind == 'error' and i.job_id %}
+    <form method="post" action="{{ url_for('inbox_action', iid=i.id) }}" class="row">
+      <button class="btn primary small" name="action" value="retry">Retry</button>
+      <button class="btn small" name="action" value="resolve">Done</button><button class="btn small" name="action" value="dismiss">Dismiss</button>
+    </form>
     {% elif kind == 'submit' %}
     <div class="row"><a class="btn primary small" href="{{ url_for('job_detail', job_id=i.job_id) }}">Review &amp; submit</a></div>
     {% else %}

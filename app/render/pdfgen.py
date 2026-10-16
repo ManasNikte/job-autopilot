@@ -71,8 +71,14 @@ class Layout:
         return round(self.body - 0.5, 1)
 
 
-LAYOUTS = [Layout(10.5, 13.2, 10), Layout(10.5, 13.5, 12), Layout(10.5, 14.0, 13), Layout(10.5, 14.5, 14)]
-DEFAULT_LAYOUT = LAYOUTS[1]
+# Tightest first. The 10.25pt and 10pt bodies stay inside the prompt's allowed range (IX-V.2: body 10–11pt,
+# pitch 13.2–14.5pt, 10–14pt before titles) and are used only when 10.5pt can't fit one page.
+LAYOUTS = [Layout(10.0, 13.2, 10), Layout(10.25, 13.2, 10), Layout(10.5, 13.2, 10), Layout(10.5, 13.5, 12),
+           Layout(10.5, 14.0, 13), Layout(10.5, 14.5, 14)]
+DEFAULT_LAYOUT = Layout(10.5, 13.5, 12)
+# A bullet up to 3% too long stays on its one line with slightly tighter letter spacing (about 0.03pt per
+# character, invisible at print size) instead of wrapping onto a second line.
+SQUEEZE = 1.03
 
 
 class _Page:
@@ -106,10 +112,13 @@ class _Page:
         t.setFont(f"TNR-{face}", size)
         gaps = text.count(" ")
         natural = width(text, face, size)
-        if stretch and gaps and natural < w:
+        if natural > w and len(text) > 1:                   # a hair too long: tighten letters to keep one line
+            t.setCharSpace((w - natural) / (len(text) - 1))
+        elif stretch and gaps and natural < w:
             t.setWordSpace((w - natural) / gaps)
         t.textOut(text)
         t.setWordSpace(0)
+        t.setCharSpace(0)
         self.c.drawText(t)
         self.c.restoreState()
 
@@ -213,7 +222,8 @@ def _resume_pass(c, data: dict, L: Layout) -> float:
     def bullets(items: list[str]):
         for text in items:
             text = text.strip().rstrip(".")
-            parts = wrap(text, "R", L.body, BULLET_W)
+            fits_squeezed = width(text, "R", L.body) <= BULLET_W * SQUEEZE
+            parts = [text] if fits_squeezed else wrap(text, "R", L.body, BULLET_W)
             for j, ln in enumerate(parts):
                 b = body_line()
                 if j == 0:

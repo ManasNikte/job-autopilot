@@ -36,6 +36,8 @@ class BackendUnavailable(LLMError):
         self.retry_at = retry_at
 
 
+NETWORK_RE = re.compile(r"can't reach the api|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network (is )?unreachable|"
+                        r"getaddrinfo|socket hang up|fetch failed|connection (error|reset|refused)", re.I)
 LIMIT_RE = re.compile(r"session limit|usage limit|hit your limit|rate limit|limit reached|out of (extra )?usage|quota", re.I)
 
 
@@ -177,7 +179,8 @@ def _via_api(system: str, user: str, schema: dict, model: str, effort: str, max_
     except anthropic.APIStatusError as e:
         raise LLMError(f"Anthropic API error {e.status_code}: {e.message}") from e
     except anthropic.APIConnectionError as e:
-        raise LLMError("Could not reach the Anthropic API (network).") from e
+        raise BackendUnavailable("No internet connection to the Anthropic API; retrying in 5 minutes",
+                                 retry_at=time.time() + 300) from e
 
     if msg.stop_reason == "refusal":
         raise LLMError("Claude declined this request (refusal).")
@@ -229,6 +232,8 @@ def _via_cli(system: str, user: str, schema: dict, model: str, effort: str, web_
             raise BackendUnavailable(f"Claude CLI is not logged in ({msg}). Run `claude` in a terminal and use /login with your Enterprise account.")
         if LIMIT_RE.search(msg):
             raise BackendUnavailable(f"Claude usage limit reached: {msg}", retry_at=_reset_time(msg))
+        if NETWORK_RE.search(msg):           # Wi-Fi dropped or DNS failed: wait and retry, don't fail the job
+            raise BackendUnavailable(f"No internet connection ({msg[:120]}); retrying in 5 minutes", retry_at=time.time() + 300)
         raise LLMError(f"Claude CLI error: {msg}")
     if isinstance(out.get("structured_output"), dict):
         return out["structured_output"]
