@@ -236,3 +236,26 @@ def test_network_errors_pause_instead_of_failing():
     from app import llm
     assert llm.NETWORK_RE.search("API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)")
     assert not llm.NETWORK_RE.search("Claude declined this request")
+
+
+def test_builtin_clock_runs_each_slot_once(tmp_path, monkeypatch):
+    """Windows / Linux scheduler: a due time starts one run; a time missed while asleep (< 90 min) still runs once."""
+    from datetime import datetime
+    from app import db, schedule, worker
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    monkeypatch.setattr(schedule, "load_times", lambda: ["08:00", "15:00"])
+    calls = []
+    monkeypatch.setattr(worker, "submit", lambda kind, arg=None: calls.append((kind, arg)) or True)
+    assert worker.clock_tick(datetime(2026, 10, 16, 7, 59)) == []
+    assert worker.clock_tick(datetime(2026, 10, 16, 8, 0, 20)) == ["08:00"]
+    assert worker.clock_tick(datetime(2026, 10, 16, 8, 0, 50)) == []          # not twice
+    assert worker.clock_tick(datetime(2026, 10, 16, 16, 10)) == ["15:00"]     # woke 70 min late: still runs
+    assert worker.clock_tick(datetime(2026, 10, 17, 18, 0)) == []             # 3 hours late: skipped
+    assert calls == [("run", "schedule"), ("run", "schedule")]
+
+
+def test_dates_format_without_leading_zeros_on_every_os():
+    from datetime import datetime
+    from app.web import strf
+    assert strf(datetime(2026, 10, 6, 9, 5), "%a %b %-d, %-I:%M %p") == "Tue Oct 6, 9:05 AM"

@@ -3,7 +3,7 @@
 - api:        Anthropic Python SDK (needs ANTHROPIC_API_KEY or an `ant auth login` profile).
               The large profile prompt is prompt-cached, so repeated jobs pay ~10% for it.
 - claude_cli: headless Claude Code (`claude -p --json-schema ...`), which runs on whatever
-              account you logged into with `claude` -> /login (e.g. a Claude Enterprise seat).
+              account you logged into with `claude` -> /login (a Claude Pro, Max, Team, or Enterprise seat).
 """
 from __future__ import annotations
 
@@ -81,7 +81,8 @@ def prompt_version() -> str:
 def find_claude_cli() -> str | None:
     if env("CLAUDE_CLI_PATH") and Path(env("CLAUDE_CLI_PATH")).exists():
         return env("CLAUDE_CLI_PATH")
-    for c in (shutil.which("claude"), str(Path.home() / ".local/bin/claude"), str(Path.home() / ".claude/local/claude")):
+    for c in (shutil.which("claude"), str(Path.home() / ".local/bin/claude"), str(Path.home() / ".local/bin/claude.exe"),
+              str(Path.home() / ".claude/local/claude")):
         if c and Path(c).exists():
             return c
     # Binary bundled with the Claude desktop app (newest version first).
@@ -99,7 +100,7 @@ def backend() -> str:
         return "claude_cli"
     raise BackendUnavailable(
         "No Claude backend available. Either set ANTHROPIC_API_KEY in .env, or install Claude Code and run "
-        "`claude` once to /login with your Enterprise account."
+        "`claude` once to /login with your Claude account (Pro, Max, Team, or Enterprise)."
     )
 
 
@@ -229,7 +230,7 @@ def _via_cli(system: str, user: str, schema: dict, model: str, effort: str, web_
         msg = str(out.get("result", "unknown error"))
         low = msg.lower()
         if "login" in low or "logged in" in low:
-            raise BackendUnavailable(f"Claude CLI is not logged in ({msg}). Run `claude` in a terminal and use /login with your Enterprise account.")
+            raise BackendUnavailable(f"Claude CLI is not logged in ({msg}). Run `claude` in a terminal and use /login with your Claude account.")
         if LIMIT_RE.search(msg):
             raise BackendUnavailable(f"Claude usage limit reached: {msg}", retry_at=_reset_time(msg))
         if NETWORK_RE.search(msg):           # Wi-Fi dropped or DNS failed: wait and retry, don't fail the job

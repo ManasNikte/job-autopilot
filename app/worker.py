@@ -118,6 +118,37 @@ def _scheduler(minutes: int) -> None:
             submit("run")
 
 
+def clock_tick(now=None) -> list[str]:
+    """Submit a run for every schedule time that is due (missed by at most 90 minutes) and not run yet today.
+    Returns the times started. Used by the built-in clock on Windows / Linux."""
+    from datetime import datetime, timedelta
+    from . import db, schedule
+    now = now or datetime.now()
+    started = []
+    for t in schedule.load_times():
+        h, m = (int(x) for x in t.split(":"))
+        slot = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        if timedelta(0) <= now - slot <= timedelta(minutes=90):
+            key = f"clock_ran:{slot:%Y-%m-%d %H:%M}"
+            if not db.kv_get(key):
+                db.kv_set(key, "1")
+                _log(f"⏰ scheduled run for {t}")
+                submit("run", "schedule")
+                started.append(t)
+    return started
+
+
+def _clock() -> None:
+    """Start the pipeline at each time in config/schedule.json while the dashboard runs. A time missed by up to
+    90 minutes (computer asleep) still runs once on wake, like launchd does on macOS."""
+    while True:
+        try:
+            clock_tick()
+        except Exception as e:  # never let the clock thread die
+            _log(f"clock error: {e}")
+        time.sleep(30)
+
+
 def start() -> None:
     global _started
     if _started:
@@ -125,6 +156,9 @@ def start() -> None:
     _started = True
     for i in range(max(1, env_int("PARALLEL_JOBS", 3))):
         threading.Thread(target=_loop, daemon=True, name=f"worker-{i + 1}").start()
+    from .schedule import mode
+    if mode() == "clock":
+        threading.Thread(target=_clock, daemon=True, name="schedule-clock").start()
     every = env_int("AUTORUN_EVERY_MINUTES", 0)
     if every > 0:
         threading.Thread(target=_scheduler, args=(every,), daemon=True, name="autopilot-scheduler").start()

@@ -19,13 +19,17 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
-FONT_DIRS = ["/System/Library/Fonts/Supplemental", "/Library/Fonts", "/usr/share/fonts/truetype/msttcorefonts",
-             "/usr/share/fonts/truetype/liberation"]
+# Times New Roman on macOS, Windows, and Linux (ttf-mscorefonts); otherwise the metric-compatible Liberation Serif.
+FONT_DIRS = ["/System/Library/Fonts/Supplemental", "/Library/Fonts", str(Path.home() / "Library/Fonts"),
+             "C:/Windows/Fonts", str(Path.home() / "AppData/Local/Microsoft/Windows/Fonts"),
+             "/usr/share/fonts/truetype/msttcorefonts", "/usr/share/fonts/msttcore", "/usr/share/fonts/TTF",
+             "/usr/share/fonts/truetype/liberation", "/usr/share/fonts/liberation-serif", "/usr/share/fonts/liberation",
+             str(Path.home() / ".local/share/fonts"), str(Path.home() / ".fonts")]
 FACES = {
-    "R": ["Times New Roman.ttf", "LiberationSerif-Regular.ttf"],
-    "B": ["Times New Roman Bold.ttf", "LiberationSerif-Bold.ttf"],
-    "I": ["Times New Roman Italic.ttf", "LiberationSerif-Italic.ttf"],
-    "BI": ["Times New Roman Bold Italic.ttf", "LiberationSerif-BoldItalic.ttf"],
+    "R": ["Times New Roman.ttf", "times.ttf", "Times_New_Roman.ttf", "LiberationSerif-Regular.ttf"],
+    "B": ["Times New Roman Bold.ttf", "timesbd.ttf", "Times_New_Roman_Bold.ttf", "LiberationSerif-Bold.ttf"],
+    "I": ["Times New Roman Italic.ttf", "timesi.ttf", "Times_New_Roman_Italic.ttf", "LiberationSerif-Italic.ttf"],
+    "BI": ["Times New Roman Bold Italic.ttf", "timesbi.ttf", "Times_New_Roman_Bold_Italic.ttf", "LiberationSerif-BoldItalic.ttf"],
 }
 _registered = False
 

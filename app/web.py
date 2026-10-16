@@ -30,6 +30,14 @@ STATUS_LABELS = {
 PIPELINE_STAGES = ["to_screen", "screening", "needs_decision", "to_tailor", "tailoring", "ready", "applied", "interviewing", "offer"]
 
 
+def strf(dt, fmt: str) -> str:
+    """strftime with %-d / %-I (no leading zero) on every OS; Windows' strftime rejects the '-' flag."""
+    return dt.strftime(fmt.replace("%-d", str(dt.day)).replace("%-I", str(int(dt.strftime("%I")))))
+
+
+app.add_template_filter(strf, "strf")
+
+
 @app.template_filter("ago")
 def ago(iso: str | None) -> str:
     if not iso:
@@ -541,19 +549,25 @@ def _schedule_info() -> dict:
     """What launchd and pmset say about the daily runs and lid-closed wakes."""
     import plistlib
     from datetime import date
-    info = {"installed": False, "times": [], "next": None, "wake": False, "wake_next": None}
+    info = {"installed": False, "times": [], "next": None, "wake": False, "wake_next": None, "mac": sys.platform == "darwin"}
     plist = Path.home() / "Library/LaunchAgents/com.jobautopilot.daily.plist"
+    if not info["mac"]:                    # Windows / Linux: the dashboard's built-in clock starts the runs
+        from . import schedule
+        info.update(installed=True, times=[_ampm(t) for t in schedule.load_times()])
+        nxt = schedule.next_runs(1)
+        info["next"] = strf(nxt[0], "%a %-I:%M %p") if nxt else None
+        return info
     if plist.exists():
         try:
             d = plistlib.loads(plist.read_bytes())
             times = sorted((x["Hour"], x.get("Minute", 0)) for x in d.get("StartCalendarInterval", []))
             info["installed"] = True
-            info["times"] = [datetime(2000, 1, 1, h, m).strftime("%-I:%M %p") for h, m in times]
+            info["times"] = [strf(datetime(2000, 1, 1, h, m), "%-I:%M %p") for h, m in times]
             now = datetime.now()
             upcoming = [datetime.combine(date.today() + timedelta(days=dd), datetime.min.time()).replace(hour=h, minute=m)
                         for dd in (0, 1) for h, m in times]
             nxt = next((t for t in upcoming if t > now), None)
-            info["next"] = nxt.strftime("%a %-I:%M %p") if nxt else None
+            info["next"] = strf(nxt, "%a %-I:%M %p") if nxt else None
         except Exception:
             pass
     try:
@@ -799,14 +813,17 @@ def settings_page():
 
 def _ampm(t: str) -> str:
     h, m = (int(x) for x in t.split(":"))
-    return datetime(2000, 1, 1, h, m).strftime("%-I:%M %p")
+    return strf(datetime(2000, 1, 1, h, m), "%-I:%M %p")
 
 
 @app.post("/settings/restart")
 def restart_dashboard():
     """Restart this dashboard service (launchd brings it straight back) so 'Jobs at once' takes effect."""
-    subprocess.Popen(["/bin/bash", "-c", f"sleep 1; launchctl kickstart -k gui/{os.getuid()}/com.jobautopilot.dashboard"])
-    flash("Restarting the dashboard… refresh in a few seconds. Queued work resumes automatically.")
+    if sys.platform == "darwin":
+        subprocess.Popen(["/bin/bash", "-c", f"sleep 1; launchctl kickstart -k gui/{os.getuid()}/com.jobautopilot.dashboard"])
+        flash("Restarting the dashboard… refresh in a few seconds. Queued work resumes automatically.")
+    else:
+        flash("Restart the dashboard from your service manager (see CLAUDE_SETUP.md), or stop and start `python -m app.cli serve`.")
     return redirect(url_for("settings_page"))
 
 
@@ -836,7 +853,7 @@ def _versions(name: str) -> list[dict]:
     out = []
     for f in sorted(hist.glob(f"{name}__*"), reverse=True)[:30]:
         ts = f.stem.split("__", 1)[1]
-        out.append({"file": f.name, "label": datetime.strptime(ts, "%Y%m%d-%H%M%S").strftime("%b %d, %-I:%M %p"), "size": f.stat().st_size})
+        out.append({"file": f.name, "label": strf(datetime.strptime(ts, "%Y%m%d-%H%M%S"), "%b %d, %-I:%M %p"), "size": f.stat().st_size})
     return out
 
 
@@ -850,7 +867,7 @@ def profile_page():
         vp = PROFILE_DIR / "history" / Path(restore).name
         if vp.exists() and vp.name.startswith(name + "__"):
             text = vp.read_text(encoding="utf-8")
-    modified = datetime.fromtimestamp(path.stat().st_mtime).strftime("%b %d, %-I:%M %p") if path.exists() else "never"
+    modified = strf(datetime.fromtimestamp(path.stat().st_mtime), "%b %d, %-I:%M %p") if path.exists() else "never"
     return render_template("profile.html", files=PROFILE_FILES, name=name, text=text, modified=modified,
                            versions=_versions(name), restoring=restore)
 
@@ -878,7 +895,7 @@ def profile_save():
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
-    return jsonify({"ok": True, "saved": datetime.now().strftime("%-I:%M:%S %p"), "chars": len(text)})
+    return jsonify({"ok": True, "saved": strf(datetime.now(), "%-I:%M:%S %p"), "chars": len(text)})
 
 
 @app.route("/activity")
@@ -906,7 +923,8 @@ def serve() -> None:
     import faulthandler
     import logging
     import signal
-    faulthandler.register(signal.SIGUSR1, all_threads=True)   # `kill -USR1 <pid>` writes every thread's stack to the log
+    if hasattr(signal, "SIGUSR1"):                 # macOS / Linux only
+        faulthandler.register(signal.SIGUSR1, all_threads=True)   # `kill -USR1 <pid>` writes every thread's stack to the log
     logging.getLogger("werkzeug").addFilter(_QuietPolling())
     db.init()
     db.recover_interrupted()

@@ -10,6 +10,7 @@ import os
 import plistlib
 import re
 import subprocess
+import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -41,7 +42,7 @@ def save_times(times: list[str]) -> list[str]:
         raise ValueError("Add at least one run time (HH:MM).")
     if len(clean) > 6:
         raise ValueError("At most 6 runs a day.")
-    data = {"_comment": "Daily run times (24-hour, local Eastern time). Edit on the dashboard's Settings page; "
+    data = {"_comment": "Daily run times (24-hour, your local time). Edit on the dashboard's Settings page; "
                         "the launchd agent and the lid-closed wake-ups follow this file.", "times": clean}
     tmp = SCHEDULE_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2))
@@ -50,8 +51,18 @@ def save_times(times: list[str]) -> list[str]:
     return clean
 
 
+def mode() -> str:
+    """'launchd' on macOS (runs even with the dashboard closed), otherwise 'clock' (the dashboard starts the runs).
+    Override with SCHEDULER=clock|launchd|off."""
+    from .config import env
+    m = env("SCHEDULER", "auto").lower()
+    return m if m in ("clock", "launchd", "off") else ("launchd" if sys.platform == "darwin" else "clock")
+
+
 def install_agent(times: list[str]) -> None:
-    """(Re)write the launchd agent that runs scripts/scheduled_run.sh at each time, and reload it."""
+    """(Re)write the launchd agent that runs scripts/scheduled_run.sh at each time, and reload it (macOS)."""
+    if mode() != "launchd":
+        return                        # Windows / Linux: the dashboard's built-in clock reads schedule.json directly
     plist = {
         "Label": AGENT_LABEL,
         "ProgramArguments": ["/usr/bin/caffeinate", "-i", "-s", "/bin/bash", str(ROOT / "scripts/scheduled_run.sh")],
@@ -79,8 +90,12 @@ def next_runs(n: int = 4) -> list[datetime]:
 
 def status() -> dict:
     """Agent installed? Wake helper installed, and new enough to follow schedule.json? Booked wakes?"""
-    info = {"times": load_times(), "agent": AGENT_PLIST.exists(), "wake_installed": WAKE_PLIST.exists(),
-            "wake_follows_settings": False, "wakes": [], "next": next_runs()}
+    info = {"times": load_times(), "agent": AGENT_PLIST.exists() if mode() == "launchd" else mode() == "clock",
+            "wake_installed": WAKE_PLIST.exists(), "wake_follows_settings": False, "wakes": [], "next": next_runs(),
+            "mode": mode(), "mac": sys.platform == "darwin"}
+    if not info["mac"]:
+        info["wakes_match"] = False
+        return info
     try:
         info["wake_follows_settings"] = "WatchPaths" in WAKE_PLIST.read_text()
     except OSError:

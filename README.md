@@ -125,7 +125,16 @@ for this role.
 
 ## Quick start
 
-Requires macOS or Linux (the scheduler is macOS-only), Python 3.11+, and Google Chrome for the extension.
+> 🤖 **Let Claude Code set it up for you (macOS, Windows, or Linux).** With Claude Code installed and signed in, run
+> this one command and follow along:
+>
+> ```bash
+> claude "Set up Job Autopilot on this computer. Read https://raw.githubusercontent.com/ManasNikte/job-autopilot/main/CLAUDE_SETUP.md and follow the 'Instructions for Claude Code' section step by step."
+> ```
+>
+> Details: [CLAUDE_SETUP.md](CLAUDE_SETUP.md). The manual steps below are the macOS path.
+
+Requires Python 3.11+ and Google Chrome for the extension. Built on macOS; Windows and Linux are supported too (they use the dashboard's built-in scheduler — see [CLAUDE_SETUP.md](CLAUDE_SETUP.md)).
 
 ```bash
 git clone https://github.com/ManasNikte/job-autopilot.git ~/job-autopilot

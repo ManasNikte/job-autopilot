@@ -22,11 +22,12 @@
         <div>Runs</div><div>Every day at {{ schedule.times|join(' and ') }} (Eastern)</div>
         <div>Next run</div><div><b>{{ schedule.next or '—' }}</b></div>
         <div>Lid closed</div><div>
-          {% if schedule.wake %}<span class="badge apply">Wakes the Mac</span> next wake {{ schedule.wake_next }}
+          {% if not schedule.mac %}<span class="badge apply">Built-in clock</span> runs while the dashboard is open (see CLAUDE_SETUP.md for wake-ups)
+          {% elif schedule.wake %}<span class="badge apply">Wakes the Mac</span> next wake {{ schedule.wake_next }}
           {% else %}<span class="badge risk">Not set up</span> runs when the Mac is awake (or right after it wakes){% endif %}
         </div>
       </div>
-      {% if not schedule.wake %}
+      {% if schedule.mac and not schedule.wake %}
       <p class="sub" style="margin-bottom:0">To run with the lid closed, run this once in Terminal (it asks for your Mac password):</p>
       <pre class="log" style="margin-top:6px">sudo ~/job-autopilot/scripts/install_wake.sh</pre>
       {% endif %}
