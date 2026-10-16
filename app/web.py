@@ -170,14 +170,13 @@ JOB_SORTS = {
 }
 
 
-@app.route("/jobs")
-def jobs():
-    tab = request.args.get("status", "")
-    q = request.args.get("q", "").strip()
-    source = request.args.get("source", "")
-    startup = request.args.get("startup") == "1"
-    min_match = request.args.get("min_match", "")
-    sort = request.args.get("sort") or ("applied" if tab in ("applied", "applied_all") else "posted")
+def _job_filters(args) -> dict:
+    """Shared by the Jobs list and 'Copy links': tab, search, source, startup, match, and applied-date filters."""
+    tab = args.get("status", "")
+    q = args.get("q", "").strip()
+    source = args.get("source", "")
+    startup = args.get("startup") == "1"
+    min_match = args.get("min_match", "")
     where, params = [], []
     tabs = {k: cond for k, _, cond in JOB_TABS}
     if tab in tabs:
@@ -199,15 +198,62 @@ def jobs():
     if q:
         filters.append("(company LIKE ? OR title LIKE ? OR location LIKE ?)")
         fparams += [f"%{q}%"] * 3
-    cond = " AND ".join(where + filters) or "1=1"
-    page = Page(db.count("jobs", cond, tuple(params + fparams)))
-    rows = db.list_jobs(cond, tuple(params + fparams), order=JOB_SORTS.get(sort, JOB_SORTS["posted"])[1],
+    # Applied date (your local days): a quick range, or any From / To dates
+    when, d_from, d_to = args.get("applied", ""), args.get("from", ""), args.get("to", "")
+    today = datetime.now().astimezone().date()
+    quick = {"today": (today, today), "yesterday": (today - timedelta(days=1),) * 2,
+             "7d": (today - timedelta(days=6), today), "30d": (today - timedelta(days=29), today)}
+    lo = hi = None
+    if when in quick:
+        lo, hi = quick[when]
+    elif d_from or d_to:
+        try:
+            lo = date.fromisoformat(d_from) if d_from else None
+            hi = date.fromisoformat(d_to) if d_to else None
+        except ValueError:
+            lo = hi = None
+        if lo and hi and lo > hi:
+            lo, hi = hi, lo
+        when = "custom" if (lo or hi) else ""
+    utc = lambda d: datetime.combine(d, datetime.min.time()).astimezone().astimezone(timezone.utc).isoformat()
+    if lo:
+        filters.append("applied_at >= ?")
+        fparams.append(utc(lo))
+    if hi:
+        filters.append("applied_at < ?")
+        fparams.append(utc(hi + timedelta(days=1)))
+    return {"tab": tab, "q": q, "source": source, "startup": startup, "min_match": min_match, "where": where, "params": params,
+            "filters": filters, "fparams": fparams, "applied": when, "from": lo.isoformat() if lo else "",
+            "to": hi.isoformat() if hi else "", "cond": " AND ".join(where + filters) or "1=1"}
+
+
+@app.route("/jobs")
+def jobs():
+    f = _job_filters(request.args)
+    tab = f["tab"]
+    sort = request.args.get("sort") or ("applied" if tab in ("applied", "applied_all") or f["applied"] else "posted")
+    allp = tuple(f["params"] + f["fparams"])
+    page = Page(db.count("jobs", f["cond"], allp))
+    rows = db.list_jobs(f["cond"], allp, order=JOB_SORTS.get(sort, JOB_SORTS["posted"])[1],
                         limit=page.per_page, offset=page.offset)
     # tab counts honour the search/filters, so you see where your matches are
-    fcond = " AND ".join(filters) or "1=1"
-    counts = {k: db.count("jobs", f"({c}) AND {fcond}", tuple(fparams)) for k, _, c in JOB_TABS}
-    return render_template("jobs.html", jobs=rows, status=tab, q=q, source=source, startup=startup, min_match=min_match,
-                           sort=sort, sorts=JOB_SORTS, tabs=JOB_TABS, counts=counts, page=page)
+    fcond = " AND ".join(f["filters"]) or "1=1"
+    counts = {k: db.count("jobs", f"({c}) AND {fcond}", tuple(f["fparams"])) for k, _, c in JOB_TABS}
+    show_dates = tab in ("applied_all", "applied", "interviewing", "offer", "closed") or bool(f["applied"])
+    return render_template("jobs.html", jobs=rows, status=tab, q=f["q"], source=f["source"], startup=f["startup"],
+                           min_match=f["min_match"], sort=sort, sorts=JOB_SORTS, tabs=JOB_TABS, counts=counts, page=page,
+                           applied=f["applied"], d_from=f["from"], d_to=f["to"], show_dates=show_dates,
+                           today_iso=datetime.now().astimezone().date().isoformat())
+
+
+@app.route("/jobs/links")
+def job_links():
+    """Application links for EVERY job matching the current filters (not just the visible page)."""
+    f = _job_filters(request.args)
+    rows = db.fetchall(f"SELECT company, title, coalesce(nullif(apply_url, ''), url) AS link FROM jobs WHERE {f['cond']} "
+                       "ORDER BY coalesce(applied_at, posted_at) DESC", tuple(f["params"] + f["fparams"]))
+    rows = [r for r in rows if r["link"]]
+    return jsonify({"count": len(rows), "links": rows})
 
 
 @app.route("/jobs/<path:job_id>")

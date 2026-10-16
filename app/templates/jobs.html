@@ -16,6 +16,8 @@
 
 <form class="filters" method="get" id="job-filters">
   <input type="hidden" name="status" value="{{ status }}">
+  {% if applied in ('today', 'yesterday', '7d', '30d') %}<input type="hidden" name="applied" value="{{ applied }}">
+  {% elif applied == 'custom' %}<input type="hidden" name="from" value="{{ d_from }}"><input type="hidden" name="to" value="{{ d_to }}">{% endif %}
   <input type="search" name="q" value="{{ q }}" placeholder="Search company, title, or location" class="grow" autocomplete="off">
   <select name="source" onchange="this.form.submit()" aria-label="Source">
     <option value="">All sources</option>
@@ -31,8 +33,29 @@
   </select>
   <label class="check"><input type="checkbox" name="startup" value="1" {{ 'checked' if startup }} onchange="this.form.submit()"> Startups</label>
   <button class="btn" type="submit">Search</button>
-  {% if q or source or startup or min_match %}<a class="btn ghost" href="{{ url_for('jobs', status=status or None) }}">Clear</a>{% endif %}
+  {% if q or source or startup or min_match or applied %}<a class="btn ghost" href="{{ url_for('jobs', status=status or None) }}">Clear</a>{% endif %}
 </form>
+
+{% if show_dates %}
+{% set keep = dict(status=status or None, q=q or None, source=source or None, startup='1' if startup else None, min_match=min_match or None, sort=sort) %}
+<div class="filters date-bar">
+  <span class="sub">Applied:</span>
+  <nav class="seg" aria-label="Applied date">
+    {% for key, label in [('', 'Any date'), ('today', 'Today'), ('yesterday', 'Yesterday'), ('7d', 'Last 7 days'), ('30d', 'Last 30 days')] %}
+    <a href="{{ url_for('jobs', applied=key or None, **keep) }}" class="{{ 'on' if applied == key }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+  <form method="get" class="row" style="gap:6px">
+    {% for k, v in keep.items() if v %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <label class="sub small">From <input type="date" name="from" value="{{ d_from if applied == 'custom' else '' }}" max="{{ today_iso }}"></label>
+    <label class="sub small">To <input type="date" name="to" value="{{ d_to if applied == 'custom' else '' }}" max="{{ today_iso }}"></label>
+    <button class="btn small" type="submit">Apply dates</button>
+  </form>
+  <span class="grow"></span>
+  <button type="button" class="btn small" id="copy-links" title="Copies the application link of every job matching these filters (all pages), one per line">Copy {{ '{:,}'.format(page.total) }} link{{ '' if page.total == 1 else 's' }}</button>
+</div>
+{% if applied %}<p class="sub small" style="margin:-4px 0 10px">{% if applied == 'custom' %}Applied {% if d_from and d_to and d_from != d_to %}from {{ d_from }} to {{ d_to }}{% elif d_from and not d_to %}on or after {{ d_from }}{% elif d_to and not d_from %}on or before {{ d_to }}{% else %}on {{ d_from }}{% endif %}{% else %}Applied {{ {'today': 'today', 'yesterday': 'yesterday', '7d': 'in the last 7 days', '30d': 'in the last 30 days'}[applied] }}{% endif %} · {{ '{:,}'.format(page.total) }} job{{ '' if page.total == 1 else 's' }}</p>{% endif %}
+{% endif %}
 
 <div class="card flush">
 <table class="jobs-table">
@@ -66,4 +89,20 @@
 </table>
 </div>
 {{ pager(page) }}
+<script>
+(() => {
+  const btn = document.getElementById("copy-links");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const label = btn.textContent;
+    try {
+      const d = await (await fetch("{{ url_for('job_links') }}" + location.search)).json();
+      const text = d.links.map(l => l.link).join("\n");
+      await navigator.clipboard.writeText(text);
+      btn.textContent = d.count ? `Copied ${d.count} link${d.count === 1 ? "" : "s"}` : "No links to copy";
+    } catch (e) { btn.textContent = "Copy failed"; }
+    setTimeout(() => btn.textContent = label, 1600);
+  });
+})();
+</script>
 {% endblock %}

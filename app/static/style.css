@@ -237,3 +237,8 @@ label input, label select, label textarea { margin-top: 4px; font-size: 14px; }
 .unmapped { margin-top: 6px; font-size: 12px; color: var(--muted); }
 .unmapped summary { cursor: pointer; }
 .unmapped .map-pop { max-width: none; }
+.date-bar { align-items: center; }
+.date-bar .seg a { display: inline-block; padding: 4px 10px; font-size: 12px; color: var(--text-2); text-decoration: none; }
+.date-bar .seg a + a { border-left: 1px solid var(--border); }
+.date-bar .seg a.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.date-bar input[type=date] { font: inherit; font-size: 12px; padding: 3px 6px; }
