@@ -7,7 +7,8 @@ including overnight with the laptop lid closed, so the candidate's time goes onl
 |---|---|
 | **Type** | Personal tool, built end to end (backend, LLM integration, PDF rendering, browser extension, scheduling) |
 | **Stack** | Python, Flask, SQLite, Claude (Claude Code CLI or Anthropic API, with web search), reportlab, Leaflet maps, Chrome extension (MV3), Playwright, macOS launchd/pmset |
-| **Size** | About 8,000 lines across the app, extension, and templates · 57 automated tests |
+| **Size** | About 8,000 lines across the app, extension, and templates · 61 automated tests |
+| **Platforms** | macOS (primary), Windows, Linux · one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)) |
 | **Status** | In daily use since October 2026 |
 
 ---
@@ -41,7 +42,10 @@ The pipeline runs on a schedule, by default 8:00 AM and 3:00 PM Eastern, with ti
    Settings page.
 2. **The run starts headless.** A launchd agent starts the pipeline under `caffeinate`, so the Mac stays awake
    until the run finishes. If the always-on dashboard is running, the run happens inside it with live progress.
-   If there is no network, the run fails loudly instead of "finishing" in one second.
+   If there is no network, the run fails loudly instead of "finishing" in one second, and a connection that
+   drops mid-run pauses the work and retries every 5 minutes. On **Windows and Linux** the same schedule is
+   driven by a clock inside the dashboard, which is autostarted at login by Task Scheduler or systemd and
+   optionally woken by a wake timer. A run missed while the machine slept (up to 90 minutes) still starts on wake.
 3. **About 4,000 company job boards are swept.** That's roughly 160,000 postings, checked in about 4 minutes.
 4. **Rules remove most postings before any AI call.** The rules drop stale postings, senior titles, roles
    outside the US, 4+ years of experience required, citizenship or clearance language, explicit "no
@@ -135,7 +139,8 @@ applied to within hours of going live, while applicant counts are still low.
 | `app/worker.py` | A thread pool with an atomic job claim, de-duplication, and a pause/resume across usage limits |
 | `app/web.py` + templates | Dashboard (KPIs, maps, charts), Jobs, Needs you, People, Background, Settings, and a profile/prompt editor with version history |
 | `extension/` | Chrome MV3 side panel: matches the open page to a job, uploads the tailored PDFs, answers questions from the profile, learns from edits, never submits |
-| `scripts/` | launchd schedule installer, the pmset wake helper, and a demo-data seeder |
+| `scripts/` | launchd schedule installer and pmset wake helper (macOS), and a demo-data seeder |
+| `CLAUDE_SETUP.md` | Setup instructions written for Claude Code: OS detection, per-OS prerequisites, profile interview, verification, autostart, wake timers, troubleshooting |
 
 ## 5. Engineering decisions worth noting
 
@@ -160,6 +165,17 @@ applied to within hours of going live, while applicant counts are still low.
 - **Maps without API keys.** Leaflet with Esri's gray canvas tiles (light and dark versions swap with the
   theme) and OpenStreetMap geocoding within its usage policy. Rejected applications get their own pin, so
   they never hide active ones.
+- **Setup as instructions for an AI agent, not a script.** Instead of three fragile install scripts, one
+  Markdown file tells the new user's own Claude Code what to do on each OS. It also lists what needs a human
+  (passwords, license agreements, Chrome clicks) and how to verify every step. The agent adapts to the machine,
+  such as a missing Python, a different package manager, or a missing font, which a shell script can't.
+- **Portable by design.** OS-specific pieces sit behind small switches: launchd on macOS and a built-in clock
+  elsewhere, font discovery across macOS, Windows, and Linux folders (Liberation Serif as the metric-compatible
+  fallback), OS-neutral date formatting, and guarded Unix-only signals. The Linux path was verified end to end
+  in a clean Debian container: all tests pass, PDFs render, and the dashboard serves every page.
+- **Self-healing documents.** A bullet up to 3% too long stays on its line with about 0.03pt tighter letter
+  spacing. Pages use the smaller sizes the prompt allows (down to 10pt) before overflowing. A **Fix it** button
+  re-fits flagged documents with no model call. In practice that alone fixed every flagged resume so far.
 - **Clear boundaries.** Submitting applications and sending LinkedIn invites stay manual. Forms carry legal
   attestations and CAPTCHAs, and LinkedIn prohibits automation. Sites behind a login or bot protection
   (Indeed, Handshake, LinkedIn) are not scraped. Only public APIs and public data are used.
@@ -172,8 +188,10 @@ applied to within hours of going live, while applicant counts are still low.
 - **42,984** USCIS sponsor records loaded, **183** sponsors learned from feeds and screens, and **47** companies
   verified online
 - **55** job locations geocoded and pinned on the dashboard maps
-- **57** automated tests, including Chromium-driven form-fill tests and regression tests for real failures:
-  sponsorship-refusal wording, pay parsing, and PDF word-spacing leaks
+- **61** automated tests, including Chromium-driven form-fill tests and regression tests for real failures:
+  sponsorship-refusal wording, pay parsing, PDF word-spacing leaks, near-miss line squeezing, the
+  Windows/Linux scheduling clock, and portable date formatting
+- Runs on **macOS, Windows, and Linux**. Anyone with a Claude seat can set it up with **one command**.
 
 ## 7. Lessons learned
 
@@ -186,6 +204,9 @@ applied to within hours of going live, while applicant counts are still low.
 - **Long-running local automation needs honest status.** Several fixes were about the UI telling the truth:
   "not started" versus "waiting for a worker", a failed offline run versus "done", and a paused queue with a
   one-click resume.
+- **Write setup for the agent that will run it.** The person replicating the project already has a capable
+  agent. Giving it clear goals, guardrails, and checks per OS was simpler and more robust than maintaining
+  install scripts, and it turned a long README into a single command.
 - **Real data beats more rules.** Loading the USCIS export released 164 held-back jobs in one step. Matching
   employer names without spaces ("JPMorganChase" vs "JPMORGAN CHASE & CO") recovered more. Web lookups covered
   the rest.
@@ -193,6 +214,7 @@ applied to within hours of going live, while applicant counts are still low.
 ## 8. Possible next steps
 
 - Track applicant counts and reply rates per source, and use them to rank boards
+- Run the Windows setup path on a real Windows machine and fold any fixes back into CLAUDE_SETUP.md
 - Color map pins by match score, and add a heat layer for the cities with the most open roles
 - An email follow-up draft (Outlook) with the tailored PDFs attached, for contacts the candidate already has
 - A weekly digest of rejection reasons, to show which profile gaps cost the most roles

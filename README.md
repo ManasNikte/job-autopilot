@@ -6,7 +6,8 @@ your rules). For the good matches it writes a tailored one-page resume and cover
 to PDF and checked automatically. A Chrome extension fills the application form, and you press Submit.
 Anything that needs your judgment lands in one **Needs you** inbox.
 
-Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hosted.
+Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hosted. It runs on **macOS, Windows,
+and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up for you**.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -48,10 +49,18 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
 - **Referral engine.** Import your networking spreadsheet (`.xlsx`), or add, edit, and delete people. When a
   job at their company is ready, the app drafts a personal referral text for that exact role, with a
   one-click "Text them" link.
-- **Runs while you sleep.** macOS launchd agents run the pipeline at the times you choose. An optional
-  root helper schedules `pmset` wake-ups so runs happen even when the lid is closed. If Claude's usage
-  limit is hit, work pauses and resumes at the reset time, or right away with **Resume now** if you reset
-  your limit early.
+- **Runs while you sleep.** On macOS, launchd agents run the pipeline at the times you choose, and an optional
+  root helper schedules `pmset` wake-ups so runs happen even when the lid is closed. On Windows and Linux, the
+  dashboard's built-in clock starts each run (a run missed while asleep starts on wake), with optional
+  wake-from-sleep through Task Scheduler or a systemd timer. If Claude's usage limit is hit, work pauses and
+  resumes at the reset time, or right away with **Resume now**. If the internet drops, work pauses and retries.
+- **One-command setup on any OS.** [CLAUDE_SETUP.md](CLAUDE_SETUP.md) is written *for Claude Code*. The new
+  user runs one command, and their Claude detects the OS and installs prerequisites (Homebrew, winget, or
+  apt/dnf/pacman). It then builds the environment, interviews them to fill in their master prompt from the
+  template, verifies everything, and sets up autostart (launchd, Task Scheduler, or systemd).
+- **Self-healing documents.** Bullets that are a hair too long stay on one line with slightly tighter letter
+  spacing, and pages use the smaller sizes the prompt allows before overflowing. **Fix it** re-fits flagged
+  documents without a Claude call, and asks for a small trim only if that isn't enough.
 - **Dashboard.** KPIs (including **applied today**), **maps of where you're applying**, a 14-day
   applications chart, a pipeline funnel, live per-job progress bars with an honest "not started / running /
   paused" status, server-side pagination and search everywhere, and dark, light, and system themes.
@@ -80,9 +89,10 @@ Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hoste
 | LLM | Claude via the headless Claude Code CLI (works with a Claude Team or Enterprise seat) or the Anthropic API with prompt caching, plus JSON-schema structured outputs |
 | Documents | reportlab (direct PDF, justified text, live links), pypdf for verification |
 | Browser | Chrome extension (MV3, shadow-DOM side panel), Playwright for the optional in-app autofill and tests |
-| Scheduling | macOS launchd (user agents plus a root LaunchDaemon for `pmset` wake) |
+| Scheduling | macOS launchd (user agents plus a root LaunchDaemon for `pmset` wake); a built-in clock in the dashboard on Windows / Linux, autostarted by Task Scheduler or systemd |
+| Platforms | macOS (primary), Windows, Linux; the Linux path was verified in a clean Debian container |
 | Maps | Leaflet with Esri gray canvas tiles (light and dark), OpenStreetMap Nominatim geocoding (cached) |
-| Tests | pytest (57 tests, including Chromium-driven form-fill tests) |
+| Tests | pytest (61 tests, including Chromium-driven form-fill tests) |
 
 ## Screenshots
 
@@ -214,6 +224,10 @@ sudo ./scripts/install_wake.sh         # optional: wake the Mac for each run, ev
 
 Change the run times on the **Settings** page. The launchd agents and wake-ups follow automatically.
 
+**Windows or Linux?** Let Claude Code follow [CLAUDE_SETUP.md](CLAUDE_SETUP.md). It sets up the dashboard to start
+at login (Task Scheduler or systemd) and, if you want, wake-ups before each run. Runs are then started by the
+dashboard's built-in clock at the times on the Settings page.
+
 ## Configuration
 
 | Where | What |
@@ -259,7 +273,8 @@ app/
 extension/      Chrome extension (side panel, autofill, popup)
 profile/examples/  placeholder profile templates (your real profile is gitignored)
 prompts/        app adapter: how the app asks Claude for JSON
-scripts/        launchd schedule, wake helper, demo seeder
+scripts/        launchd schedule and wake helper (macOS), demo seeder
+CLAUDE_SETUP.md one-command setup instructions for Claude Code (macOS, Windows, Linux)
 tests/          pytest suite (fixture uses a fictional candidate)
 ```
 
