@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import json
@@ -38,6 +39,12 @@ def strf(dt, fmt: str) -> str:
 app.add_template_filter(strf, "strf")
 
 
+@app.template_filter("firsturl")
+def firsturl(text: str | None) -> str:
+    m = re.search(r"https?://[^\s<>\"')]+", text or "")
+    return m.group(0) if m else ""
+
+
 @app.template_filter("ago")
 def ago(iso: str | None) -> str:
     if not iso:
@@ -63,7 +70,11 @@ def inject():
         backend = llm.backend()
     except llm.LLMError:
         backend = "not configured"
-    return {"open_interventions": open_n, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
+    try:
+        unmatched_mail = db.count("email_events", "state='unmatched'")
+    except Exception:
+        unmatched_mail = 0
+    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
 
 
 def _followups() -> None:
@@ -357,7 +368,8 @@ def inbox():
     _followups()
     ivs = db.fetchall(
         "SELECT i.*, j.company, j.title AS job_title, j.match_score, j.verdict FROM interventions i LEFT JOIN jobs j ON j.id=i.job_id "
-        "WHERE i.status='open' ORDER BY CASE i.kind WHEN 'error' THEN 0 WHEN 'referral' THEN 1 WHEN 'decision' THEN 2 WHEN 'missing_info' THEN 3 "
+        "WHERE i.status='open' ORDER BY CASE i.kind WHEN 'offer' THEN -3 WHEN 'interview' THEN -2 WHEN 'assessment' THEN -1 "
+        "WHEN 'error' THEN 0 WHEN 'referral' THEN 1 WHEN 'decision' THEN 2 WHEN 'missing_info' THEN 3 "
         "WHEN 'quality' THEN 4 WHEN 'submit' THEN 5 WHEN 'outreach' THEN 6 ELSE 7 END, i.id DESC")
     from . import contacts as _c
     for i in ivs:
@@ -405,6 +417,135 @@ def inbox_action(iid):
         db.execute("UPDATE interventions SET status=?, resolved_at=? WHERE id=?",
                    ("dismissed" if act == "dismiss" else "resolved", db.now(), iid))
     return redirect(request.referrer or url_for("inbox"))
+
+
+# ----------------------------------------------------------------------------- email status tracking
+
+EMAIL_EVENTS = {"rejection": "Rejected", "interview": "Interview", "assessment": "Assessment", "offer": "Offer",
+                "confirmation": "Received", "other": "Other"}
+
+
+@app.route("/email")
+def email_page():
+    from . import mailsync
+    mailsync.init()
+    ev, state, q = request.args.get("event", ""), request.args.get("state", ""), request.args.get("q", "").strip()
+    where, params = ["state != 'ignored'"], []
+    if ev:
+        where.append("event=?")
+        params.append(ev)
+    if state:
+        where.append("state=?")
+        params.append(state)
+    if q:
+        where.append("(company LIKE ? OR role LIKE ? OR subject LIKE ? OR sender LIKE ?)")
+        params += [f"%{q}%"] * 4
+    cond = " AND ".join(where)
+    page = Page(db.count("email_events", cond, tuple(params)))
+    rows = db.fetchall(f"SELECT e.*, j.company AS job_company, j.title AS job_title, j.status AS job_status FROM email_events e "
+                       f"LEFT JOIN jobs j ON j.id=e.job_id WHERE {cond} ORDER BY received_at DESC LIMIT ? OFFSET ?",
+                       (*params, page.per_page, page.offset))
+    counts = {r["event"]: r["n"] for r in db.fetchall("SELECT event, count(*) AS n FROM email_events WHERE state != 'ignored' GROUP BY event")}
+    unmatched = db.count("email_events", "state='unmatched'")
+    jobs_for_assign = db.fetchall("SELECT id, company, title FROM jobs WHERE status IN ('ready','applied','interviewing','offer','closed') "
+                                  "ORDER BY coalesce(applied_at, updated_at) DESC LIMIT 400") if unmatched else []
+    last = db.kv_get("mail_last_sync")
+    return render_template("email.html", rows=rows, page=page, counts=counts, unmatched=unmatched, ev=ev, state=state, q=q,
+                           events=EMAIL_EVENTS, accounts=mailsync.accounts(), jobs_for_assign=jobs_for_assign,
+                           last=json.loads(last["v"]) if last else None, last_at=last["at"] if last else None)
+
+
+@app.post("/email/check")
+def email_check():
+    from . import mailsync
+    if not mailsync.accounts():
+        flash("Connect an email account first (Settings → Email).")
+        return redirect(url_for("settings_page") + "#email")
+    worker.resume()
+    worker.submit("mail")
+    flash("Checking your inboxes in the background. Updates appear here and on each job.")
+    return redirect(request.referrer or url_for("email_page"))
+
+
+@app.post("/email/<int:eid>/undo")
+def email_undo(eid):
+    from . import mailsync
+    flash("Undone: the job is back to its previous status." if mailsync.undo(eid) else "Nothing to undo for that email.")
+    return redirect(request.referrer or url_for("email_page"))
+
+
+@app.post("/email/<int:eid>/assign")
+def email_assign(eid):
+    from . import mailsync
+    job_id = request.form.get("job_id", "")
+    flash("Matched and applied." if mailsync.assign(eid, job_id) else "Pick a job from the list.")
+    return redirect(request.referrer or url_for("email_page"))
+
+
+@app.post("/email/<int:eid>/ignore")
+def email_ignore(eid):
+    db.execute("UPDATE email_events SET state='ignored' WHERE id=?", (eid,))
+    return redirect(request.referrer or url_for("email_page"))
+
+
+@app.post("/settings/email/gmail")
+def email_gmail_save():
+    """Save a Gmail address + app password (the password goes to the OS keychain, never to project files)."""
+    from . import mailsync
+    if request.form.get("disconnect"):
+        acc = mailsync.accounts()
+        g = acc.pop("gmail", None)
+        if g:
+            mailsync.delete_secret(f"gmail:{g['address']}")
+        mailsync.save_accounts(acc)
+        flash("Gmail disconnected and its app password removed from the keychain.")
+        return redirect(url_for("settings_page") + "#email")
+    address = request.form.get("address", "").strip()
+    pw = request.form.get("app_password", "").replace(" ", "")
+    if not address or len(pw) < 16:
+        flash("Enter your Gmail address and the 16-character app password.")
+        return redirect(url_for("settings_page") + "#email")
+    try:
+        mailsync.gmail_test(address, pw)
+    except Exception as e:
+        flash(f"Gmail sign-in failed: {e}. Check the address, that 2-Step Verification is on, and the app password.")
+        return redirect(url_for("settings_page") + "#email")
+    mailsync.set_secret(f"gmail:{address}", pw)
+    acc = mailsync.accounts()
+    acc["gmail"] = {"address": address, "connected_at": db.now()}
+    mailsync.save_accounts(acc)
+    flash(f"Gmail connected ({address}), read-only. Click 'Check email now' on the Email page, or wait for the next check.")
+    return redirect(url_for("settings_page") + "#email")
+
+
+@app.post("/settings/email/microsoft")
+def email_ms_start():
+    from . import mailsync
+    if request.form.get("disconnect"):
+        acc = mailsync.accounts()
+        acc.pop("microsoft", None)
+        mailsync.save_accounts(acc)
+        try:
+            mailsync.MS_CACHE.unlink()
+        except OSError:
+            pass
+        flash("Microsoft account disconnected and its sign-in removed.")
+        return redirect(url_for("settings_page") + "#email")
+    client_id = request.form.get("client_id", "").strip()
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", client_id):
+        flash("Paste the Application (client) ID from your Azure app registration (36 characters).")
+        return redirect(url_for("settings_page") + "#email")
+    try:
+        mailsync.ms_start_signin(client_id)
+    except Exception as e:
+        flash(f"Could not start Microsoft sign-in: {e}")
+    return redirect(url_for("settings_page", ms=client_id) + "#email")
+
+
+@app.route("/settings/email/microsoft/status")
+def email_ms_status():
+    from . import mailsync
+    return jsonify(mailsync.ms_signin_state(request.args.get("client_id", "")))
 
 
 @app.route("/outreach")
@@ -759,10 +900,13 @@ TUNABLES = [
     ("EFFORT_SCREEN", "Screening effort", "choice", "Fit verdicts are short; low is usually enough.", ("low", "medium", "high")),
     ("AUTO_TAILOR_RISK", "Build documents for 'apply with risk' roles", "bool", "Off = those roles wait for your OK on Needs you.", None),
     ("SPONSOR_WEB_CHECKS", "Online sponsor lookups per run", "int", "For companies missing from your USCIS data, Claude searches public H-1B disclosure data (DOL LCAs, USCIS approvals) once per company and caches the answer for 90 days. Each lookup is one small Claude call with web search. 0 turns it off.", (0, 200)),
+    ("MAIL_CHECK_MINUTES", "Check email every (minutes)", "int", "How often connected inboxes are read for application updates (Settings → Email). 0 = only when you click 'Check email now'.", (0, 1440)),
+    ("MAIL_LOOKBACK_DAYS", "Email look-back on first check (days)", "int", "How far back the first check of a newly connected inbox reads.", (1, 90)),
     ("SCREEN_UNKNOWN_SPONSOR", "Screen jobs when sponsorship is unknown", "bool", "On = jobs from companies with no H-1B signal yet still go to Claude (its visa gate judges the posting); uses more screens. Off = they wait under Filtered out. Importing the USCIS H-1B data on Sources covers most companies either way.", None),
 ]
 DEFAULTS = {"MIN_MATCH_FOR_DOCS": 7, "MIN_SALARY": 100000, "POSTED_WITHIN_HOURS": 24, "MAX_SCREEN_PER_RUN": 60, "MAX_TAILOR_PER_RUN": 15, "PARALLEL_JOBS": 3,
-            "MAX_REVISIONS": 2, "EFFORT_TAILOR": "medium", "EFFORT_SCREEN": "low", "AUTO_TAILOR_RISK": "1", "SCREEN_UNKNOWN_SPONSOR": "0", "SPONSOR_WEB_CHECKS": 25}
+            "MAX_REVISIONS": 2, "EFFORT_TAILOR": "medium", "EFFORT_SCREEN": "low", "AUTO_TAILOR_RISK": "1", "SCREEN_UNKNOWN_SPONSOR": "0", "SPONSOR_WEB_CHECKS": 25,
+            "MAIL_CHECK_MINUTES": 60, "MAIL_LOOKBACK_DAYS": 14}
 
 
 @app.route("/settings", methods=["GET", "POST"])
@@ -807,7 +951,10 @@ def settings_page():
             flash(f"Not saved: {e}")
         return redirect(url_for("settings_page"))
     current = {k: env(k, str(DEFAULTS[k])) for k, *_ in TUNABLES}
-    return render_template("settings.html", sched=schedule.status(), tunables=TUNABLES, current=current,
+    from . import mailsync
+    ms_id = request.args.get("ms", "")
+    return render_template("settings.html", mail_accounts=mailsync.accounts(), ms_client=ms_id,
+                           ms_state=mailsync.ms_signin_state(ms_id) if ms_id else None, sched=schedule.status(), tunables=TUNABLES, current=current,
                            feeds=feeds_config(), ampm=_ampm)
 
 

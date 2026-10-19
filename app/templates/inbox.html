@@ -8,7 +8,8 @@
 {% set titles = {
   'referral': 'Ask for a referral first', 'error': 'Something broke', 'decision': 'Your call: apply with risk?', 'missing_info': 'Facts only you know',
   'quality': 'Document quality warnings', 'review': 'Gaps to know before you submit', 'submit': 'Ready for you to submit',
-  'outreach': 'LinkedIn follow-ups due' } %}
+  'outreach': 'LinkedIn follow-ups due', 'offer': 'Offers 🎉', 'interview': 'Interview invites (from your email)',
+  'assessment': 'Online assessments to complete (from your email)' } %}
 {% for kind, items in groups.items() %}
 <div class="card">
   <h2>{{ titles.get(kind, kind) }} <span class="muted">({{ items|length }})</span></h2>
@@ -51,6 +52,13 @@
     {% elif kind == 'error' and i.job_id %}
     <form method="post" action="{{ url_for('inbox_action', iid=i.id) }}" class="row">
       <button class="btn primary small" name="action" value="retry">Retry</button>
+      <button class="btn small" name="action" value="resolve">Done</button><button class="btn small" name="action" value="dismiss">Dismiss</button>
+    </form>
+    {% elif kind in ('assessment', 'interview', 'offer') %}
+    {% set link = i.detail|firsturl %}
+    <form method="post" action="{{ url_for('inbox_action', iid=i.id) }}" class="row">
+      {% if link %}<a class="btn primary small" href="{{ link }}" target="_blank" rel="noopener noreferrer">Open link ↗</a>{% endif %}
+      <a class="btn small" href="{{ url_for('email_page', q=i.company) }}">See the email</a>
       <button class="btn small" name="action" value="resolve">Done</button><button class="btn small" name="action" value="dismiss">Dismiss</button>
     </form>
     {% elif kind == 'submit' %}

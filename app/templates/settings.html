@@ -91,6 +91,76 @@
   </form>
 </div>
 
+<div class="card" id="email">
+  <h2>Email: track application replies</h2>
+  <p class="sub" style="margin-top:0">Reads your inboxes <b>read-only</b> to find application emails: received, rejected, online assessment, interview, offer. Matching jobs update automatically (see the <a href="{{ url_for('email_page') }}">Email</a> page; every change can be undone). Only emails that look like application updates are sent to Claude to classify. Nothing is ever sent, deleted, or marked as read.</p>
+  <div class="grid g2">
+    <div>
+      <h3>Gmail</h3>
+      {% if mail_accounts.gmail %}
+        <p><span class="badge apply">Connected</span> {{ mail_accounts.gmail.address }}</p>
+        <form method="post" action="{{ url_for('email_gmail_save') }}"><button class="btn small danger" name="disconnect" value="1">Disconnect</button></form>
+      {% else %}
+        <form method="post" action="{{ url_for('email_gmail_save') }}" class="stack" autocomplete="off">
+          <label>Gmail address<br><input type="email" name="address" placeholder="you@gmail.com" style="width:100%" required></label>
+          <label>App password<br><input type="password" name="app_password" placeholder="16 characters" style="width:100%" autocomplete="new-password" required></label>
+          <button class="btn primary small">Save &amp; test</button>
+        </form>
+        <details style="margin-top:6px"><summary class="sub">How to get an app password (2 minutes)</summary>
+          <ol class="tight small">
+            <li>Turn on 2-Step Verification for your Google account, if it isn't on already.</li>
+            <li>Open <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>, name it "Job Autopilot", and click Create.</li>
+            <li>Paste the 16-character password above. It's stored in your computer's keychain, never in the project folder, and you can revoke it in Google anytime.</li>
+          </ol></details>
+      {% endif %}
+    </div>
+    <div>
+      <h3>Outlook / Microsoft 365 (e.g. a university account)</h3>
+      {% if mail_accounts.microsoft %}
+        <p><span class="badge apply">Connected</span> {{ mail_accounts.microsoft.address }}</p>
+        <form method="post" action="{{ url_for('email_ms_start') }}"><button class="btn small danger" name="disconnect" value="1">Disconnect</button></form>
+      {% elif ms_state and ms_state.status in ('waiting', 'error') %}
+        <div id="ms-flow" data-client="{{ ms_client }}">
+          {% if ms_state.status == 'waiting' %}
+          <p>Open <a href="{{ ms_state.verification_uri }}" target="_blank" rel="noopener"><b>{{ ms_state.verification_uri }}</b></a>, enter this code, and sign in with your Outlook account:</p>
+          <p style="font-size:22px;letter-spacing:2px"><b>{{ ms_state.user_code }}</b> <button type="button" class="btn small" onclick="navigator.clipboard.writeText('{{ ms_state.user_code }}'); this.textContent='Copied'">Copy</button></p>
+          <p class="sub" id="ms-wait">Waiting for you to finish signing in…</p>
+          {% else %}<p style="color:var(--critical)">Sign-in failed: {{ ms_state.error }}</p>
+          <p class="sub">"Need admin approval" means your organization only allows apps its IT has approved. Ask IT to approve Mail.Read for your app, or forward application emails to your connected Gmail instead.</p>{% endif %}
+        </div>
+      {% else %}
+        <form method="post" action="{{ url_for('email_ms_start') }}" class="stack">
+          <label>Application (client) ID<br><input type="text" name="client_id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style="width:100%" required></label>
+          <button class="btn primary small">Sign in with Microsoft</button>
+        </form>
+        <details style="margin-top:6px"><summary class="sub">One-time setup: register a free app in Azure (5 minutes)</summary>
+          <ol class="tight small">
+            <li>Go to <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener">Azure portal → App registrations</a> and sign in with your Outlook (university) account. Click <b>New registration</b>.</li>
+            <li>Name: Job Autopilot. Supported account types: <b>Accounts in this organizational directory only</b>. Leave Redirect URI empty. Click Register.</li>
+            <li>Open <b>Authentication</b> → Advanced settings → set <b>Allow public client flows</b> to <b>Yes</b> → Save.</li>
+            <li>Open <b>API permissions</b> → Add a permission → Microsoft Graph → <b>Delegated</b> → check <b>Mail.Read</b> → Add. (User.Read is already there.)</li>
+            <li>Copy the <b>Application (client) ID</b> from Overview, paste it above, and click Sign in. Approve the read-only mail permission when Microsoft asks.</li>
+          </ol>
+          <p class="small sub">If Azure says you can't register apps, or sign-in says "Need admin approval," your organization restricts third-party apps. Then forward application emails to your Gmail with an Outlook rule, and the Gmail connection covers them.</p></details>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const box = document.getElementById("ms-flow");
+  if (!box || !document.getElementById("ms-wait")) return;
+  const tick = async () => {
+    try {
+      const d = await (await fetch("{{ url_for('email_ms_status') }}?client_id=" + encodeURIComponent(box.dataset.client))).json();
+      if (d.status === "done" || d.status === "error") { location.href = "{{ url_for('settings_page') }}" + (d.status === "error" ? "?ms=" + box.dataset.client : "") + "#email"; return; }
+    } catch (e) {}
+    setTimeout(tick, 3000);
+  };
+  tick();
+})();
+</script>
+
 <div class="card">
   <h2>Your profile and prompt</h2>
   <p class="sub" style="margin-top:0">Edit the master prompt (your entire profile and every resume and cover letter rule), confirmed facts, and form presets.</p>

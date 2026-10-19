@@ -89,6 +89,9 @@ def _loop() -> None:
                 pipeline.tailor_job(arg, _log)
             elif kind == "refit":
                 pipeline.refit_job(arg, _log)
+            elif kind == "mail":
+                from . import mailsync
+                mailsync.sync(_log)
             elif kind == "referrals":
                 from . import contacts
                 contacts.queue_referral_asks(arg, _log)
@@ -116,6 +119,24 @@ def _scheduler(minutes: int) -> None:
         time.sleep(minutes * 60)
         if not state["active"] and _q.empty():
             submit("run")
+
+
+def _mail_clock() -> None:
+    """Check connected inboxes every MAIL_CHECK_MINUTES (Settings; 0 = only when you click 'Check email now')."""
+    from . import mailsync
+    time.sleep(60)
+    while True:
+        try:
+            every = env_int("MAIL_CHECK_MINUTES", 60)
+            if every > 0 and mailsync.accounts():
+                last = mailsync.db.kv_get("mail_last_check")
+                due = not last or time.time() - float(last["v"]) >= every * 60
+                if due:
+                    mailsync.db.kv_set("mail_last_check", str(time.time()))
+                    submit("mail")
+        except Exception as e:
+            _log(f"mail clock error: {e}")
+        time.sleep(60)
 
 
 def clock_tick(now=None) -> list[str]:
@@ -156,6 +177,7 @@ def start() -> None:
     _started = True
     for i in range(max(1, env_int("PARALLEL_JOBS", 3))):
         threading.Thread(target=_loop, daemon=True, name=f"worker-{i + 1}").start()
+    threading.Thread(target=_mail_clock, daemon=True, name="mail-clock").start()
     from .schedule import mode
     if mode() == "clock":
         threading.Thread(target=_clock, daemon=True, name="schedule-clock").start()

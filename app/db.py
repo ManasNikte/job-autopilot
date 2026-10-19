@@ -153,6 +153,14 @@ CREATE TABLE IF NOT EXISTS sponsors (      -- companies seen sponsoring H-1B (Jo
 CREATE TABLE IF NOT EXISTS sponsor_checks ( -- web lookups for companies missing from the USCIS data (cached 90 days)
     name_norm TEXT PRIMARY KEY, name TEXT, verdict TEXT, evidence TEXT, url TEXT, checked_at TEXT
 );
+CREATE TABLE IF NOT EXISTS email_events (   -- application emails read from your inboxes (app/mailsync.py)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account TEXT, msg_id TEXT UNIQUE, received_at TEXT, sender TEXT, subject TEXT, snippet TEXT,
+    company TEXT, role TEXT, event TEXT, link TEXT, deadline TEXT, summary TEXT,
+    job_id TEXT, prev_status TEXT, new_status TEXT, state TEXT DEFAULT 'new',
+    created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS email_events_job ON email_events(job_id);
 CREATE TABLE IF NOT EXISTS feed_status (
     feed TEXT PRIMARY KEY, ok INTEGER, seen INTEGER, kept INTEGER, error TEXT, checked_at TEXT
 );

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "_pager.html" import pager %}
+{% block title %}Email · Job Autopilot{% endblock %}
+{% block content %}
+<div class="page-head spread">
+  <div><h1 style="margin-bottom:2px">Email updates</h1>
+    <span class="sub">Application emails read from your inboxes (read-only). Rejections, interviews, and offers update the job automatically; every change can be undone.</span></div>
+  <form method="post" action="{{ url_for('email_check') }}"><button class="btn primary">Check email now</button></form>
+</div>
+
+<div class="card">
+  <div class="spread">
+    <div class="row" style="gap:16px">
+      {% for kind, a in accounts.items() %}<span><span class="badge apply">Connected</span> {{ a.address or kind }}</span>{% else %}
+      <span class="muted">No inbox connected yet. <a href="{{ url_for('settings_page') }}#email">Connect Gmail or Outlook in Settings →</a></span>{% endfor %}
+    </div>
+    <span class="sub small">{% if last_at %}Last check {{ last_at|ago }}{% if last %}: {{ last.fetched }} new, {{ last.applied }} matched, {{ last.unmatched }} unmatched{% if last.errors %} · <span style="color:var(--critical)">{{ last.errors|join('; ') }}</span>{% endif %}{% endif %}{% endif %}</span>
+  </div>
+</div>
+
+<nav class="tabs" aria-label="Email type">
+  <a href="{{ url_for('email_page', q=q or None) }}" class="tab {{ 'on' if not ev and not state }}">All <span class="count">{{ counts.values()|sum }}</span></a>
+  {% for k, label in events.items() %}<a href="{{ url_for('email_page', event=k, q=q or None) }}" class="tab {{ 'on' if ev == k }}">{{ label }} <span class="count">{{ counts.get(k, 0) }}</span></a>{% endfor %}
+  <a href="{{ url_for('email_page', state='unmatched', q=q or None) }}" class="tab {{ 'on' if state == 'unmatched' }}">Not matched <span class="count">{{ unmatched }}</span></a>
+</nav>
+
+<form class="filters" method="get">
+  {% if ev %}<input type="hidden" name="event" value="{{ ev }}">{% endif %}{% if state %}<input type="hidden" name="state" value="{{ state }}">{% endif %}
+  <input type="search" name="q" value="{{ q }}" placeholder="Search company, role, subject, or sender" class="grow">
+  <button class="btn" type="submit">Search</button>
+  {% if q %}<a class="btn ghost" href="{{ url_for('email_page', event=ev or None, state=state or None) }}">Clear</a>{% endif %}
+</form>
+
+{% if jobs_for_assign %}<datalist id="assign-jobs">{% for j in jobs_for_assign %}<option value="{{ j.company }} · {{ j.title }}" data-id="{{ j.id }}"></option>{% endfor %}</datalist>{% endif %}
+<div class="card flush">
+<table class="jobs-table">
+  <thead><tr><th>Received</th><th>Email</th><th>Update</th><th>Job</th><th class="num"></th></tr></thead>
+  <tbody>
+  {% for e in rows %}
+  <tr>
+    <td class="sub small nowrap">{{ e.received_at|ago }}<div>{{ e.account }}</div></td>
+    <td class="role"><b>{{ e.subject|truncate(90) }}</b><div class="meta">{{ e.sender|truncate(70) }}</div>
+      {% if e.summary %}<div class="reason">{{ e.summary }}</div>{% endif %}
+      {% if e.link %}<div class="small"><a href="{{ e.link }}" target="_blank" rel="noopener noreferrer">Open link ↗</a>{% if e.deadline %} · due {{ e.deadline }}{% endif %}</div>{% endif %}</td>
+    <td class="nowrap"><span class="badge {{ 'no' if e.event == 'rejection' else 'apply' if e.event in ('interview', 'offer') else 'risk' if e.event == 'assessment' else '' }}">{{ events.get(e.event, e.event) }}</span>
+      {% if e.state == 'applied' and e.prev_status != e.new_status %}<div class="sub small">{{ status_labels.get(e.prev_status, e.prev_status) }} → {{ status_labels.get(e.new_status, e.new_status) }}</div>{% endif %}
+      {% if e.state == 'undone' %}<div class="sub small">undone</div>{% endif %}</td>
+    <td>{% if e.job_id %}<a href="{{ url_for('job_detail', job_id=e.job_id) }}">{{ e.job_company }}</a><div class="sub small">{{ e.job_title|truncate(50) }}</div>
+      {% elif e.state == 'unmatched' %}<span class="muted small">{{ e.company or 'Unknown company' }}{% if e.role %} · {{ e.role }}{% endif %}</span>
+      <form method="post" action="{{ url_for('email_assign', eid=e.id) }}" class="row assign" style="gap:4px;margin-top:4px">
+        <input type="hidden" name="job_id"><input list="assign-jobs" placeholder="Match to a job…" style="min-width:220px;font-size:12px">
+        <button class="btn small">Match</button></form>{% endif %}</td>
+    <td class="num nowrap">
+      {% if e.state == 'applied' %}<form class="inline" method="post" action="{{ url_for('email_undo', eid=e.id) }}"><button class="btn small" title="Put the job back to its previous status">Undo</button></form>{% endif %}
+      {% if e.state == 'unmatched' %}<form class="inline" method="post" action="{{ url_for('email_ignore', eid=e.id) }}"><button class="btn small ghost">Ignore</button></form>{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="empty">{% if accounts %}No application emails yet. Click "Check email now".{% else %}Connect an inbox in Settings to start tracking replies.{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ pager(page, "emails") }}
+<script>
+document.querySelectorAll("form.assign").forEach((f) => {
+  const shown = f.querySelector("input[list]"), hidden = f.querySelector("input[name=job_id]");
+  shown.addEventListener("input", () => {
+    const opt = [...document.querySelectorAll("#assign-jobs option")].find((o) => o.value === shown.value);
+    hidden.value = opt ? opt.dataset.id : "";
+  });
+});
+</script>
+{% endblock %}

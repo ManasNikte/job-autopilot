@@ -21,6 +21,7 @@
     <a href="{{ url_for('inbox') }}" class="{{ 'on' if ep=='inbox' }}">Needs you{% if open_interventions %}<span class="pill">{{ open_interventions }}</span>{% endif %}</a>
     <a href="{{ url_for('jobs') }}" class="{{ 'on' if ep in ('jobs','job_detail') and request.args.get('status') != 'applied_all' }}">Jobs</a>
     <a href="{{ url_for('jobs', status='applied_all') }}" class="{{ 'on' if ep=='jobs' and request.args.get('status') == 'applied_all' }}">Applied</a>
+    <a href="{{ url_for('email_page') }}" class="{{ 'on' if ep=='email_page' }}">Email{% if unmatched_mail %}<span class="pill" title="Application emails that need matching to a job">{{ unmatched_mail }}</span>{% endif %}</a>
     <a href="{{ url_for('outreach') }}" class="{{ 'on' if ep=='outreach' }}">Outreach</a>
     <a href="{{ url_for('people') }}" class="{{ 'on' if ep in ('people','person_form') }}">People</a>
     <a href="{{ url_for('background') }}" class="{{ 'on' if ep=='background' }}">Background<span id="bg-dot" class="dot" hidden></span></a>

@@ -9,3 +9,6 @@ python-dotenv>=1.0
 pytest>=8.0
 # Form autofill (fills the form, never submits). After install run: python -m playwright install chromium
 playwright>=1.50
+# Email status tracking (Settings → Email): Microsoft sign-in and OS keychain for the Gmail app password
+msal>=1.30
+keyring>=25.0

@@ -74,7 +74,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .btn.danger { color: var(--critical); }
 .btn.small { padding: 3px 9px; font-size: 13px; }
 form.inline { display: inline; }
-input[type=text], input[type=search], textarea, select { font: inherit; padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+input[type=text], input[type=search], input[type=email], input[type=password], input[type=date], textarea, select { font: inherit; padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
 textarea { width: 100%; min-height: 70px; }
 .flash { background: var(--accent-soft); color: var(--text); padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; }
 pre.log { background: var(--surface-2); padding: 10px; border-radius: 8px; max-height: 260px; overflow: auto; font-size: 12px; white-space: pre-wrap; margin: 0; }
@@ -187,7 +187,7 @@ header.top { background: var(--header); backdrop-filter: saturate(160%) blur(12p
 .tile { transition: border-color .15s, transform .15s; }
 .tile:hover { transform: translateY(-1px); }
 .tile .v { letter-spacing: -.02em; }
-input[type=text], input[type=search], input[type=number], input[type=time], textarea, select { background: var(--input); color: var(--text); border-color: var(--border); }
+input[type=text], input[type=search], input[type=email], input[type=password], input[type=date], input[type=number], input[type=time], textarea, select { background: var(--input); color: var(--text); border-color: var(--border); }
 input:focus, textarea:focus, select:focus, .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); border-color: var(--accent); }
 .btn { background: var(--surface-2); border-color: var(--border); transition: border-color .15s, background .15s; }
 .btn:hover { border-color: var(--accent); }
@@ -242,3 +242,6 @@ label input, label select, label textarea { margin-top: 4px; font-size: 14px; }
 .date-bar .seg a + a { border-left: 1px solid var(--border); }
 .date-bar .seg a.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
 .date-bar input[type=date] { font: inherit; font-size: 12px; padding: 3px 6px; }
+
+.stack { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.stack label { width: 100%; }
