@@ -158,12 +158,14 @@ _flows: dict[str, dict] = {}            # device-code sign-ins in progress, keye
 _lock = threading.Lock()
 
 
-def _msal_app(client_id: str):
+def _msal_app(client_id: str, tenant: str = "organizations"):
+    """tenant = your organization's domain (e.g. northeastern.edu) or Directory (tenant) ID. A single-tenant app
+    registration must sign in through its own tenant, not the shared /organizations endpoint (AADSTS50194)."""
     import msal
     cache = msal.SerializableTokenCache()
     if MS_CACHE.exists():
         cache.deserialize(MS_CACHE.read_text())
-    app = msal.PublicClientApplication(client_id, authority="https://login.microsoftonline.com/organizations",
+    app = msal.PublicClientApplication(client_id, authority=f"https://login.microsoftonline.com/{tenant or 'organizations'}",
                                        token_cache=cache)
     return app, cache
 
@@ -177,9 +179,9 @@ def _save_cache(cache) -> None:
             pass
 
 
-def ms_start_signin(client_id: str) -> dict:
+def ms_start_signin(client_id: str, tenant: str = "organizations") -> dict:
     """Begin the device-code sign-in; returns {user_code, verification_uri, message}. Finishes in a thread."""
-    app, cache = _msal_app(client_id)
+    app, cache = _msal_app(client_id, tenant)
     flow = app.initiate_device_flow(scopes=MS_SCOPES)
     if "user_code" not in flow:
         raise RuntimeError(flow.get("error_description") or "Could not start Microsoft sign-in")
@@ -195,7 +197,7 @@ def ms_start_signin(client_id: str) -> dict:
             who = (res.get("id_token_claims") or {}).get("preferred_username", "")
             state.update(status="done", account=who)
             acc = accounts()
-            acc["microsoft"] = {"client_id": client_id, "address": who, "connected_at": db.now()}
+            acc["microsoft"] = {"client_id": client_id, "tenant": tenant, "address": who, "connected_at": db.now()}
             save_accounts(acc)
         else:
             state.update(status="error", error=res.get("error_description") or res.get("error") or "sign-in failed")
@@ -208,8 +210,8 @@ def ms_signin_state(client_id: str) -> dict:
     return _flows.get(client_id) or {"status": "idle"}
 
 
-def _ms_token(client_id: str) -> str:
-    app, cache = _msal_app(client_id)
+def _ms_token(client_id: str, tenant: str = "organizations") -> str:
+    app, cache = _msal_app(client_id, tenant)
     accts = app.get_accounts()
     res = app.acquire_token_silent(MS_SCOPES, account=accts[0]) if accts else None
     _save_cache(cache)
@@ -218,10 +220,10 @@ def _ms_token(client_id: str) -> str:
     return res["access_token"]
 
 
-def fetch_microsoft(client_id: str, since: datetime) -> list[dict]:
+def fetch_microsoft(client_id: str, since: datetime, tenant: str = "organizations") -> list[dict]:
     import requests
     from .sources import html_to_text
-    tok = _ms_token(client_id)
+    tok = _ms_token(client_id, tenant)
     headers = {"Authorization": f"Bearer {tok}", "Prefer": 'outlook.body-content-type="text"'}
     url = (f"{GRAPH}/me/mailFolders/inbox/messages?$top=50&$orderby=receivedDateTime desc"
            f"&$select=id,internetMessageId,subject,from,receivedDateTime,body"
@@ -430,7 +432,7 @@ def sync(log=print) -> dict:
         since = (datetime.fromisoformat(last["v"]) - timedelta(hours=2)) if last else datetime.now(timezone.utc) - timedelta(days=days)
         started = datetime.now(timezone.utc)
         try:
-            msgs = fetch_gmail(a["address"], since) if kind == "gmail" else fetch_microsoft(a["client_id"], since)
+            msgs = fetch_gmail(a["address"], since) if kind == "gmail" else fetch_microsoft(a["client_id"], since, a.get("tenant", "organizations"))
         except Exception as e:
             stats["errors"].append(f"{kind}: {e}"[:300])
             log(f"  ✗ email ({kind}): {e}")

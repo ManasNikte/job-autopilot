@@ -130,6 +130,7 @@
         </div>
       {% else %}
         <form method="post" action="{{ url_for('email_ms_start') }}" class="stack">
+          <label>Your Outlook email<br><input type="email" name="address" placeholder="you@university.edu" style="width:100%" required></label>
           <label>Application (client) ID<br><input type="text" name="client_id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style="width:100%" required></label>
           <button class="btn primary small">Sign in with Microsoft</button>
         </form>
@@ -139,7 +140,7 @@
             <li>Name: Job Autopilot. Supported account types: <b>Accounts in this organizational directory only</b>. Leave Redirect URI empty. Click Register.</li>
             <li>Open <b>Authentication</b> → Advanced settings → set <b>Allow public client flows</b> to <b>Yes</b> → Save.</li>
             <li>Open <b>API permissions</b> → Add a permission → Microsoft Graph → <b>Delegated</b> → check <b>Mail.Read</b> → Add. (User.Read is already there.)</li>
-            <li>Copy the <b>Application (client) ID</b> from Overview, paste it above, and click Sign in. Approve the read-only mail permission when Microsoft asks.</li>
+            <li>Copy the <b>Application (client) ID</b> from Overview, paste it above with your Outlook email, and click Sign in. Approve the read-only mail permission when Microsoft asks.</li>
           </ol>
           <p class="small sub">If Azure says you can't register apps, or sign-in says "Need admin approval," your organization restricts third-party apps. Then forward application emails to your Gmail with an Outlook rule, and the Gmail connection covers them.</p></details>
       {% endif %}

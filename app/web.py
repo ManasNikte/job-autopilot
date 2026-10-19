@@ -532,11 +532,13 @@ def email_ms_start():
         flash("Microsoft account disconnected and its sign-in removed.")
         return redirect(url_for("settings_page") + "#email")
     client_id = request.form.get("client_id", "").strip()
+    address = request.form.get("address", "").strip()
     if not re.fullmatch(r"[0-9a-fA-F-]{36}", client_id):
         flash("Paste the Application (client) ID from your Azure app registration (36 characters).")
         return redirect(url_for("settings_page") + "#email")
+    tenant = address.split("@")[-1].lower() if "@" in address else "organizations"   # your organization's directory
     try:
-        mailsync.ms_start_signin(client_id)
+        mailsync.ms_start_signin(client_id, tenant)
     except Exception as e:
         flash(f"Could not start Microsoft sign-in: {e}")
     return redirect(url_for("settings_page", ms=client_id) + "#email")
