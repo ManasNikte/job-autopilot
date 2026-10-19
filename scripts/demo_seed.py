@@ -244,6 +244,43 @@ def main() -> None:
     for c in companies():
         db.execute("INSERT OR REPLACE INTO source_status VALUES (?,?,?,?,?,?,?,?)",
                    (f"{c['ats']}:{c['slug']}", c["name"], c["ats"], c["slug"], 1, random.randint(5, 400), None, db.now()))
+    # Email tracking: two connected inboxes (fictional) and a few application emails already read
+    (DEMO / "data" / "mail_accounts.json").write_text(json.dumps({
+        "gmail": {"address": "jordan.lee@example.com", "connected_at": db.now()},
+        "applemail": {"name": "Exchange", "address": "jlee@university.example.edu", "connected_at": db.now()}}, indent=2))
+    pick = lambda st: db.fetchall("SELECT id, company, title, status FROM jobs WHERE status=? ORDER BY applied_at DESC", (st,))
+    emails = []
+    for j in pick("closed"):
+        emails.append((j, "rejection", f"Your application to {j['company']}", f"{j['company']} is moving forward with other candidates for {j['title']}.", "", ""))
+    for j in pick("interviewing"):
+        emails.append((j, "interview", f"Interview invitation: {j['title']}", f"{j['company']} invited you to a 30-minute recruiter call.", "https://calendly.com/example/30min", ""))
+    applied = pick("applied")
+    if applied:
+        j = applied[0]
+        due = (NOW + timedelta(days=6)).strftime("%Y-%m-%d")
+        emails.append((j, "assessment", f"[Action Required] Your {j['company']} online assessment", f"{j['company']} sent a 90-minute coding assessment.", "https://www.hackerrank.com/test/example", due))
+    for j in applied[1:7]:
+        emails.append((j, "confirmation", f"Thank you for applying to {j['company']}", f"{j['company']} received the {j['title']} application.", "", ""))
+    for n, (j, ev, subject, summary, link, due) in enumerate(emails):
+        when = iso(NOW - timedelta(hours=3 + n * 5))
+        new = {"rejection": "closed", "interview": "interviewing"}.get(ev, j["status"])
+        prev = "applied" if ev in ("rejection", "interview") else j["status"]
+        db.execute("INSERT INTO email_events (account, msg_id, received_at, sender, subject, snippet, company, role, event, link, deadline, "
+                   "summary, job_id, prev_status, new_status, state, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                   ("jordan.lee@example.com" if n % 2 else "jlee@university.example.edu", f"<demo-{n}@example.com>", when,
+                    f"{j['company']} Recruiting <no-reply@{j['company'].lower().replace(' ', '')}.example.com>", subject, summary,
+                    j["company"], j["title"], ev, link, due, summary, j["id"], prev, new, "applied", db.now()))
+        if ev in ("assessment", "interview"):
+            title = ("Online assessment from " if ev == "assessment" else "Interview invite from ") + j["company"] + (f" · due {due}" if due else "")
+            db.add_intervention(j["id"], ev, title, f"{summary}\n{link}\nEmail: {subject}")
+    db.execute("INSERT INTO email_events (account, msg_id, received_at, sender, subject, snippet, company, role, event, link, deadline, summary, "
+               "state, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+               ("jlee@university.example.edu", "<demo-unmatched@example.com>", iso(NOW - timedelta(hours=40)), "Talent Team <careers@initech.example.com>",
+                "Update on your application", "Initech is not moving forward.", "Initech", "", "rejection", "", "",
+                "Initech is not moving forward with the application.", "unmatched", db.now()))
+    db.kv_set("mail_last_sync", json.dumps({"fetched": len(emails) + 1, "classified": len(emails) + 1, "applied": len(emails),
+                                            "unmatched": 1, "errors": []}))
+
     print(f"Demo data written to {DEMO}. Start it with:\n"
           f"  JOB_AUTOPILOT_DATA=demo/data JOB_AUTOPILOT_PROFILE=demo/profile python -m app.cli serve")
 

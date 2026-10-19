@@ -322,6 +322,11 @@ Tell the user:
   https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub in their browser, then upload them on
   the dashboard's **Sources** page. Several files can go up at once. The site blocks scripted downloads, so
   don't try to fetch it yourself.
+- **Track application replies by email:** on the dashboard's **Settings → Email**, the user connects Gmail with an
+  app password they create themselves at https://myaccount.google.com/apppasswords, and/or Outlook / Microsoft 365.
+  Outlook works through their own Azure app registration (5 steps listed in the card), or on macOS through
+  Apple's Mail app when their organization blocks app registration. Never type passwords for them. Install the
+  extra packages if they're missing: `pip install msal keyring`.
 - **Try the UI with sample data first:** `python scripts/demo_seed.py`, then serve with
   `JOB_AUTOPILOT_DATA=demo/data JOB_AUTOPILOT_PROFILE=demo/profile` (Windows: set those as environment
   variables first). On Windows/Linux, use a different `PORT` for the demo if the real dashboard is running.

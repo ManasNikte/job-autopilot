@@ -4,7 +4,8 @@
 sponsor H-1B visas. Claude screens each posting against your own "master prompt" (your background plus
 your rules). For the good matches it writes a tailored one-page resume and cover letter, rendered straight
 to PDF and checked automatically. A Chrome extension fills the application form, and you press Submit.
-Anything that needs your judgment lands in one **Needs you** inbox.
+Anything that needs your judgment lands in one **Needs you** inbox, and **replies from employers are read from
+your inbox** to keep every application's status current.
 
 Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hosted. It runs on **macOS, Windows,
 and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up for you**.
@@ -14,6 +15,52 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 > 📄 **[Project report](PROJECT_REPORT.md)**: the problem, how it works overnight, time saved, architecture, and lessons learned.
 >
 > Screenshots use the built-in demo data (`scripts/demo_seed.py`). The candidate, "Jordan Lee", is fictional.
+
+---
+
+## 🆕 What's new in v2.0: application replies tracked from your inbox
+
+Keeping up with hundreds of "thank you for applying," "unfortunately," and "complete your assessment" emails
+is a job in itself. **v2.0 reads them for you.**
+
+- **Connect your inboxes, read-only:** Gmail (app password, kept in your OS keychain), Outlook / Microsoft 365
+  (Microsoft sign-in), or any account in Apple's **Mail** app on a Mac. Mail works even when your organization
+  blocks third-party apps, as many universities do. Nothing is ever sent, deleted, or marked as read.
+- **Only application emails reach Claude.** A rule filter drops job alerts, newsletters, and personal mail.
+  Claude sorts the rest into **received, rejected, online assessment, interview, or offer**, and picks out the
+  company, role, action link, and deadline.
+- **Statuses update themselves.** Each email is matched to your job by company, sender domain, and closest
+  title:
+  - Rejections move the job to **Closed**, so it shows in the map's Rejected filter.
+  - Interviews move it to **Interviewing**, and offers to **Offer**.
+  - Assessments and interviews become **Needs you** items with the link and due date.
+  - Statuses only move forward, and every change has an **Undo**.
+- **An Email page** with tabs (Rejected, Interview, Assessment, Offer, Received, Not matched), search, and
+  one-click matching for any email the app couldn't place.
+- **Runs on its own.** Inboxes are checked every hour (configurable). A busy or offline mailbox is retried at
+  the next check, so nothing is missed.
+
+On its first check of a real inbox, it matched **14 of 14** application emails: five rejections closed, one
+assessment surfaced with its deadline, and eight confirmations recorded.
+
+![Email updates](docs/screenshots/email.png)
+
+| Connect Gmail, Outlook, or Apple Mail (Settings → Email) | Assessments and interviews land in Needs you |
+|---|---|
+| ![Email settings](docs/screenshots/email-settings.png) | ![Needs you](docs/screenshots/needs-you.png) |
+
+<details>
+<summary><b>Version history</b></summary>
+
+| Version | What it added |
+|---|---|
+| **v2.0** | Application emails read from Gmail, Outlook / Microsoft 365, or Apple Mail; automatic status updates with undo; Email page; assessment, interview, and offer items in Needs you |
+| **v1.3** | Runs on macOS, Windows, and Linux; one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)); built-in scheduling clock; self-healing documents and **Fix it** |
+| **v1.2** | Dashboard maps (ready to submit and submitted, with Today / All time and status chips); applied-date filter and Copy links; documents show which prompt version built them |
+| **v1.1** | About 4,000 company boards (Workday, SmartRecruiters, and a board directory from public lists); $100K pay floor; USCIS H-1B data plus online sponsor lookup |
+| **v1.0** | Job discovery, rule prefilter, Claude screening and tailoring, one-page PDF resume and cover letter, Chrome autofill extension, referrals, scheduled runs while you sleep, dashboard |
+
+</details>
 
 ---
 
@@ -58,6 +105,8 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
   user runs one command, and their Claude detects the OS and installs prerequisites (Homebrew, winget, or
   apt/dnf/pacman). It then builds the environment, interviews them to fill in their master prompt from the
   template, verifies everything, and sets up autostart (launchd, Task Scheduler, or systemd).
+- **Application replies tracked from your inbox (v2.0).** Gmail, Outlook / Microsoft 365, or Apple Mail, read-only.
+  Rejections, interviews, assessments, and offers update each job automatically, with undo.
 - **Self-healing documents.** Bullets that are a hair too long stay on one line with slightly tighter letter
   spacing, and pages use the smaller sizes the prompt allows before overflowing. **Fix it** re-fits flagged
   documents without a Claude call, and asks for a small trim only if that isn't enough.
@@ -92,7 +141,8 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 | Scheduling | macOS launchd (user agents plus a root LaunchDaemon for `pmset` wake); a built-in clock in the dashboard on Windows / Linux, autostarted by Task Scheduler or systemd |
 | Platforms | macOS (primary), Windows, Linux; the Linux path was verified in a clean Debian container |
 | Maps | Leaflet with Esri gray canvas tiles (light and dark), OpenStreetMap Nominatim geocoding (cached) |
-| Tests | pytest (61 tests, including Chromium-driven form-fill tests) |
+| Email | Gmail IMAP (read-only, app password in the OS keychain via `keyring`), Microsoft Graph Mail.Read (MSAL device-code sign-in), Apple Mail through AppleScript on macOS |
+| Tests | pytest (69 tests, including Chromium-driven form-fill tests) |
 
 ## Screenshots
 
@@ -237,6 +287,17 @@ dashboard's built-in clock at the times on the Settings page.
 | `config/search.json` | Role families, title exclusions, visa-blocker phrases, location rules |
 | `config/feeds.json` | Aggregator feeds, the board directory's source lists, and the "require an H-1B signal" switch |
 | `.env` | Claude backend, models, port (Settings overrides `.env`) |
+| **Settings → Email** | Connect Gmail, Outlook / Microsoft 365, or Apple Mail; check interval (`MAIL_CHECK_MINUTES`, default 60) and first-check look-back (`MAIL_LOOKBACK_DAYS`, default 14) |
+
+**Connect your email (optional, v2.0).** On **Settings → Email**:
+- **Gmail:** turn on 2-Step Verification, create an app password at
+  [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), and paste it in.
+- **Outlook / Microsoft 365:** register a free app in Azure (the card lists the 5 steps), then sign in with the
+  code it shows.
+- **Organization blocks app registration?** On a Mac, add the account to Apple's Mail app (System Settings →
+  Internet Accounts → Microsoft Exchange), then pick it under **Apple Mail**.
+
+Then click **Check email now** on the Email page.
 
 **Import the USCIS H-1B data (recommended).** Download the yearly CSVs from the
 [USCIS H-1B Employer Data Hub](https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub) in your
@@ -262,6 +323,7 @@ app/
   salary.py     pay-range parsing and the minimum-pay filter
   h1b.py        USCIS import, learned sponsors, cached online sponsor lookup
   geo.py        location → place splitting and cached geocoding for the maps
+  mailsync.py   inbox readers (Gmail, Microsoft Graph, Apple Mail), rule filter, Claude classification, job matching, undo
   prefilter.py  rule gate before any Claude call
   llm.py        Claude via Claude Code CLI or the Anthropic API; structured JSON; usage-limit pause
   pipeline.py   fetch → screen → tailor → render → check → revise → queue human steps
@@ -290,4 +352,6 @@ python -m pytest
 The database, generated documents, logs, and your profile live in `data/` and `profile/`. Both are
 gitignored. Claude receives your master prompt and the job description; sponsor lookups send only a company
 name. The map geocoder sends only place names such as "Austin, TX". The browser extension talks only to your
-local server.
+local server. **Email:** inboxes are opened read-only. The Gmail app password lives in your OS keychain and the
+Microsoft sign-in token in `data/` (gitignored). Only emails that pass the application filter are sent to
+Claude, and only to be classified; instructions inside emails are ignored.

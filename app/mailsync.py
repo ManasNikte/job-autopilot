@@ -159,7 +159,7 @@ _lock = threading.Lock()
 
 
 def _msal_app(client_id: str, tenant: str = "organizations"):
-    """tenant = your organization's domain (e.g. northeastern.edu) or Directory (tenant) ID. A single-tenant app
+    """tenant = your organization's domain (e.g. university.edu) or Directory (tenant) ID. A single-tenant app
     registration must sign in through its own tenant, not the shared /organizations endpoint (AADSTS50194)."""
     import msal
     cache = msal.SerializableTokenCache()
@@ -543,6 +543,8 @@ def sync(log=print) -> dict:
                 msgs = fetch_microsoft(a["client_id"], since, a.get("tenant", "organizations"))
             else:
                 msgs = fetch_applemail(a["name"], since)
+                for m in msgs:                      # show the address, not Mail's account label ("Exchange")
+                    m["account"] = a.get("address") or a["name"]
         except Exception as e:
             stats["errors"].append(f"{kind}: {e}"[:300])
             log(f"  ✗ email ({kind}): {e}")
