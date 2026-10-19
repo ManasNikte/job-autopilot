@@ -544,6 +544,34 @@ def email_ms_start():
     return redirect(url_for("settings_page", ms=client_id) + "#email")
 
 
+@app.route("/settings/email/applemail/accounts")
+def email_applemail_accounts():
+    from . import mailsync
+    try:
+        return jsonify({"ok": True, "accounts": mailsync.applemail_accounts()})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.post("/settings/email/applemail")
+def email_applemail_save():
+    from . import mailsync
+    acc = mailsync.accounts()
+    if request.form.get("disconnect"):
+        acc.pop("applemail", None)
+        mailsync.save_accounts(acc)
+        flash("Apple Mail disconnected.")
+    else:
+        name, address = request.form.get("name", "").strip(), request.form.get("address", "").strip()
+        if not name:
+            flash("Pick an account from the list.")
+        else:
+            acc["applemail"] = {"name": name, "address": address or name, "connected_at": db.now()}
+            mailsync.save_accounts(acc)
+            flash(f"Apple Mail connected ({address or name}), read-only. Click 'Check email now' on the Email page.")
+    return redirect(url_for("settings_page") + "#email")
+
+
 @app.route("/settings/email/microsoft/status")
 def email_ms_status():
     from . import mailsync
@@ -955,7 +983,7 @@ def settings_page():
     current = {k: env(k, str(DEFAULTS[k])) for k, *_ in TUNABLES}
     from . import mailsync
     ms_id = request.args.get("ms", "")
-    return render_template("settings.html", mail_accounts=mailsync.accounts(), ms_client=ms_id,
+    return render_template("settings.html", mail_accounts=mailsync.accounts(), ms_client=ms_id, is_mac=sys.platform == "darwin",
                            ms_state=mailsync.ms_signin_state(ms_id) if ms_id else None, sched=schedule.status(), tunables=TUNABLES, current=current,
                            feeds=feeds_config(), ampm=_ampm)
 

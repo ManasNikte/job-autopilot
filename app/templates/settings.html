@@ -144,10 +144,42 @@
           </ol>
           <p class="small sub">If Azure says you can't register apps, or sign-in says "Need admin approval," your organization restricts third-party apps. Then forward application emails to your Gmail with an Outlook rule, and the Gmail connection covers them.</p></details>
       {% endif %}
+      {% if is_mac %}
+      <h3 style="margin-top:18px">Apple Mail (this Mac)</h3>
+      {% if mail_accounts.applemail %}
+        <p><span class="badge apply">Connected</span> {{ mail_accounts.applemail.address }} <span class="sub">via the Mail app</span></p>
+        <form method="post" action="{{ url_for('email_applemail_save') }}"><button class="btn small danger" name="disconnect" value="1">Disconnect</button></form>
+      {% else %}
+        <p class="sub" style="margin-top:0">For accounts your organization won't let apps read directly: add the account to Apple's Mail app (System Settings → Internet Accounts), then pick it here. Job Autopilot reads new messages from Mail, read-only.</p>
+        <button type="button" class="btn small" id="am-find">Find accounts in Mail</button>
+        <form method="post" action="{{ url_for('email_applemail_save') }}" id="am-form" class="row" hidden style="margin-top:8px">
+          <select name="name" id="am-select"></select><input type="hidden" name="address" id="am-address">
+          <button class="btn primary small">Connect</button>
+        </form>
+        <p class="sub small" id="am-msg"></p>
+      {% endif %}
+      {% endif %}
     </div>
   </div>
 </div>
 <script>
+(() => {
+  const find = document.getElementById("am-find");
+  if (find) find.addEventListener("click", async () => {
+    const msg = document.getElementById("am-msg");
+    msg.textContent = "Asking Mail… (if macOS asks to allow control of Mail, click OK)";
+    try {
+      const d = await (await fetch("{{ url_for('email_applemail_accounts') }}")).json();
+      if (!d.ok) { msg.textContent = d.error; return; }
+      if (!d.accounts.length) { msg.textContent = "No accounts in Mail yet. Add one in System Settings → Internet Accounts, then try again."; return; }
+      const sel = document.getElementById("am-select"); sel.replaceChildren();
+      d.accounts.forEach(a => { const o = document.createElement("option"); o.value = a.name; o.textContent = `${a.address} (${a.name})`; o.dataset.address = a.address; sel.appendChild(o); });
+      const sync = () => document.getElementById("am-address").value = sel.selectedOptions[0].dataset.address;
+      sel.addEventListener("change", sync); sync();
+      document.getElementById("am-form").hidden = false; msg.textContent = "";
+    } catch (e) { msg.textContent = "Couldn't reach Mail."; }
+  });
+})();
 (() => {
   const box = document.getElementById("ms-flow");
   if (!box || !document.getElementById("ms-wait")) return;

@@ -252,6 +252,111 @@ def fetch_microsoft(client_id: str, since: datetime, tenant: str = "organization
     return out
 
 
+# ----------------------------------------------------------------------------- Apple Mail (macOS), read-only
+
+US, RS = chr(31), chr(30)          # field / record separators that never appear in mail headers
+
+
+def _osascript(script: str, timeout: int = 180) -> str:
+    import subprocess
+    try:
+        p = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("Apple Mail didn't answer in time (it may still be syncing); will retry at the next check")
+    if p.returncode != 0:
+        err = p.stderr.strip()
+        if "-1712" in err:
+            raise RuntimeError("Apple Mail is busy (probably still syncing); will retry at the next check")
+        if "-1743" in err or "Not authorized" in err:
+            raise RuntimeError("macOS hasn't allowed Job Autopilot to read Mail yet: System Settings → Privacy & Security → "
+                               "Automation → allow it to control Mail")
+        raise RuntimeError(f"Apple Mail: {err[:200]}")
+    return p.stdout
+
+
+def _as_str(s: str) -> str:
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def applemail_accounts() -> list[dict]:
+    """Accounts set up in the Mail app: [{name, address}]."""
+    out = _osascript(f'''tell application "Mail"
+  set r to ""
+  repeat with i from 1 to (count of accounts)
+    set a to account i
+    set addrs to email addresses of a
+    set addr to ""
+    if (count of addrs) > 0 then set addr to (item 1 of addrs) as text
+    set r to r & (name of a as text) & "{US}" & addr & "{RS}"
+  end repeat
+  return r
+end tell''', timeout=60)
+    return [{"name": n, "address": e} for n, e in (rec.split(US) for rec in out.strip().split(RS) if US in rec)]
+
+
+_FIND_INBOX = '''
+    set acct to account "{acct}"
+    try
+      set mb to mailbox "INBOX" of acct
+    on error
+      set mb to mailbox "Inbox" of acct
+    end try'''
+
+
+def fetch_applemail(account_name: str, since: datetime, batch: int = 50, cap: int = 600) -> list[dict]:
+    """New messages in that account's inbox, newest first, read in batches of `batch` until older than `since`.
+    (Mail's message 1 is the newest; asking Mail to search a 100K-message inbox by date times out.)
+    Full text is read only for likely application updates."""
+    acct = _as_str(account_name)
+    out, start, now = [], 1, datetime.now(timezone.utc)
+    while start <= cap:
+        raw = _osascript(f'''with timeout of 300 seconds
+  tell application "Mail"{_FIND_INBOX.format(acct=acct)}
+    set n to count of messages of mb
+    if n < {start} then return ""
+    set e to {start + batch - 1}
+    if e > n then set e to n
+    set ids to message id of (messages {start} thru e of mb)
+    set snds to sender of (messages {start} thru e of mb)
+    set subs to subject of (messages {start} thru e of mb)
+    set dts to date received of (messages {start} thru e of mb)
+    set nowd to current date
+    set r to ""
+    repeat with i from 1 to count of ids
+      set r to r & ({start} + i - 1) & "{US}" & (item i of ids) & "{US}" & (item i of snds) & "{US}" & (item i of subs) & "{US}" & (((item i of dts) - nowd) as integer) & "{RS}"
+    end repeat
+    return r
+  end tell
+end timeout''', timeout=330)
+        recs = [r.split(US) for r in raw.split(RS) if r.count(US) == 4]
+        if not recs:
+            break
+        oldest = now
+        for idx, mid, sender, subject, rel in recs:
+            try:   # seconds relative to "now": independent of the Mac's language and date format
+                when = now + timedelta(seconds=int(rel.strip()))
+            except ValueError:
+                when = now
+            oldest = min(oldest, when)
+            if when < since or not likely_application_email(sender, subject):
+                continue
+            body = _osascript(f'''with timeout of 120 seconds
+  tell application "Mail"{_FIND_INBOX.format(acct=acct)}
+    set m to message {idx.strip()} of mb
+    if (message id of m) is not "{_as_str(mid.strip())}" then
+      set m to first message of (messages 1 thru {int(idx) + 50} of mb) whose message id is "{_as_str(mid.strip())}"
+    end if
+    return content of m
+  end tell
+end timeout''', timeout=150)
+            out.append({"account": account_name, "msg_id": f"<{mid.strip()}>", "received_at": when.isoformat(timespec="seconds"),
+                        "sender": sender.strip(), "subject": subject.strip(), "body": body.strip()[:6000]})
+        if oldest < since or len(recs) < batch:
+            break
+        start += batch
+    return out
+
+
 # ----------------------------------------------------------------------------- rule filter (no Claude)
 
 ATS_SENDERS = re.compile(r"greenhouse|lever\.co|ashbyhq|myworkday|workday|icims|smartrecruiters|jobvite|taleo|"
@@ -424,7 +529,7 @@ def sync(log=print) -> dict:
     days = env_int("MAIL_LOOKBACK_DAYS", 14)
     stats = {"fetched": 0, "classified": 0, "applied": 0, "unmatched": 0, "errors": []}
     fresh = []
-    for kind in ("gmail", "microsoft"):
+    for kind in ("gmail", "microsoft", "applemail"):
         a = acc.get(kind)
         if not a:
             continue
@@ -432,7 +537,12 @@ def sync(log=print) -> dict:
         since = (datetime.fromisoformat(last["v"]) - timedelta(hours=2)) if last else datetime.now(timezone.utc) - timedelta(days=days)
         started = datetime.now(timezone.utc)
         try:
-            msgs = fetch_gmail(a["address"], since) if kind == "gmail" else fetch_microsoft(a["client_id"], since, a.get("tenant", "organizations"))
+            if kind == "gmail":
+                msgs = fetch_gmail(a["address"], since)
+            elif kind == "microsoft":
+                msgs = fetch_microsoft(a["client_id"], since, a.get("tenant", "organizations"))
+            else:
+                msgs = fetch_applemail(a["name"], since)
         except Exception as e:
             stats["errors"].append(f"{kind}: {e}"[:300])
             log(f"  ✗ email ({kind}): {e}")
