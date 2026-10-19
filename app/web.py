@@ -31,6 +31,15 @@ STATUS_LABELS = {
 PIPELINE_STAGES = ["to_screen", "screening", "needs_decision", "to_tailor", "tailoring", "ready", "applied", "interviewing", "offer"]
 
 
+def _credits() -> dict:
+    """Author credit for the header and footer (config/credits.json)."""
+    try:
+        from .config import CONFIG_DIR, load_json
+        return load_json(CONFIG_DIR / "credits.json")
+    except (OSError, ValueError):
+        return {}
+
+
 def strf(dt, fmt: str) -> str:
     """strftime with %-d / %-I (no leading zero) on every OS; Windows' strftime rejects the '-' flag."""
     return dt.strftime(fmt.replace("%-d", str(dt.day)).replace("%-I", str(int(dt.strftime("%I")))))
@@ -74,7 +83,7 @@ def inject():
         unmatched_mail = db.count("email_events", "state='unmatched'")
     except Exception:
         unmatched_mail = 0
-    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
+    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
 
 
 def _followups() -> None:

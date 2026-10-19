@@ -1,5 +1,9 @@
 # Job Autopilot
 
+<sub>Built by <a href="https://www.linkedin.com/in/manasnikte">Manas Nikte</a> · made for F-1 students in America ·
+<a href="https://github.com/ManasNikte">GitHub</a> · <a href="mailto:nikte.m@northeastern.edu">Email</a> ·
+<a href="https://www.linkedin.com/in/manasnikte">LinkedIn</a></sub>
+
 **A local, AI-powered job-application pipeline.** Twice a day it finds new US roles at companies that
 sponsor H-1B visas. Claude screens each posting against your own "master prompt" (your background plus
 your rules). For the good matches it writes a tailored one-page resume and cover letter, rendered straight

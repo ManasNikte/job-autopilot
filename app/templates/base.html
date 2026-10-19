@@ -11,11 +11,18 @@
 <meta name="color-scheme" content="dark light">
 <title>{% block title %}Job Autopilot{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='lg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235b8def'/%3E%3Cstop offset='1' stop-color='%232f5fd0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23lg)'/%3E%3Cpath d='M7.5 15.6 24.2 8.4c.6-.3 1.2.3.9.9l-7.2 16.7c-.3.7-1.3.6-1.4-.1l-1.3-5.8-5.8-1.3c-.7-.2-.8-1.2-.1-1.4Z' fill='%23fff'/%3E%3Cpath d='m14.9 19.9 3.6-3.6' stroke='%232f5fd0' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E">
 </head>
 <body>
 <header class="top">
   {% set ep = request.endpoint %}
-  <a class="brand" href="{{ url_for('dashboard') }}"><span class="logo">A</span>Job Autopilot</a>
+  <div class="brand">
+    <a class="brand-home" href="{{ url_for('dashboard') }}" aria-label="Job Autopilot home"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8def"/><stop offset="1" stop-color="#2f5fd0"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#lg)"/><path d="M7.5 15.6 24.2 8.4c.6-.3 1.2.3.9.9l-7.2 16.7c-.3.7-1.3.6-1.4-.1l-1.3-5.8-5.8-1.3c-.7-.2-.8-1.2-.1-1.4Z" fill="#fff"/><path d="m14.9 19.9 3.6-3.6" stroke="#2f5fd0" stroke-width="1.6" stroke-linecap="round"/></svg></a>
+    <div class="brand-text">
+      <a class="brand-name" href="{{ url_for('dashboard') }}">Job Autopilot</a>
+      {% if credits.author %}<span class="brand-tag">Built by <a href="{{ credits.linkedin }}" target="_blank" rel="noopener noreferrer" title="{{ credits.author }} on LinkedIn">{{ credits.author }}</a></span>{% endif %}
+    </div>
+  </div>
   <nav class="primary">
     <a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep=='dashboard' }}">Dashboard</a>
     <a href="{{ url_for('inbox') }}" class="{{ 'on' if ep=='inbox' }}">Needs you{% if open_interventions %}<span class="pill">{{ open_interventions }}</span>{% endif %}</a>
@@ -44,6 +51,16 @@
   {% with msgs = get_flashed_messages() %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endwith %}
   {% block content %}{% endblock %}
 </main>
+{% if credits.author %}
+<footer class="credit">
+  <span>{{ credits.footnote }} <a href="{{ credits.linkedin }}" target="_blank" rel="noopener noreferrer">{{ credits.author }}</a></span>
+  <span class="credit-icons">
+    {% if credits.github %}<a href="{{ credits.github }}" target="_blank" rel="noopener noreferrer" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>{% endif %}
+    {% if credits.email %}<a href="mailto:{{ credits.email }}" aria-label="Email" title="{{ credits.email }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3.5 5.5h17v13h-17z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="m3.8 6 8.2 6.6L20.2 6"/></svg></a>{% endif %}
+    {% if credits.linkedin %}<a href="{{ credits.linkedin }}" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" title="LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg></a>{% endif %}
+  </span>
+</footer>
+{% endif %}
 <script>
   // Keep the header status fresh while the background worker runs.
   async function poll() {
