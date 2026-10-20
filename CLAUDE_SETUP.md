@@ -59,6 +59,13 @@ before moving on. Keep the user informed in plain language.
   `.venv\Scripts\python.exe` on Windows. Calling it directly avoids PowerShell's activation-script policy.
 - If a step fails, read the error, fix the cause, and retry. Only ask the user when the fix needs them.
 
+### Step 0: Greet the user and ask their name
+
+Before anything else, introduce yourself in one line and ask: **"What should I call you?"** Use their first
+name from then on. The dashboard greets them by this name every day ("Good morning, Priya ☀️"), so save it in
+Step 7 (`preferred_name` in `profile/applicant.json`). If they'd rather not say, skip it; the dashboard will
+ask on its first launch, and it can be changed anytime in **Settings → Your profile and prompt → Your name**.
+
 ### Step 1: Detect the platform
 
 Find out the OS and package manager, and choose the matching path in every later step:
@@ -161,9 +168,8 @@ the check in Step 8, or copy the files yourself. Then fill them in together with
    - Search for `[` to find the remaining placeholders. Use only facts the user gives you. Where a number is
      unknown, write `PENDING`; never invent one.
    - Keep every section heading. The app refers to them (Section I, I-B, III-0, IX-V, XI, XV).
-2. **`profile/applicant.json`**: set `"preferred_name"` to the name the user wants to be greeted by on the
-   dashboard (ask them; the dashboard also asks on first launch, and it can be changed on the Settings page). Then the remaining fields:
-   name, email, phone, location, links, school, start date, and the fixed form
+2. **`profile/applicant.json`**: set `"preferred_name"` to the name from Step 0 (the dashboard greeting uses it),
+   then fill the remaining fields: name, email, phone, location, links, school, start date, and the fixed form
    answers (work authorization, sponsorship, EEO). For EEO questions, use exactly what the user chooses,
    including "Decline to self identify."
 3. **Work authorization:** if the user does **not** need visa sponsorship, set `"require_h1b_signal": false` in
@@ -335,9 +341,10 @@ Tell the user:
 
 ### Step 12: Finish
 
-Give the user a short summary:
+Give the user a short summary, addressed to them by name:
 
-- The dashboard address: http://127.0.0.1:5055
+- The dashboard address: http://127.0.0.1:5055. It greets them by name, with a line about their progress
+  that changes with the time of day.
 - When the next scheduled run is (shown on the Settings page)
 - How runs start on their OS, and whether wake-from-sleep was set up
 - Anything left for them to do: the extension, the USCIS import, and any `PENDING` facts in their prompt

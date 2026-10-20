@@ -213,7 +213,9 @@ for this role.
 > claude "Set up Job Autopilot on this computer. Read https://raw.githubusercontent.com/ManasNikte/job-autopilot/main/CLAUDE_SETUP.md and follow the 'Instructions for Claude Code' section step by step."
 > ```
 >
-> Details: [CLAUDE_SETUP.md](CLAUDE_SETUP.md). The manual steps below are the macOS path.
+> Claude starts by asking your name (your dashboard greets you with it), then installs everything, interviews
+> you to fill in your profile, and checks that it all works. Details: [CLAUDE_SETUP.md](CLAUDE_SETUP.md). The
+> manual steps below are the macOS path.
 
 Requires Python 3.11+ and Google Chrome for the extension. Built on macOS; Windows and Linux are supported too (they use the dashboard's built-in scheduler — see [CLAUDE_SETUP.md](CLAUDE_SETUP.md)).
 
