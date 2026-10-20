@@ -15,7 +15,7 @@
   });
   const say = (form, text, ok) => { const m = $(".msg", form); m.textContent = text || ""; m.classList.toggle("ok", !!ok); };
   const busy = (form, on) => form.querySelectorAll("button, input").forEach((x) => { x.disabled = on; });
-  const strong = (p) => p.length >= 10 && /[A-Za-z]/.test(p) && /[0-9]/.test(p);
+  const strong = (p) => p.length >= 10 && /[a-z]/.test(p) && /[A-Z]/.test(p) && /[0-9]/.test(p);   // matches Supabase: lower + upper + digit
   const ago = (iso) => {
     if (!iso) return "never";
     const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -47,7 +47,7 @@
   $("#form-signup").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; say(f, "");
     if (!f.name.value.trim()) return say(f, "Tell us your name.");
-    if (!strong(f.password.value)) return say(f, "Use at least 10 characters, with a letter and a number.");
+    if (!strong(f.password.value)) return say(f, "Use at least 10 characters, with a lowercase letter, an uppercase letter, and a number.");
     if (f.password.value !== f.password2.value) return say(f, "The passwords don't match.");
     if (!f.privacy.checked) return say(f, "Please read and accept the privacy note.");
     busy(f, true);
@@ -77,7 +77,7 @@
   });
   $("#form-reset").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; say(f, "");
-    if (!strong(f.password.value)) return say(f, "Use at least 10 characters, with a letter and a number.");
+    if (!strong(f.password.value)) return say(f, "Use at least 10 characters, with a lowercase letter, an uppercase letter, and a number.");
     if (f.password.value !== f.password2.value) return say(f, "The passwords don't match.");
     busy(f, true);
     const v = await sb.auth.verifyOtp({ email: resetEmail, token: f.code.value.trim(), type: "recovery" });

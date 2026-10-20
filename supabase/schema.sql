@@ -2,7 +2,8 @@
 --
 -- Security model
 --   * Every table has Row Level Security: a signed-in user can only read and write rows where
---     user_id = auth.uid(). There is no shared or public data.
+--     user_id = auth.uid(), plus read the rows of an owner who added their confirmed email
+--     (account_emails). There is no public data.
 --   * The local Mac connects OUT with the user's own session (no service key ever leaves Supabase).
 --   * The website can only queue a short list of commands (check constraint); the Mac decides what
 --     they mean. Nothing here can run arbitrary code on anyone's computer.

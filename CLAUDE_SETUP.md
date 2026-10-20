@@ -339,7 +339,7 @@ Tell the user:
   in the repo (the project's shared site). Tell the user the site address (`site_url` in that file) and ask
   them to:
   1. Open it in their browser, choose **Create an account**, and enter their name, email, and a password
-     (10+ characters, with a letter and a number). They type the password themselves. They tick the privacy
+     (10+ characters, with lowercase, uppercase, and a number). They type the password themselves. They tick the privacy
      box. The **updates from Manas** box is optional, and they decide; never tick it for them.
   2. Type the 6-digit code from the confirmation email.
   3. On the local dashboard, open **Settings → Online dashboard**, sign in with the same email and password,

@@ -31,7 +31,7 @@ connects their computer in **Settings → Online dashboard**.
 **Sign In / Providers → Email**
 - **Enable email provider:** on. **Confirm email:** on.
 - **Secure email change** and **Secure password change:** on.
-- **Minimum password length:** `10`. **Password requirements:** *Letters and digits* (the site checks the same
+- **Minimum password length:** `10`. **Password requirements:** *Lowercase, uppercase letters and digits* (the site checks the same
   rule before it submits).
 - **Email OTP expiration:** `900` seconds (15 minutes). **Email OTP length:** `6`.
 

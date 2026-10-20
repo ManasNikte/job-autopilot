@@ -42,7 +42,7 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 - **Secure sign-in:**
   - Every account is confirmed with an emailed 6-digit code.
   - **Forgot password** emails a one-time code; after a reset, all other devices are signed out.
-  - Passwords need 10+ characters with a letter and a number.
+  - Passwords need 10+ characters with lowercase, uppercase, and a number.
   - Errors never reveal whether an email has an account.
   - Row-level security means each person sees only their own data.
   - Use two addresses? Add your other email under **Account**, and either one can sign in.
