@@ -1,0 +1,138 @@
+"""The online-dashboard connector against a fake Supabase (auth + REST), and the local origin check."""
+import json
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse
+
+import pytest
+
+from app import cloud, db
+
+
+class FakeResp:
+    def __init__(self, code, body):
+        self.status_code, self._body = code, body
+        self.text = "" if body is None else json.dumps(body)
+
+    def json(self):
+        return self._body
+
+
+class FakeSupabase:
+    """Just enough of GoTrue + PostgREST for the connector: tokens, upserts, filters, PATCH with status guard."""
+
+    def __init__(self):
+        self.tables = {"machines": [], "snapshots": [], "jobs": [], "email_updates": [], "commands": []}
+        self.password_logins = 0
+
+    def post(self, url, json=None, headers=None, timeout=None):
+        assert "/auth/v1/token" in url and headers["apikey"] == "anon"
+        if "grant_type=password" in url:
+            self.password_logins += 1
+            if json["password"] != "correct horse 1":
+                return FakeResp(400, {"error_description": "Invalid login credentials"})
+        return FakeResp(200, {"access_token": "AT", "refresh_token": "RT", "expires_in": 3600, "user": {"id": "user-1"}})
+
+    def request(self, method, url, params=None, json=None, headers=None, timeout=None):
+        assert headers["Authorization"] == "Bearer AT"
+        table = urlparse(url).path.rsplit("/", 1)[-1]
+        rows = self.tables[table]
+        params = dict(params or {})
+        filt = {k: v.split(".", 1)[1] for k, v in params.items() if isinstance(v, str) and v.startswith("eq.")}
+        match = lambda r: all(str(r.get(k)) == v for k, v in filt.items())
+        if method == "POST":
+            items = json if isinstance(json, list) else [json]
+            keys = (params.get("on_conflict") or "").split(",") if params.get("on_conflict") else None
+            out = []
+            for it in items:
+                it = dict(it)
+                if table == "machines":
+                    it.setdefault("id", f"m-{len(rows) + 1}")
+                if table == "commands":
+                    it.setdefault("id", len(rows) + 1)
+                old = next((r for r in rows if keys and all(r.get(k) == it.get(k) for k in keys)), None)
+                if old:
+                    old.update(it)
+                else:
+                    rows.append(it)
+                out.append(it)
+            return FakeResp(201, out)
+        if method == "GET":
+            return FakeResp(200, [dict(r) for r in rows if match(r)])
+        if method == "PATCH":
+            hit = [r for r in rows if match(r)]
+            for r in hit:
+                r.update(json)
+            return FakeResp(200, [dict(r) for r in hit])
+        if method == "DELETE":
+            self.tables[table] = [r for r in rows if not match(r)]
+            return FakeResp(204, None)
+        raise AssertionError(method)
+
+
+@pytest.fixture()
+def fake(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    db.upsert_job({"id": "g:1", "company": "Acme", "title": "Software Engineer", "status": "applied",
+                   "applied_at": datetime.now(timezone.utc).isoformat()})
+    db.upsert_job({"id": "g:2", "company": "Initech", "title": "Data Engineer", "status": "filtered_out"})
+    monkeypatch.setattr(cloud, "config", lambda: {"supabase_url": "https://x.supabase.co", "anon_key": "anon", "site_url": "https://site"})
+    monkeypatch.setattr(cloud, "STATE_FILE", tmp_path / "cloud.json")
+    secrets = {}
+    import app.mailsync as ms
+    monkeypatch.setattr(ms, "set_secret", lambda k, v: secrets.__setitem__(k, v))
+    monkeypatch.setattr(ms, "get_secret", lambda k: secrets.get(k))
+    monkeypatch.setattr(ms, "delete_secret", lambda k: secrets.pop(k, None))
+    cloud._token.update(access="", exp=0)
+    sb = FakeSupabase()
+    monkeypatch.setattr(cloud.requests, "post", sb.post)
+    monkeypatch.setattr(cloud.requests, "request", sb.request)
+    submitted = []
+    import app.worker as worker
+    monkeypatch.setattr(worker, "submit", lambda kind, arg=None: submitted.append((kind, arg)) or True)
+    monkeypatch.setattr(worker, "resume", lambda: False)
+    sb.secrets, sb.submitted = secrets, submitted
+    return sb
+
+
+def test_connect_keeps_only_a_refresh_token(fake, tmp_path):
+    with pytest.raises(RuntimeError, match="Invalid login"):
+        cloud.connect("me@example.com", "wrong", "Laptop")
+    st = cloud.connect("me@example.com", "correct horse 1", "Laptop")
+    assert st["machine_id"] == "m-1" and fake.tables["machines"][0]["user_id"] == "user-1"
+    assert fake.secrets == {cloud.KEY: "RT"}                              # no password anywhere
+    assert "correct horse" not in (tmp_path / "cloud.json").read_text()
+
+
+def test_sync_pushes_summaries_and_runs_allowed_requests(fake):
+    cloud.connect("me@example.com", "correct horse 1", "Laptop")
+    now = datetime.now(timezone.utc)
+    fake.tables["commands"] += [
+        {"id": 1, "machine_id": "m-1", "kind": "run", "status": "pending", "created_at": now.isoformat()},
+        {"id": 2, "machine_id": "m-1", "kind": "rm -rf", "status": "pending", "created_at": now.isoformat()},
+        {"id": 3, "machine_id": "m-1", "kind": "mail", "status": "pending", "created_at": (now - timedelta(hours=9)).isoformat()},
+    ]
+    res = cloud.sync_once(log=lambda *_: None)
+    snap = fake.tables["snapshots"][0]
+    assert snap["machine_id"] == "m-1" and snap["data"]["kpis"]["applied_total"] == 1
+    assert [j["job_id"] for j in fake.tables["jobs"]] == ["g:1"]           # filtered-out jobs aren't shared
+    assert res["queued"] == 1 and fake.submitted == [("run", "phone")]
+    status = {c["id"]: c["status"] for c in fake.tables["commands"]}
+    assert status == {1: "done", 2: "failed", 3: "expired"}
+    assert fake.password_logins == 1                                        # later calls use the token
+
+
+def test_disconnect_removes_machine_and_token(fake):
+    cloud.connect("me@example.com", "correct horse 1", "Laptop")
+    cloud.disconnect()
+    assert fake.tables["machines"] == [] and fake.secrets == {} and not cloud.connected()
+
+
+def test_cross_site_posts_are_blocked(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    from app.web import app
+    c = app.test_client()
+    assert c.post("/email/check", headers={"Origin": "https://evil.example"}).status_code == 403
+    assert c.post("/email/check", headers={"Origin": "http://localhost"}).status_code in (200, 302)
+    assert c.post("/email/check").status_code in (200, 302)                 # same-origin form (no Origin header)

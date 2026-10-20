@@ -335,6 +335,19 @@ Tell the user:
   Outlook works through their own Azure app registration (5 steps listed in the card), or on macOS through
   Apple's Mail app when their organization blocks app registration. Never type passwords for them. Install the
   extra packages if they're missing: `pip install msal keyring`.
+- **Online dashboard (check progress from a phone, start runs remotely):** only if `config/cloud.json` exists
+  in the repo (the project's shared site). Tell the user the site address (`site_url` in that file) and ask
+  them to:
+  1. Open it in their browser, choose **Create an account**, and enter their name, email, and a password
+     (10+ characters, with a letter and a number). They type the password themselves. They tick the privacy
+     box. The **updates from Manas** box is optional, and they decide; never tick it for them.
+  2. Type the 6-digit code from the confirmation email.
+  3. On the local dashboard, open **Settings → Online dashboard**, sign in with the same email and password,
+     and name the computer. The password isn't stored; the computer keeps a renewable token in the OS keychain.
+  4. Optional, macOS: pick **Wake every 30 minutes** in the same card so a sleeping Mac picks up requests from
+     the phone, then re-run `sudo scripts/install_wake.sh` so the wake helper books those wakes.
+
+  Without `config/cloud.json`, skip this; [supabase/README.md](supabase/README.md) explains how to host a site.
 - **Try the UI with sample data first:** `python scripts/demo_seed.py`, then serve with
   `JOB_AUTOPILOT_DATA=demo/data JOB_AUTOPILOT_PROFILE=demo/profile` (Windows: set those as environment
   variables first). On Windows/Linux, use a different `PORT` for the demo if the real dashboard is running.
@@ -347,6 +360,7 @@ Give the user a short summary, addressed to them by name:
   that changes with the time of day.
 - When the next scheduled run is (shown on the Settings page)
 - How runs start on their OS, and whether wake-from-sleep was set up
+- The online dashboard address, if they connected one, so they can bookmark it on their phone
 - Anything left for them to do: the extension, the USCIS import, and any `PENDING` facts in their prompt
 - How to start their first run: **Run now** on the dashboard, then work through the **Needs you** page
 

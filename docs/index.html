@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'none'; form-action 'self'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0b0f17">
+<title>Job Autopilot · Online dashboard</title>
+<meta name="description" content="Check your Job Autopilot progress from anywhere and start a run on your computer.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <a href="#" aria-label="Job Autopilot home"><img class="logo" src="favicon.svg" alt="" width="30" height="30"></a>
+    <span class="brand-text"><a class="brand-name" href="#">Job Autopilot</a><span class="brand-tag">Built by <a href="https://www.linkedin.com/in/manasnikte" target="_blank" rel="noopener noreferrer">Manas Nikte</a></span></span>
+  </div>
+  <div class="right" id="account" hidden>
+    <select id="machine" aria-label="Computer" hidden></select>
+    <button class="btn small" id="signout" type="button">Sign out</button>
+  </div>
+</header>
+
+<main id="app">
+  <div class="notice" id="not-configured" hidden>This copy of the online dashboard isn't configured yet (see <code>supabase/README.md</code>).</div>
+
+  <!-- ===== Sign in ===== -->
+  <section class="auth card" id="view-signin" hidden>
+    <h1>Sign in</h1>
+    <p class="sub">Check your job search from anywhere and start runs on your computer.</p>
+    <form id="form-signin" novalidate>
+      <label>Email<input type="email" name="email" autocomplete="username" required></label>
+      <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+      <button class="btn primary" type="submit">Sign in</button>
+      <p class="msg" role="alert"></p>
+    </form>
+    <p class="links"><a href="#forgot">Forgot password?</a> · <a href="#signup">Create an account</a></p>
+  </section>
+
+  <!-- ===== Sign up ===== -->
+  <section class="auth card" id="view-signup" hidden>
+    <h1>Create your account</h1>
+    <p class="sub">Use the same email you'll connect from your computer (Settings → Online dashboard).</p>
+    <form id="form-signup" novalidate>
+      <label>Your name<input type="text" name="name" autocomplete="given-name" maxlength="60" required></label>
+      <label>Email<input type="email" name="email" autocomplete="email" required></label>
+      <label>Password<input type="password" name="password" autocomplete="new-password" minlength="10" required>
+        <span class="hint">At least 10 characters, with a letter and a number.</span></label>
+      <label>Confirm password<input type="password" name="password2" autocomplete="new-password" required></label>
+      <label class="check"><input type="checkbox" name="privacy" required><span>I've read the <a href="privacy.html" target="_blank" rel="noopener">privacy note</a> (only summaries are stored; no resumes or emails).</span></label>
+      <label class="check"><input type="checkbox" name="optin"><span>Send me occasional updates about Job Autopilot from Manas (optional).</span></label>
+      <button class="btn primary" type="submit">Create account</button>
+      <p class="msg" role="alert"></p>
+    </form>
+    <form id="form-confirm" novalidate hidden>
+      <p>We emailed a 6-digit code to <b class="email-echo"></b>. Enter it to confirm your account.</p>
+      <label>Code<input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+      <button class="btn primary" type="submit">Confirm</button>
+      <p class="msg" role="alert"></p>
+    </form>
+    <p class="links"><a href="#signin">I already have an account</a></p>
+  </section>
+
+  <!-- ===== Forgot password (email OTP) ===== -->
+  <section class="auth card" id="view-forgot" hidden>
+    <h1>Reset your password</h1>
+    <form id="form-forgot" novalidate>
+      <p class="sub">Enter your email. If it has an account, we'll send a 6-digit code.</p>
+      <label>Email<input type="email" name="email" autocomplete="username" required></label>
+      <button class="btn primary" type="submit">Send code</button>
+      <p class="msg" role="alert"></p>
+    </form>
+    <form id="form-reset" novalidate hidden>
+      <p>Enter the code we sent to <b class="email-echo"></b> and choose a new password.</p>
+      <label>Code<input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+      <label>New password<input type="password" name="password" autocomplete="new-password" minlength="10" required>
+        <span class="hint">At least 10 characters, with a letter and a number.</span></label>
+      <label>Confirm new password<input type="password" name="password2" autocomplete="new-password" required></label>
+      <button class="btn primary" type="submit">Set new password</button>
+      <p class="msg" role="alert"></p>
+    </form>
+    <p class="links"><a href="#signin">Back to sign in</a></p>
+  </section>
+
+  <!-- ===== Dashboard ===== -->
+  <section id="view-dash" hidden>
+    <div class="hello-row">
+      <div class="hello"><h1 id="hello-title"></h1><p id="hello-text"></p></div>
+      <span class="sub" id="machine-status"></span>
+    </div>
+
+    <div class="empty card" id="no-machine" hidden>
+      <h2>Connect your computer</h2>
+      <ol>
+        <li>On the computer running Job Autopilot, open <b>Settings → Online dashboard</b>.</li>
+        <li>Sign in there with this same email and password.</li>
+        <li>Your progress appears here within a minute.</li>
+      </ol>
+    </div>
+
+    <div id="dash-body" hidden>
+      <div class="actions">
+        <button class="btn primary" data-cmd="run" type="button">▶ Run now</button>
+        <button class="btn" data-cmd="mail" type="button">✉ Check email</button>
+        <button class="btn" data-cmd="process" type="button">Process queue</button>
+        <button class="btn" data-cmd="resume" type="button" id="resume-btn" hidden>Resume after limit</button>
+        <span class="sub" id="cmd-msg" role="status"></span>
+      </div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="grid g2">
+        <div class="card">
+          <h2>Background work</h2>
+          <div id="background"></div>
+        </div>
+        <div class="card">
+          <h2>Applications per day</h2>
+          <div class="bars" id="bars" role="img" aria-label="Applications submitted per day, last 14 days"></div>
+          <p class="sub small" id="bars-note"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="spread"><h2>Jobs</h2><input type="search" id="job-q" placeholder="Search company or title" aria-label="Search jobs"></div>
+        <nav class="tabs" id="job-tabs" aria-label="Job status"></nav>
+        <div id="jobs"></div>
+        <div class="pager"><button class="btn small" id="jobs-more" type="button" hidden>Show more</button></div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card"><h2>Email updates</h2><div id="emails"></div></div>
+        <div class="card"><h2>Recent requests</h2><div id="commands"></div></div>
+      </div>
+
+      <details class="card danger-zone">
+        <summary>Account</summary>
+        <p class="sub">Signed in as <b id="who"></b>.</p>
+        <button class="btn small danger" id="delete-account" type="button">Delete my account and all its data</button>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer class="credit">
+  <span>Made for F-1 students in America by <a href="https://www.linkedin.com/in/manasnikte" target="_blank" rel="noopener noreferrer">Manas Nikte</a></span>
+  <a href="https://github.com/ManasNikte/job-autopilot" target="_blank" rel="noopener noreferrer">GitHub</a>
+  <a href="privacy.html">Privacy</a>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"
+        integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

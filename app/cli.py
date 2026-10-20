@@ -28,6 +28,8 @@ def main(argv: list[str]) -> None:
     elif cmd == "process":
         from .pipeline import run
         run(fetch=False)
+    elif cmd == "cloud-poll":
+        cloud_poll()
     elif cmd == "check":
         check()
     elif cmd == "import-h1b":
@@ -37,6 +39,39 @@ def main(argv: list[str]) -> None:
                 print(f"{p}: {import_csv(f.read()):,} employers")
     else:
         print(__doc__)
+
+
+def cloud_poll() -> None:
+    """Run by the wake-up agent: keep the Mac awake, ask the dashboard to sync with the online dashboard, and if a
+    request from your phone started work, stay awake until it finishes (up to 3 hours)."""
+    import json as _json
+    import os
+    import subprocess
+    import time
+    import urllib.request
+    if sys.platform == "darwin":
+        subprocess.Popen(["/usr/bin/caffeinate", "-i", "-w", str(os.getpid())])   # awake for as long as this runs
+    from .config import env
+    base = f"http://127.0.0.1:{env('PORT', '5055') or 5055}"
+    try:
+        req = urllib.request.Request(base + "/cloud/poll", method="POST", data=b"")
+        res = _json.loads(urllib.request.urlopen(req, timeout=120).read() or b"{}")
+    except Exception as e:
+        print(f"cloud-poll: dashboard not reachable ({e})")
+        return
+    if not res.get("queued"):
+        return
+    print(f"cloud-poll: {res['queued']} request(s) from the online dashboard started; staying awake until done")
+    deadline = time.time() + 3 * 3600
+    time.sleep(20)
+    while time.time() < deadline:
+        try:
+            st = _json.loads(urllib.request.urlopen(base + "/activity", timeout=30).read())["state"]
+            if not st.get("active") and not st.get("queued"):
+                break
+        except Exception:
+            break
+        time.sleep(30)
 
 
 def check() -> None:

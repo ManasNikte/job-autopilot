@@ -44,6 +44,17 @@ pmset -g sched | grep jobautopilot | sed -nE 's/.*wake at ([0-9/]+) ([0-9:]+).*/
   pmset schedule cancel wake "\$yy \$t" jobautopilot >/dev/null 2>&1 || true
 done
 now=\$(date +%s)
+# Optional: wake every N minutes for the next 24 hours so requests from the online dashboard (your phone)
+# are picked up while the lid is closed. Set on the Settings page (remote_wake_minutes in schedule.json).
+every=\$(/usr/bin/plutil -extract remote_wake_minutes raw -o - "\$SCHEDULE" 2>/dev/null || echo 0)
+if [ "\${every:-0}" -gt 0 ] 2>/dev/null; then
+  t=\$(( (now / (every * 60) + 1) * every * 60 ))
+  end=\$(( now + 86400 ))
+  while [ "\$t" -le "\$end" ]; do
+    pmset schedule wake "\$(date -r \$t +'%m/%d/%y %H:%M:%S')" jobautopilot >/dev/null 2>&1 || true
+    t=\$(( t + every * 60 ))
+  done
+fi
 for d in 0 1 2 3 4 5 6; do
   day=\$(date -v+\${d}d +%m/%d/%y)
   for t in "\${wanted[@]}"; do
@@ -63,7 +74,12 @@ cat > "$PLIST" <<PLIST
   <key>ProgramArguments</key><array><string>/bin/bash</string><string>$HELPER</string></array>
   <key>RunAtLoad</key><true/>
   <key>WatchPaths</key><array><string>$SCHEDULE</string></array>
-  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>0</integer><key>Minute</key><integer>10</integer></dict>
+  <key>StartCalendarInterval</key><array>
+    <dict><key>Hour</key><integer>0</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>10</integer></dict>
+  </array>
 </dict>
 </plist>
 PLIST

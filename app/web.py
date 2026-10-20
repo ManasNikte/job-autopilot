@@ -999,8 +999,10 @@ def settings_page():
     current = {k: env(k, str(DEFAULTS[k])) for k, *_ in TUNABLES}
     from . import mailsync
     ms_id = request.args.get("ms", "")
-    from . import greeting
-    return render_template("settings.html", user_name=greeting.user_name(), mail_accounts=mailsync.accounts(), ms_client=ms_id, is_mac=sys.platform == "darwin",
+    from . import cloud, greeting
+    return render_template("settings.html", user_name=greeting.user_name(), cloud_cfg=cloud.config(), cloud_state=cloud.state(),
+                           cloud_status=cloud.STATUS, cloud_connected=cloud.connected(), cloud_default_name=cloud.default_machine_name(),
+                           remote_wake=schedule.remote_wake(), mail_accounts=mailsync.accounts(), ms_client=ms_id, is_mac=sys.platform == "darwin",
                            ms_state=mailsync.ms_signin_state(ms_id) if ms_id else None, sched=schedule.status(), tunables=TUNABLES, current=current,
                            feeds=feeds_config(), ampm=_ampm)
 
@@ -1008,6 +1010,64 @@ def settings_page():
 def _ampm(t: str) -> str:
     h, m = (int(x) for x in t.split(":"))
     return strf(datetime(2000, 1, 1, h, m), "%-I:%M %p")
+
+
+# ----------------------------------------------------------------------------- online dashboard (phone)
+
+@app.before_request
+def _same_origin_posts():
+    """Block cross-site form posts: a web page you visit must not be able to press buttons on this local
+    dashboard. Browsers send Origin on POSTs; only this dashboard and the Chrome extension may post."""
+    if request.method != "POST":
+        return None
+    origin = request.headers.get("Origin") or ""
+    if not origin or origin.startswith("chrome-extension://"):
+        return None
+    from urllib.parse import urlparse
+    host = urlparse(origin).netloc
+    if host in (request.host, f"127.0.0.1:{request.host.split(':')[-1]}", f"localhost:{request.host.split(':')[-1]}"):
+        return None
+    abort(403)
+
+
+@app.post("/settings/cloud")
+def cloud_connect():
+    from . import cloud
+    if request.form.get("disconnect"):
+        cloud.disconnect()
+        flash("This computer is disconnected from the online dashboard, and its data there was removed.")
+        return redirect(url_for("settings_page") + "#cloud")
+    email, password = request.form.get("email", "").strip(), request.form.get("password", "")
+    name = (request.form.get("machine_name") or cloud.default_machine_name()).strip()
+    try:
+        cloud.connect(email, password, name)
+        worker.submit("cloud")
+        flash(f"Connected as {email}. Progress shows up on the online dashboard within a minute.")
+    except Exception as e:
+        flash(f"Couldn't connect: {e}")
+    return redirect(url_for("settings_page") + "#cloud")
+
+
+@app.post("/settings/cloud/wake")
+def cloud_wake():
+    from . import schedule
+    minutes = request.form.get("minutes", "0")
+    schedule.set_remote_wake(int(minutes) if minutes.isdigit() else 0)
+    flash("Saved. " + ("Your Mac will check for phone requests every " + minutes + " minutes while plugged in."
+                       if minutes not in ("", "0") else "Phone requests run when your Mac is awake."))
+    return redirect(url_for("settings_page") + "#cloud")
+
+
+@app.post("/cloud/poll")
+def cloud_poll():
+    """Called by the wake-up job on this Mac (localhost only): sync now and report queued work."""
+    if request.remote_addr not in ("127.0.0.1", "::1"):
+        abort(403)
+    from . import cloud
+    try:
+        return jsonify(cloud.sync_once(full=True))
+    except Exception as e:
+        return jsonify({"queued": 0, "error": str(e)[:200]})
 
 
 @app.post("/settings/name")

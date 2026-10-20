@@ -1,0 +1,5 @@
+{
+  "supabase_url": "https://YOUR-PROJECT.supabase.co",
+  "anon_key": "YOUR-ANON-PUBLIC-KEY",
+  "site_url": "https://YOUR-GITHUB-USERNAME.github.io/job-autopilot/"
+}

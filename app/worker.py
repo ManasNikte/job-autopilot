@@ -89,6 +89,9 @@ def _loop() -> None:
                 pipeline.tailor_job(arg, _log)
             elif kind == "refit":
                 pipeline.refit_job(arg, _log)
+            elif kind == "cloud":
+                from . import cloud
+                cloud.sync_once(_log)
             elif kind == "mail":
                 from . import mailsync
                 mailsync.sync(_log)
@@ -178,6 +181,8 @@ def start() -> None:
     for i in range(max(1, env_int("PARALLEL_JOBS", 3))):
         threading.Thread(target=_loop, daemon=True, name=f"worker-{i + 1}").start()
     threading.Thread(target=_mail_clock, daemon=True, name="mail-clock").start()
+    from . import cloud
+    threading.Thread(target=cloud.loop, args=(_log,), daemon=True, name="cloud-sync").start()
     from .schedule import mode
     if mode() == "clock":
         threading.Thread(target=_clock, daemon=True, name="schedule-clock").start()

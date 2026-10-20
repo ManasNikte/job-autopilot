@@ -24,7 +24,53 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 
 ## 🆕 What's new
 
-**v2.1: a dashboard that knows you.** On first launch it asks your name (editable in **Settings**). It then
+**v3.0: check on your job search from your phone, and start a run from anywhere.**
+
+- **Responsive everywhere.** The dashboard now fits a phone, a tablet, a laptop, or a 32-inch monitor or TV:
+  - On phones: a menu button, stacked tables, and swipeable tabs.
+  - On big screens: wider layouts and larger type, readable from across the room.
+- **An online dashboard** you can host for free (GitHub Pages + Supabase). Sign in with your email and password
+  to see:
+  - your greeting, KPIs, and live background work
+  - applications per day, and your jobs by status, with search
+  - the latest email updates
+- **Remote control, safely.** Tap **Run now**, **Check email**, or **Process queue** on your phone. Your
+  computer picks it up within 30 seconds. A Mac can also wake on a schedule (every 15, 30, or 60 minutes) to
+  check for requests while the lid is closed.
+  - The computer only connects out, and accepts just those few requests.
+  - It keeps a renewable token in the keychain, never your password.
+- **Secure sign-in:**
+  - Every account is confirmed with an emailed 6-digit code.
+  - **Forgot password** emails a one-time code; after a reset, all other devices are signed out.
+  - Passwords need 10+ characters with a letter and a number.
+  - Errors never reveal whether an email has an account.
+  - Row-level security means each person sees only their own data.
+- **Know who's joined.** The operator can get an email when someone creates an account or sets up a new
+  computer. People choose separately whether to get occasional updates.
+- **Only summaries go online:** counts, job titles and statuses, and one-line email summaries. Resumes, cover
+  letters, your prompt, and email text stay on your computer.
+
+| Online: sign in | Online: forgot password (emailed code) | Online: dashboard on a phone | Local dashboard on a phone |
+|---|---|---|---|
+| ![Sign in](docs/screenshots/online-signin.png) | ![Reset](docs/screenshots/online-reset.png) | ![Online phone](docs/screenshots/online-phone.png) | ![Local phone](docs/screenshots/dashboard-phone.png) |
+
+![Online dashboard on a laptop](docs/screenshots/online-desktop.png)
+
+<details>
+<summary>Tablet and TV views</summary>
+
+| Tablet (local dashboard) | 2560-px monitor or TV (online dashboard) |
+|---|---|
+| ![Tablet](docs/screenshots/dashboard-tablet.png) | ![TV](docs/screenshots/online-tv.png) |
+
+</details>
+
+To host your own copy, follow [supabase/README.md](supabase/README.md), about 15 minutes. If the repo already
+has a `config/cloud.json`, just create an account on that site and connect in **Settings → Online dashboard**.
+
+### v2.1: a dashboard that knows you
+
+On first launch it asks your name (editable in **Settings**). It then
 greets you with one line above the KPIs, written from your computer's clock and your real progress:
 
 > **Up early, Jordan 🌅**<br>🐦 3 applications before most people's alarms. Early birds get interviews.
@@ -74,6 +120,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.0** | Responsive UI for phones, tablets, and big screens; free hosted online dashboard (GitHub Pages + Supabase) with email/password sign-in, emailed-code confirmation and password reset; remote Run now / Check email from your phone; scheduled Mac wake to pick up requests; operator email when someone joins |
 | **v2.1** | Personal greeting above the KPIs (time of day + streaks, personal bests, interviews, ready-to-send); asks your name on first launch, editable in Settings; live email-check status in Background work; author credit in the header and footer |
 | **v2.0** | Application emails read from Gmail, Outlook / Microsoft 365, or Apple Mail; automatic status updates with undo; Email page; assessment, interview, and offer items in Needs you |
 | **v1.3** | Runs on macOS, Windows, and Linux; one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)); built-in scheduling clock; self-healing documents and **Fix it** |
@@ -347,6 +394,7 @@ app/
   salary.py     pay-range parsing and the minimum-pay filter
   h1b.py        USCIS import, learned sponsors, cached online sponsor lookup
   geo.py        location → place splitting and cached geocoding for the maps
+  cloud.py      online-dashboard connector: pushes summaries, picks up requests from your phone
   greeting.py   the dashboard greeting: your name, the time of day, and your progress
   mailsync.py   inbox readers (Gmail, Microsoft Graph, Apple Mail), rule filter, Claude classification, job matching, undo
   prefilter.py  rule gate before any Claude call
@@ -361,6 +409,8 @@ extension/      Chrome extension (side panel, autofill, popup)
 profile/examples/  placeholder profile templates (your real profile is gitignored)
 prompts/        app adapter: how the app asks Claude for JSON
 scripts/        launchd schedule and wake helper (macOS), demo seeder
+docs/           the hosted online dashboard (static site for GitHub Pages) and README screenshots
+supabase/       database schema, optional join notifications, and the hosting guide
 CLAUDE_SETUP.md one-command setup instructions for Claude Code (macOS, Windows, Linux)
 tests/          pytest suite (fixture uses a fictional candidate)
 ```
@@ -380,3 +430,7 @@ name. The map geocoder sends only place names such as "Austin, TX". The browser 
 local server. **Email:** inboxes are opened read-only. The Gmail app password lives in your OS keychain and the
 Microsoft sign-in token in `data/` (gitignored). Only emails that pass the application filter are sent to
 Claude, and only to be classified; instructions inside emails are ignored.
+**Online dashboard (optional):** nothing is uploaded until you connect in Settings. After that, only summaries
+are stored: counts, job titles, companies and statuses, and one-line email summaries. Each account can read
+only its own rows. Disconnecting deletes that computer's data, and **Delete my account** on the site removes
+everything. See [docs/privacy.html](docs/privacy.html).

@@ -42,13 +42,59 @@ def save_times(times: list[str]) -> list[str]:
         raise ValueError("Add at least one run time (HH:MM).")
     if len(clean) > 6:
         raise ValueError("At most 6 runs a day.")
-    data = {"_comment": "Daily run times (24-hour, your local time). Edit on the dashboard's Settings page; "
+    data = {**_raw(), "_comment": "Daily run times (24-hour, your local time). Edit on the dashboard's Settings page; "
                         "the launchd agent and the lid-closed wake-ups follow this file.", "times": clean}
     tmp = SCHEDULE_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2))
     tmp.replace(SCHEDULE_FILE)        # one atomic write, so the wake helper sees a complete file
     install_agent(clean)
     return clean
+
+
+def _raw() -> dict:
+    try:
+        return json.loads(SCHEDULE_FILE.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+POLL_LABEL = "com.jobautopilot.cloudpoll"
+POLL_PLIST = Path.home() / "Library/LaunchAgents" / f"{POLL_LABEL}.plist"
+
+
+def remote_wake() -> int:
+    """Minutes between wake-ups that check for requests from the online dashboard (0 = off)."""
+    try:
+        return int(_raw().get("remote_wake_minutes", 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def set_remote_wake(minutes: int) -> None:
+    """Save the interval (the root wake helper watches schedule.json and books the wakes) and, on macOS,
+    install a small agent that keeps the Mac awake briefly at each of those times to check for requests."""
+    minutes = minutes if minutes in (0, 15, 30, 60) else 30
+    data = {**_raw(), "remote_wake_minutes": minutes}
+    tmp = SCHEDULE_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2))
+    tmp.replace(SCHEDULE_FILE)
+    if sys.platform != "darwin":
+        return                        # Windows / Linux: the dashboard's sync thread already checks every 30 s
+    uid = os.getuid()
+    subprocess.run(["launchctl", "bootout", f"gui/{uid}/{POLL_LABEL}"], capture_output=True)
+    if not minutes:
+        POLL_PLIST.unlink(missing_ok=True)
+        return
+    plist = {
+        "Label": POLL_LABEL,
+        "ProgramArguments": [str(ROOT / ".venv/bin/python"), "-m", "app.cli", "cloud-poll"],
+        "WorkingDirectory": str(ROOT),
+        "StartCalendarInterval": [{"Minute": m} for m in range(0, 60, minutes)],
+        "StandardOutPath": str(DATA_DIR / "cloudpoll.log"), "StandardErrorPath": str(DATA_DIR / "cloudpoll.log"),
+    }
+    POLL_PLIST.parent.mkdir(parents=True, exist_ok=True)
+    POLL_PLIST.write_bytes(plistlib.dumps(plist))
+    subprocess.run(["launchctl", "bootstrap", f"gui/{uid}", str(POLL_PLIST)], capture_output=True)
 
 
 def mode() -> str:

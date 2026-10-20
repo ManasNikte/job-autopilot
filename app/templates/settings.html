@@ -91,6 +91,34 @@
   </form>
 </div>
 
+<div class="card" id="cloud">
+  <h2>Online dashboard: check progress from your phone</h2>
+  {% if not cloud_cfg %}
+    <p class="sub" style="margin-top:0">This copy isn't linked to an online dashboard (no <code>config/cloud.json</code>). See <code>supabase/README.md</code> to host one.</p>
+  {% elif cloud_connected %}
+    <p><span class="badge apply">Connected</span> {{ cloud_state.email }} · this computer appears as <b>{{ cloud_state.machine_name }}</b>
+      {% if cloud_status.last_sync %} · last sync {{ cloud_status.last_sync|ago }}{% endif %}
+      {% if cloud_status.error %}<br><span class="small" style="color:var(--critical)">Last sync problem: {{ cloud_status.error }}</span>{% endif %}</p>
+    <p class="sub">Open <a href="{{ cloud_cfg.site_url }}" target="_blank" rel="noopener">{{ cloud_cfg.site_url }}</a> on your phone and sign in with the same account. It shows your progress and can start a run or an email check here.</p>
+    <form method="post" action="{{ url_for('cloud_wake') }}" class="row" style="margin:10px 0">
+      <label class="sub">When the lid is closed, wake up to check for phone requests
+        <select name="minutes">{% for m, label in [(0, 'never (only while awake)'), (15, 'every 15 minutes'), (30, 'every 30 minutes'), (60, 'every hour')] %}<option value="{{ m }}" {{ 'selected' if remote_wake == m }}>{{ label }}</option>{% endfor %}</select></label>
+      <button class="btn small">Save</button>
+    </form>
+    {% if is_mac and remote_wake %}<p class="sub small">Wake-ups use the lid-closed helper; if you installed it before this option existed, run <code>sudo ~/job-autopilot/scripts/install_wake.sh</code> once. Keep the Mac plugged in.</p>{% endif %}
+    <form method="post" action="{{ url_for('cloud_connect') }}"><button class="btn small danger" name="disconnect" value="1" onclick="return confirm('Disconnect this computer? Its data on the online dashboard is deleted.')">Disconnect this computer</button></form>
+  {% else %}
+    <p class="sub" style="margin-top:0">See your progress, job list, and email updates on your phone, and start a run from anywhere. Only summaries are shared (counts, job titles and statuses, email-update summaries). Your resumes, prompt, and email text never leave this computer. Your password is used once to connect and is never stored.</p>
+    <p class="sub">No account yet? <a href="{{ cloud_cfg.site_url }}#signup" target="_blank" rel="noopener">Create one on the online dashboard</a>, confirm your email, then connect here.</p>
+    <form method="post" action="{{ url_for('cloud_connect') }}" class="stack" autocomplete="off" style="max-width:420px">
+      <label>Email<br><input type="email" name="email" required style="width:100%"></label>
+      <label>Password<br><input type="password" name="password" required autocomplete="current-password" style="width:100%"></label>
+      <label>Name for this computer<br><input type="text" name="machine_name" value="{{ cloud_default_name }}" maxlength="80" style="width:100%"></label>
+      <button class="btn primary small">Connect this computer</button>
+    </form>
+  {% endif %}
+</div>
+
 <div class="card" id="email">
   <h2>Email: track application replies</h2>
   <p class="sub" style="margin-top:0">Reads your inboxes <b>read-only</b> to find application emails: received, rejected, online assessment, interview, offer. Matching jobs update automatically (see the <a href="{{ url_for('email_page') }}">Email</a> page; every change can be undone). Only emails that look like application updates are sent to Claude to classify. Nothing is ever sent, deleted, or marked as read.</p>

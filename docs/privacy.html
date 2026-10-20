@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; object-src 'none'">
+<meta name="color-scheme" content="dark light">
+<title>Privacy · Job Autopilot</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main>
+  <div class="card" style="max-width:760px;margin:4vh auto">
+    <h1>Privacy note</h1>
+    <p class="sub">Job Autopilot runs on your own computer. This online dashboard is an optional window into it, so you can check progress from your phone and start a run. Last updated October 2026.</p>
+
+    <h2>What is stored here</h2>
+    <ul>
+      <li><b>Your account:</b> email, a securely hashed password (managed by Supabase Auth; nobody can read it), your display name, and whether you opted in to updates.</li>
+      <li><b>Progress summaries from your computer:</b> counts (applied today, ready, interviews), today's greeting, what's running in the background, the last and next run time.</li>
+      <li><b>Job list metadata:</b> company, job title, location, listed pay, status, match score, posting link, and dates.</li>
+      <li><b>Email-update summaries:</b> company, role, the kind of update (received, rejected, assessment, interview, offer), a one-line summary, and any deadline.</li>
+      <li><b>Requests you send</b> (Run now, Check email) and their status.</li>
+    </ul>
+
+    <h2>What never leaves your computer</h2>
+    <ul>
+      <li>Your resumes, cover letters, and master prompt.</li>
+      <li>The text of your emails, your email passwords, and your Claude account.</li>
+      <li>Your networking contacts and referral messages.</li>
+    </ul>
+
+    <h2>Who can see it</h2>
+    <p>Only you. Every table is protected by row-level security, so a signed-in account can read and change only its own rows. The site's operator (Manas Nikte) can see that an account exists, and its email. If you checked the optional box, Manas may email you occasional updates about Job Autopilot. You can ask to stop at any time.</p>
+
+    <h2>Your computer stays in control</h2>
+    <p>Your computer connects out to this dashboard; nothing here can connect in. The dashboard can only ask for four things (run, process the queue, check email, resume after a usage limit), and your computer checks every request before acting. Your password is never stored on your computer; it keeps only a renewable sign-in token in the system keychain.</p>
+
+    <h2>Deleting your data</h2>
+    <p>Disconnecting a computer (its Settings page) deletes that computer's data here. <b>Delete my account</b> on the dashboard removes your account and everything stored for it, immediately.</p>
+
+    <p><a href="./">← Back to the dashboard</a></p>
+  </div>
+</main>
+</body>
+</html>
