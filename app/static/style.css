@@ -317,3 +317,15 @@ form.hello-ask input { font-weight: 400; min-width: 200px; }
 @media (min-width: 3200px) { html { zoom: 1.6; } }
 
 footer.credit .op-stats { padding: 2px 10px; border: 1px solid var(--border); border-radius: 999px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.kpis.kpis-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 600px) { .kpis.kpis-3 { grid-template-columns: 1fr; } }
+a.op-stats { color: var(--text-2); text-decoration: none; } a.op-stats:hover { color: var(--text); border-color: var(--accent); }
+@media (max-width: 700px) {
+  .users-table tr { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 6px 12px; }
+  .users-table td.role, .users-table td[data-label="Location"], .users-table td[data-label="Status"], .users-table td[data-label="Last seen"] { grid-column: 1 / -1; }
+  .users-table td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .users-table td[data-label="Location"]::before, .users-table td[data-label="Status"]::before { display: none; }
+  .users-table td.num { margin-top: 0; font-size: 18px; font-weight: 600; }
+  .users-table td[data-label="Last seen"] { margin: 0 !important; }
+  .users-table td[data-label="Last seen"]::before { display: inline; content: "Last seen "; font-size: inherit; text-transform: none; letter-spacing: 0; }
+}

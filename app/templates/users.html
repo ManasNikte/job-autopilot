@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Users · Job Autopilot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 style="margin-bottom:2px">Users</h1>
+  <span class="sub">Everyone on your online dashboard. Only you see this page (site operator). Counts only: which companies people apply to stays private to them.</span>
+</div>
+
+<div class="grid kpis kpis-3">
+  <div class="tile"><div class="v">{{ stats.users }}</div><div class="k">Users</div></div>
+  <div class="tile"><div class="v">{{ stats.active }}</div><div class="k">Active (applied in the last 14 days)</div></div>
+  <div class="tile"><div class="v">{{ stats.week }}</div><div class="k">Applications this week, everyone</div></div>
+</div>
+
+<div class="card">
+  {% if rows %}
+  <table class="jobs-table users-table">
+    <thead><tr><th>Person</th><th>Location</th><th class="num">This week</th><th class="num">Last 14 days</th><th class="num">All time</th><th>Status</th><th>Last seen</th></tr></thead>
+    {% for r in rows %}
+    <tr>
+      <td class="role"><b>{{ r.name or r.email.split('@')[0] }}</b><div class="meta">{{ r.email }} · joined {{ r.joined|ago }}</div></td>
+      <td data-label="Location">{% if r.city %}{{ r.city }}{% else %}<span class="muted">Not shared</span>{% endif %}</td>
+      <td class="num" data-label="This week">{{ r.applied_week }}</td>
+      <td class="num" data-label="Last 14 days">{{ r.applied_14d }}</td>
+      <td class="num" data-label="All time">{{ r.applied_total }}</td>
+      <td data-label="Status">{% if r.active %}<span class="badge apply">Active</span>{% elif r.computers %}<span class="badge">Inactive</span>{% else %}<span class="badge">No computer connected</span>{% endif %}</td>
+      <td class="sub small nowrap" data-label="Last seen">{{ r.last_seen|ago if r.last_seen else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No confirmed accounts yet.</p>
+  {% endif %}
+  <p class="sub small" style="margin-top:12px">Active: applied to at least one job in the last 14 days. Location is the city each person chose in their Settings (blank keeps it private). Updated whenever their computer syncs.</p>
+</div>
+{% endblock %}

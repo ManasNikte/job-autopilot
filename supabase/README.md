@@ -138,6 +138,10 @@ on conflict do nothing;
 
 The footer of your local dashboard then shows **👥 users · 🟢 active**. *Users* counts confirmed accounts, not
 counting extra sign-in emails. *Active* counts people who applied to at least one job in the last 14 days.
+Click it for the **Users** page: each person's name, email, the city they chose to show (blank keeps it
+private), and how many applications they sent this week, in the last 14 days, and in total. It never
+includes company names or job titles.
+
 Nobody else sees it: the operators table can't be read or changed through the API, and the counts come back
 empty for every other account.
 

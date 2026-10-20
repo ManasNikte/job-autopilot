@@ -102,21 +102,51 @@ def access_token() -> str:
         return _token["access"]
 
 
-def connect(email: str, password: str, machine_name: str) -> dict:
+def default_city() -> str:
+    """The city from your form presets (profile/applicant.json "location"), unless it's still the placeholder."""
+    from .config import APPLICANT_FILE
+    try:
+        loc = (json.loads(APPLICANT_FILE.read_text()).get("location") or "").strip()
+    except (OSError, ValueError):
+        return ""
+    return "" if loc.lower() in ("", "city, st") else loc[:80]
+
+
+def city() -> str:
+    """The city shown to the site operator: what you saved in Settings, else your form-preset location."""
+    st = state()
+    return (st["city"] if "city" in st else default_city())[:80]
+
+
+def set_city(value: str) -> str:
+    st = state()
+    st["city"] = " ".join((value or "").split())[:80]
+    _save_state(st)
+    if connected():
+        try:
+            _rest("PATCH", "machines", params={"id": f"eq.{st['machine_id']}"}, json={"city": st["city"]})
+        except Exception:
+            pass                                     # the next sync sends it
+    return st["city"]
+
+
+def connect(email: str, password: str, machine_name: str, city_name: str | None = None) -> dict:
     """Sign in once, register this computer as a machine, and remember it."""
     if not config():
         raise RuntimeError("The online dashboard isn't configured for this copy (config/cloud.json).")
     res = _auth("password", {"email": email.strip(), "password": password})
     _store_session(res)
     user_id = res["user"]["id"]
+    place = " ".join((city_name if city_name is not None else default_city()).split())[:80]
     st = state()
     mid = st.get("machine_id") if st.get("user_id") == user_id else None
     if not mid:
-        rows = _rest("POST", "machines", json={"user_id": user_id, "name": machine_name[:80],
+        rows = _rest("POST", "machines", json={"user_id": user_id, "name": machine_name[:80], "city": place,
                                                "platform": platform.system().lower()[:20], "app_version": APP_VERSION},
                      prefer="return=representation")
         mid = rows[0]["id"]
     _save_state({"user_id": user_id, "email": email.strip(), "machine_id": mid, "machine_name": machine_name[:80],
+                 "city": place,
                  "connected_at": db.now()})
     STATUS.update(connected=True, error="")
     return state()
@@ -244,7 +274,7 @@ def sync_once(log=print, full: bool = True) -> dict:
             _rest("POST", "email_updates", params={"on_conflict": "machine_id,event_id"}, prefer="resolution=merge-duplicates",
                   json=[{"machine_id": mid, "user_id": uid, "event_id": e["id"], **{k: e[k] for k in e if k != "id"}} for e in evs])
             db.kv_set("cloud_email_since", str(evs[-1]["id"]))
-        _rest("PATCH", "machines", params={"id": f"eq.{mid}"}, json={"last_seen": now, "app_version": APP_VERSION})
+        _rest("PATCH", "machines", params={"id": f"eq.{mid}"}, json={"last_seen": now, "app_version": APP_VERSION, "city": city()})
         STATUS["operator"] = operator_stats()
         if STATUS["operator"]:
             notify_operator(log)
@@ -271,6 +301,15 @@ def _rpc(name: str, args: dict):
     if r.status_code >= 400:
         raise RuntimeError(f"{name}: {r.status_code} {r.text[:200]}")
     return r.json() if r.text else None
+
+
+def operator_users() -> list[dict] | None:
+    """Operator only: everyone's name, email, chosen city, and application counts (no companies). Else None."""
+    try:
+        rows = _rpc("operator_users", {})
+    except Exception:
+        return None
+    return rows if isinstance(rows, list) else None
 
 
 def _join_email(ev: dict) -> tuple[str, str] | None:

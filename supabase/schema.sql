@@ -46,6 +46,8 @@ create table if not exists public.machines (
   created_at timestamptz not null default now()
 );
 create index if not exists machines_user on public.machines(user_id);
+-- City the user chose to show the site operator (Settings → Online dashboard; blank keeps it private).
+alter table public.machines add column if not exists city text check (char_length(city) <= 80);
 
 -- ---------------------------------------------------------------- latest progress snapshot per machine
 create table if not exists public.snapshots (
@@ -214,7 +216,15 @@ revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
 
 -- ---------------------------------------------------------------- operator stats
--- Site-wide counts for the person who runs the site, shown in the footer of their local dashboard.
+-- Applications in the last N days on one machine, from its snapshot's 14-day series (counts only).
+create or replace function public.applied_in_days(snap jsonb, days int) returns int
+language sql stable set search_path = public as $$
+  select coalesce(sum((e->>'n')::int), 0)::int
+  from jsonb_array_elements(coalesce(snap->'series', '[]'::jsonb)) e
+  where (e->>'day')::date > current_date - days
+$$;
+
+-- Site-wide counts for the person who runs the site ("active" = applied in the last 14 days), shown in the footer of their local dashboard.
 -- The operators table has row-level security and no policies, so nobody can read or change it through
 -- the API; add yourself once in the SQL editor (see supabase/README.md). Everyone else gets null.
 create table if not exists public.operators (
@@ -235,13 +245,39 @@ begin
                 and not exists (select 1 from public.account_emails a
                                 where a.email = lower(u.email) and a.owner_id <> u.id)),
     -- active: applied to at least one job in the last 14 days
-    'active', (select count(distinct j.user_id) from public.jobs j
-               where j.applied_at > now() - interval '14 days'),
+    'active', (select count(distinct s.user_id) from public.snapshots s
+               where public.applied_in_days(s.data, 14) > 0),
     'connected', (select count(distinct m.user_id) from public.machines m),
     'as_of', now());
 end $$;
 revoke all on function public.operator_stats() from public, anon;
 grant execute on function public.operator_stats() to authenticated;
+
+-- One row per person for the operator: name, email, chosen city, and application counts.
+-- Never company names, job titles, links, or email content.
+create or replace function public.operator_users() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.operators where user_id = auth.uid()) then
+    return null;
+  end if;
+  return coalesce((select jsonb_agg(row_to_json(x)::jsonb order by x.applied_week desc, x.applied_total desc)
+  from (
+    select u.email, p.display_name as name, u.email_confirmed_at as joined,
+           (select m.city from public.machines m where m.user_id = u.id and coalesce(m.city, '') <> ''
+             order by m.last_seen desc nulls last limit 1) as city,
+           (select count(*) from public.machines m where m.user_id = u.id) as computers,
+           (select max(m.last_seen) from public.machines m where m.user_id = u.id) as last_seen,
+           coalesce((select sum((s.data->'kpis'->>'applied_total')::int) from public.snapshots s where s.user_id = u.id), 0) as applied_total,
+           coalesce((select sum(public.applied_in_days(s.data, 7)) from public.snapshots s where s.user_id = u.id), 0) as applied_week,
+           coalesce((select sum(public.applied_in_days(s.data, 14)) from public.snapshots s where s.user_id = u.id), 0) as applied_14d
+    from auth.users u left join public.profiles p on p.id = u.id
+    where u.email_confirmed_at is not null
+      and not exists (select 1 from public.account_emails a where a.email = lower(u.email) and a.owner_id <> u.id)
+  ) x), '[]'::jsonb);
+end $$;
+revoke all on function public.operator_users() from public, anon;
+grant execute on function public.operator_users() to authenticated;
 
 -- New sign-ups and newly connected computers since a time, for the operator's own computer to email them
 -- (Job Autopilot sends the email through the operator's own Gmail; nothing here sends mail).

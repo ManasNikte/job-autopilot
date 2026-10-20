@@ -184,3 +184,35 @@ def test_operator_gets_one_email_per_batch_of_new_people(fake, monkeypatch):
     events["as_of"] = "2026-10-20T16:00:00+00:00"
     cloud.notify_operator(lambda *_: None)
     assert (db.kv_get("op_notify_since") or {}).get("v") == "2026-10-20T15:00:00+00:00"
+
+
+def test_users_page_is_operator_only_and_shows_no_companies(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    from app.web import app
+    c = app.test_client()
+    monkeypatch.setattr(cloud, "connected", lambda: True)
+    monkeypatch.setattr(cloud, "operator_users", lambda: None)
+    assert c.get("/users").status_code == 404                               # everyone else: no such page
+    monkeypatch.setattr(cloud, "operator_users", lambda: [
+        {"name": "John Doe", "email": "john@example.com", "city": "Boston, MA", "joined": "2026-10-01T00:00:00+00:00",
+         "computers": 1, "last_seen": None, "applied_total": 40, "applied_week": 5, "applied_14d": 11},
+        {"name": "Idle", "email": "idle@example.com", "city": None, "joined": "2026-10-01T00:00:00+00:00",
+         "computers": 1, "last_seen": None, "applied_total": 9, "applied_week": 0, "applied_14d": 0}])
+    html = c.get("/users").get_data(as_text=True)
+    assert "John Doe" in html and "Boston, MA" in html and "Not shared" in html
+    assert html.count("badge apply\">Active") == 1 and "Inactive" in html
+
+
+def test_city_defaults_to_form_presets_and_can_be_cleared(fake, tmp_path, monkeypatch):
+    import app.config as cfg
+    f = tmp_path / "applicant.json"
+    f.write_text(json.dumps({"location": "Austin, TX"}))
+    monkeypatch.setattr(cfg, "APPLICANT_FILE", f)
+    cloud.connect("me@example.com", "correct horse 1", "Laptop")
+    assert cloud.city() == "Austin, TX" and fake.tables["machines"][0]["city"] == "Austin, TX"
+    cloud.sync_once(log=lambda *_: None)
+    assert fake.tables["machines"][0]["city"] == "Austin, TX"
+    assert cloud.set_city("  ") == "" and fake.tables["machines"][0]["city"] == ""
+    f.write_text(json.dumps({"location": "City, ST"}))
+    assert cloud.default_city() == ""

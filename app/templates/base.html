@@ -60,7 +60,7 @@
     {% if credits.email %}<a href="mailto:{{ credits.email }}" aria-label="Email" title="{{ credits.email }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3.5 5.5h17v13h-17z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="m3.8 6 8.2 6.6L20.2 6"/></svg></a>{% endif %}
     {% if credits.linkedin %}<a href="{{ credits.linkedin }}" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" title="LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg></a>{% endif %}
   </span>
-  {% if operator_stats %}<span class="op-stats" title="Only you see this (site operator). Active: applied at least once in the last 14 days. Updated every minute.">👥 {{ operator_stats.users }} user{{ '' if operator_stats.users == 1 else 's' }} · 🟢 {{ operator_stats.active }} active</span>{% endif %}
+  {% if operator_stats %}<a class="op-stats" href="{{ url_for('users_page') }}" title="Only you see this (site operator). Active: applied at least once in the last 14 days. Click for the list.">👥 {{ operator_stats.users }} user{{ '' if operator_stats.users == 1 else 's' }} · 🟢 {{ operator_stats.active }} active</a>{% endif %}
 </footer>
 {% endif %}
 <script>

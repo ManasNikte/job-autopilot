@@ -1003,7 +1003,7 @@ def settings_page():
     ms_id = request.args.get("ms", "")
     from . import cloud, greeting
     return render_template("settings.html", user_name=greeting.user_name(), cloud_cfg=cloud.config(), cloud_state=cloud.state(),
-                           cloud_status=cloud.STATUS, cloud_connected=cloud.connected(), cloud_default_name=cloud.default_machine_name(),
+                           cloud_status=cloud.STATUS, cloud_connected=cloud.connected(), cloud_default_name=cloud.default_machine_name(), cloud_city=cloud.city() if cloud.connected() else cloud.default_city(),
                            remote_wake=schedule.remote_wake(), mail_accounts=mailsync.accounts(), ms_client=ms_id, is_mac=sys.platform == "darwin",
                            ms_state=mailsync.ms_signin_state(ms_id) if ms_id else None, sched=schedule.status(), tunables=TUNABLES, current=current,
                            feeds=feeds_config(), ampm=_ampm)
@@ -1042,7 +1042,7 @@ def cloud_connect():
     email, password = request.form.get("email", "").strip(), request.form.get("password", "")
     name = (request.form.get("machine_name") or cloud.default_machine_name()).strip()
     try:
-        cloud.connect(email, password, name)
+        cloud.connect(email, password, name, request.form.get("city", ""))
         worker.submit("cloud")
         flash(f"Connected as {email}. Progress shows up on the online dashboard within a minute.")
     except Exception as e:
@@ -1058,6 +1058,28 @@ def cloud_wake():
     flash("Saved. " + ("Your Mac will check for phone requests every " + minutes + " minutes while plugged in."
                        if minutes not in ("", "0") else "Phone requests run when your Mac is awake."))
     return redirect(url_for("settings_page") + "#cloud")
+
+
+@app.post("/settings/cloud/city")
+def cloud_city():
+    from . import cloud
+    saved = cloud.set_city(request.form.get("city", ""))
+    flash(f"Saved. The site operator sees your city as {saved}." if saved else "Saved. Your city is private now.")
+    return redirect(url_for("settings_page") + "#cloud")
+
+
+@app.get("/users")
+def users_page():
+    """Site operator only: everyone using the online dashboard, with application counts (never companies)."""
+    from . import cloud
+    rows = cloud.operator_users() if cloud.connected() else None
+    if rows is None:
+        abort(404)
+    for r in rows:
+        r["active"] = (r.get("applied_14d") or 0) > 0
+    stats = {"users": len(rows), "active": sum(r["active"] for r in rows),
+             "week": sum(r.get("applied_week") or 0 for r in rows)}
+    return render_template("users.html", rows=rows, stats=stats)
 
 
 @app.post("/cloud/poll")
