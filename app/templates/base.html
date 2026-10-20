@@ -23,7 +23,7 @@
       {% if credits.author %}<span class="brand-tag">Built by <a href="{{ credits.linkedin }}" target="_blank" rel="noopener noreferrer" title="{{ credits.author }} on LinkedIn">{{ credits.author }}</a></span>{% endif %}
     </div>
   </div>
-  <nav class="primary">
+  <nav class="primary" id="primary-nav">
     <a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep=='dashboard' }}">Dashboard</a>
     <a href="{{ url_for('inbox') }}" class="{{ 'on' if ep=='inbox' }}">Needs you{% if open_interventions %}<span class="pill">{{ open_interventions }}</span>{% endif %}</a>
     <a href="{{ url_for('jobs') }}" class="{{ 'on' if ep in ('jobs','job_detail') and request.args.get('status') != 'applied_all' }}">Jobs</a>
@@ -40,6 +40,7 @@
     <span id="worker-state" class="sub">{% if worker.active %}Working on {{ worker.active|length }} job(s){% else %}Idle{% endif %}</span>
     <form class="inline" method="post" action="{{ url_for('run_now') }}"><button class="btn primary small" type="submit">Run now</button></form>
     <button type="button" class="btn small theme-toggle" id="theme-toggle" aria-label="Theme" title="Theme"></button>
+    <button type="button" class="btn small nav-toggle" id="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="primary-nav">☰</button>
     <nav class="secondary">
       <a href="{{ url_for('sources_page') }}" class="{{ 'on' if ep=='sources_page' }}" title="Job sources">Sources</a>
       <a href="{{ url_for('profile_page') }}" class="{{ 'on' if ep=='profile_page' }}" title="Your profile and prompt">Profile</a>
@@ -76,6 +77,15 @@
     } catch (e) {}
   }
   setInterval(poll, 4000); poll();
+  // Phone / small tablet: the menu button folds the navigation, search, and settings links away
+  (() => {
+    const btn = document.getElementById("nav-toggle"), top = document.querySelector("header.top");
+    if (!btn || !top) return;
+    btn.addEventListener("click", () => {
+      const open = top.classList.toggle("open");
+      btn.setAttribute("aria-expanded", String(open)); btn.textContent = open ? "✕" : "☰";
+    });
+  })();
   // Theme toggle: Dark -> Light -> System (follows macOS)
   (() => {
     const order = ["dark", "light", "system"], icon = { dark: "☾", light: "☀", system: "◐" },

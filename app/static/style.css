@@ -53,7 +53,8 @@ h3 { font-size: 14px; margin: 14px 0 8px; }
 .g2 { grid-template-columns: 1fr 1fr; }
 .g3 { grid-template-columns: repeat(3, 1fr); }
 .kpis { grid-template-columns: repeat(6, 1fr); }
-@media (max-width: 900px) { .g2, .g3 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 900px) { .g2, .g3 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
 .tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; display: block; color: inherit; }
 .tile:hover { text-decoration: none; border-color: var(--accent); }
 .tile .v { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -171,11 +172,6 @@ td.empty { text-align: center; color: var(--muted); padding: 28px; }
 [hidden] { display: none !important; }
 @media (max-width: 700px) {
   main { padding: 14px 12px 50px; }
-  .jobs-table th:nth-child(2), .jobs-table td:nth-child(2), .jobs-table th:nth-child(3), .jobs-table td:nth-child(3),
-  .jobs-table th:nth-child(6), .jobs-table td:nth-child(6) { display: none; }
-  .jobs-table td.role { min-width: 0; }
-  .tabs { flex-wrap: nowrap; overflow-x: auto; }
-  header.top nav.secondary { border-left: 0; padding-left: 0; }
   .kv { grid-template-columns: 1fr; }
 }
 
@@ -272,3 +268,50 @@ form.hello-ask input { font-weight: 400; min-width: 200px; }
 .prog-track.indeterminate .prog-fill { width: 30%; animation: prog-slide 1.4s ease-in-out infinite; }
 @keyframes prog-slide { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
 @media (prefers-reduced-motion: reduce) { .prog-track.indeterminate .prog-fill { animation: none; width: 100%; opacity: .5; } }
+
+/* ---------- Responsive: phones, tablets, and big screens (32" monitors, TVs) ---------- */
+.nav-toggle { display: none; font-size: 16px; line-height: 1; padding: 6px 10px; }
+@media (max-width: 900px) {
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .tabs::-webkit-scrollbar { display: none; }
+}
+@media (max-width: 820px) {
+  /* compact header: logo · Run now · theme · ☰ ; everything else lives in the menu */
+  header.top { padding: 8px 12px; gap: 8px; }
+  header.top .brand-tag { font-size: 10px; }
+  .nav-toggle { display: inline-flex; }
+  header.top nav.primary, header.top .global-search, header.top nav.secondary, #worker-state { display: none; }
+  header.top .right { gap: 6px; }
+  header.top.open { flex-wrap: wrap; }
+  header.top.open nav.primary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; order: 10; flex-basis: 100%; padding-top: 6px; }
+  header.top.open nav.primary a { padding: 10px 12px; background: var(--surface-2); border-radius: 10px; }
+  header.top.open .global-search { display: block; order: 11; flex-basis: 100%; max-width: none; }
+  header.top.open .right { flex-wrap: wrap; flex-basis: 100%; order: 12; justify-content: space-between; }
+  header.top.open nav.secondary { display: flex; border-left: 0; padding-left: 0; }
+  header.top.open #worker-state { display: inline; }
+}
+@media (max-width: 700px) {
+  /* tables become stacked cards: every field stays visible */
+  .jobs-table thead { display: none; }
+  .jobs-table, .jobs-table tbody, .jobs-table tr { display: block; width: 100%; }
+  .jobs-table tr { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .jobs-table td { display: block; border: 0; padding: 2px 0 !important; min-width: 0 !important; }
+  .jobs-table td.role { min-width: 0; }
+  .jobs-table td.nowrap, .jobs-table td.sub.small { display: inline-block; margin: 6px 12px 0 0; vertical-align: top; }
+  .jobs-table td.num { text-align: left; margin-top: 8px; }
+  .jobs-table td:empty { display: none; }
+  .kpis { gap: 10px; }
+  .tile { padding: 12px 14px; }
+  .tile .v { font-size: 24px; }
+  .jmap { height: 260px; }
+  .card { padding: 14px; }
+  .filters input[type=search], .filters .grow { min-width: 0; flex-basis: 100%; }
+  .hello-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+}
+@media (min-width: 1900px) {
+  main, footer.credit { max-width: 1640px; }
+  .jmap { height: 420px; }
+}
+/* QHD / 4K monitors and TVs: scale the whole interface so it reads from across the room */
+@media (min-width: 2400px) { html { zoom: 1.25; } }
+@media (min-width: 3200px) { html { zoom: 1.6; } }
