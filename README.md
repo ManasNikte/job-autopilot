@@ -46,8 +46,8 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
   - Errors never reveal whether an email has an account.
   - Row-level security means each person sees only their own data.
   - Use two addresses? Add your other email under **Account**, and either one can sign in.
-- **Know who's joined.** The operator can get an email when someone creates an account or sets up a new
-  computer. People choose separately whether to get occasional updates.
+- **Know who's joined.** The operator's dashboard footer shows total and active users (applied in the last
+  14 days), and their own Gmail emails them when someone creates an account or sets up a new computer. People choose separately whether to get occasional updates.
 - **Only summaries go online:** counts, job titles and statuses, and one-line email summaries. Resumes, cover
   letters, your prompt, and email text stay on your computer.
 
@@ -431,6 +431,7 @@ name. The map geocoder sends only place names such as "Austin, TX". The browser 
 local server. **Email:** inboxes are opened read-only. The Gmail app password lives in your OS keychain and the
 Microsoft sign-in token in `data/` (gitignored). Only emails that pass the application filter are sent to
 Claude, and only to be classified; instructions inside emails are ignored.
+The only email the app ever sends is the site operator's own join notice, from their Gmail to themselves.
 **Online dashboard (optional):** nothing is uploaded until you connect in Settings. After that, only summaries
 are stored: counts, job titles, companies and statuses, and one-line email summaries. Each account can read
 only its own rows. Disconnecting deletes that computer's data, and **Delete my account** on the site removes

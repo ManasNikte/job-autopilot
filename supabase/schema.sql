@@ -243,6 +243,29 @@ end $$;
 revoke all on function public.operator_stats() from public, anon;
 grant execute on function public.operator_stats() to authenticated;
 
+-- New sign-ups and newly connected computers since a time, for the operator's own computer to email them
+-- (Job Autopilot sends the email through the operator's own Gmail; nothing here sends mail).
+create or replace function public.operator_events(since timestamptz) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.operators where user_id = auth.uid()) then
+    return null;
+  end if;
+  return jsonb_build_object(
+    'accounts', coalesce((select jsonb_agg(jsonb_build_object(
+        'email', u.email, 'name', p.display_name, 'opt_in', coalesce(p.marketing_opt_in, false),
+        'at', u.email_confirmed_at) order by u.email_confirmed_at)
+      from auth.users u left join public.profiles p on p.id = u.id
+      where u.email_confirmed_at > since), '[]'::jsonb),
+    'computers', coalesce((select jsonb_agg(jsonb_build_object(
+        'email', u.email, 'name', p.display_name, 'computer', m.name, 'at', m.created_at) order by m.created_at)
+      from public.machines m join auth.users u on u.id = m.user_id left join public.profiles p on p.id = m.user_id
+      where m.created_at > since), '[]'::jsonb),
+    'as_of', now());
+end $$;
+revoke all on function public.operator_events(timestamptz) from public, anon;
+grant execute on function public.operator_events(timestamptz) to authenticated;
+
 -- Live updates on the website when the Mac pushes a new snapshot or finishes a command.
 do $$
 declare t text;

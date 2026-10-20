@@ -163,3 +163,24 @@ def test_footer_shows_user_counts_only_for_the_operator(tmp_path, monkeypatch):
     html = c.get("/").get_data(as_text=True)
     assert "12 users" in html and "5 active" in html
     assert "op-stats" not in c.get("/settings").get_data(as_text=True)    # dashboard footer only
+
+
+def test_operator_gets_one_email_per_batch_of_new_people(fake, monkeypatch):
+    import app.mailsync as ms
+    cloud.connect("me@example.com", "correct horse 1", "Laptop")
+    sent, calls = [], []
+    events = {"accounts": [{"email": "ava@example.com", "name": "Ava", "opt_in": True}],
+              "computers": [{"email": "ava@example.com", "name": "Ava", "computer": "Ava's MacBook"}],
+              "as_of": "2026-10-20T15:00:00+00:00"}
+    monkeypatch.setattr(cloud, "_rpc", lambda name, args: calls.append(args["since"]) or events)
+    monkeypatch.setattr(ms, "send_to_self", lambda subj, body: sent.append((subj, body)) or True)
+    assert cloud.notify_operator(lambda *_: None) == 0 and not sent           # first run only sets the start
+    assert cloud.notify_operator(lambda *_: None) == 2
+    subj, body = sent[0]
+    assert subj == "Job Autopilot: 1 new account and 1 new computer"
+    assert "Ava <ava@example.com> (opted in to updates)" in body and "Ava's MacBook" in body
+    assert (db.kv_get("op_notify_since") or {}).get("v") == "2026-10-20T15:00:00+00:00"
+    monkeypatch.setattr(ms, "send_to_self", lambda subj, body: False)        # no Gmail: don't advance
+    events["as_of"] = "2026-10-20T16:00:00+00:00"
+    cloud.notify_operator(lambda *_: None)
+    assert (db.kv_get("op_notify_since") or {}).get("v") == "2026-10-20T15:00:00+00:00"

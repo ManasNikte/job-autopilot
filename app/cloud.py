@@ -246,6 +246,8 @@ def sync_once(log=print, full: bool = True) -> dict:
             db.kv_set("cloud_email_since", str(evs[-1]["id"]))
         _rest("PATCH", "machines", params={"id": f"eq.{mid}"}, json={"last_seen": now, "app_version": APP_VERSION})
         STATUS["operator"] = operator_stats()
+        if STATUS["operator"]:
+            notify_operator(log)
     queued = _run_requests(mid, log)
     STATUS.update(connected=True, last_sync=now, error="")
     return {"queued": queued}
@@ -261,6 +263,56 @@ def operator_stats() -> dict | None:
         return d if isinstance(d, dict) and "users" in d else None
     except Exception:   # older site without the function, offline, ...: just hide the footer line
         return None
+
+
+def _rpc(name: str, args: dict):
+    c = config()
+    r = requests.post(f"{c['supabase_url']}/rest/v1/rpc/{name}", json=args, headers=_headers(access_token()), timeout=30)
+    if r.status_code >= 400:
+        raise RuntimeError(f"{name}: {r.status_code} {r.text[:200]}")
+    return r.json() if r.text else None
+
+
+def _join_email(ev: dict) -> tuple[str, str] | None:
+    accts, comps = ev.get("accounts") or [], ev.get("computers") or []
+    if not accts and not comps:
+        return None
+    who = lambda x: f"{x.get('name') or '(no name)'} <{x.get('email')}>"
+    lines = []
+    if accts:
+        lines.append(f"New account{'s' if len(accts) > 1 else ''}:")
+        lines += [f"  - {who(a)}{' (opted in to updates)' if a.get('opt_in') else ''}" for a in accts]
+    if comps:
+        lines.append(f"Set up on a new computer:")
+        lines += [f"  - {who(c)}: {c.get('computer')}" for c in comps]
+    parts = ([f"{len(accts)} new account{'s' if len(accts) > 1 else ''}"] if accts else []) + \
+            ([f"{len(comps)} new computer{'s' if len(comps) > 1 else ''}"] if comps else [])
+    return "Job Autopilot: " + " and ".join(parts), "\n".join(lines) + "\n\nSent by your own Job Autopilot (you're the site operator).\n"
+
+
+def notify_operator(log=print) -> int:
+    """Operator only: email yourself about new sign-ups and newly connected computers since the last check."""
+    from . import mailsync
+    since = (db.kv_get("op_notify_since") or {}).get("v")
+    if not since:                                    # first run: start from now, don't email old history
+        db.kv_set("op_notify_since", db.now())
+        return 0
+    try:
+        ev = _rpc("operator_events", {"since": since}) or {}
+    except Exception:                                # site without the function: nothing to do
+        return 0
+    mail = _join_email(ev)
+    if mail:
+        try:
+            if not mailsync.send_to_self(*mail):
+                return 0                             # no Gmail connected: keep them for later
+        except Exception as e:
+            log(f"couldn't send the sign-up email: {e}")
+            return 0
+        log("✉️  emailed you: " + mail[0])
+    if ev.get("as_of"):
+        db.kv_set("op_notify_since", ev["as_of"])
+    return len(ev.get("accounts") or []) + len(ev.get("computers") or [])
 
 
 def _run_requests(mid: str, log) -> int:

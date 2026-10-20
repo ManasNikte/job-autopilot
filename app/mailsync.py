@@ -112,6 +112,24 @@ def gmail_test(address: str, app_password: str) -> None:
         m.select("INBOX", readonly=True)
 
 
+def send_to_self(subject: str, body: str) -> bool:
+    """Email yourself through the connected Gmail account (its app password also allows sending).
+    Returns False when no Gmail account is connected. This is the only thing the app ever sends."""
+    import smtplib
+    from email.message import EmailMessage
+    address = (accounts().get("gmail") or {}).get("address")
+    pw = get_secret(f"gmail:{address}") if address else None
+    if not pw:
+        return False
+    msg = EmailMessage()
+    msg["From"], msg["To"], msg["Subject"] = f"Job Autopilot <{address}>", address, subject
+    msg.set_content(body)
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as s:
+        s.login(address, pw.replace(" ", ""))
+        s.send_message(msg)
+    return True
+
+
 def fetch_gmail(address: str, since: datetime) -> list[dict]:
     pw = get_secret(f"gmail:{address}")
     if not pw:

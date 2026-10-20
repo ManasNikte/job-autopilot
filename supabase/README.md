@@ -94,6 +94,13 @@ branch**, branch `main`, folder `/docs`, then **Save**. After a minute the site 
 
 ## 6. Optional: get an email when someone joins
 
+**Easiest (no extra service):** add yourself as the operator (step 7) and connect Gmail on your own computer
+(**Settings → Email**). Your Job Autopilot then checks for new sign-ups and newly connected computers every
+minute while it's awake, and emails you a short summary from your own Gmail to your own Gmail. It uses the
+app password you already saved, which Gmail also accepts for sending.
+
+**Instant, even while your computer sleeps:** use Resend from the database instead, as below.
+
 [`notify.sql`](notify.sql) emails you when someone creates an account (name, email, whether they opted in to
 updates) and when someone connects a new computer. It uses Resend's free API, called from the database.
 
