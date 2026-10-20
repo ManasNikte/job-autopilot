@@ -22,7 +22,21 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 
 ---
 
-## 🆕 What's new in v2.0: application replies tracked from your inbox
+## 🆕 What's new
+
+**v2.1: a dashboard that knows you.** On first launch it asks your name (editable in **Settings**). It then
+greets you with one line above the KPIs, written from your computer's clock and your real progress:
+
+> *Up early, Jordan. 3 applications before most people's alarms. Early birds get interviews.*
+> *Still up? 4 applications in today. The night shift counts, now get some sleep.*
+> *Good morning, Jordan. 5-day application streak and 6 more ready to send. Consistency wins this game.*
+
+Offers, interviews, and assessments from your email come first; then personal bests, streaks, and
+ready-to-send applications. The line never invents progress. Email checks now show live in the
+**Background work** panel (which inbox is being read, how many application emails have been found, elapsed
+time).
+
+### v2.0: application replies tracked from your inbox
 
 Keeping up with hundreds of "thank you for applying," "unfortunately," and "complete your assessment" emails
 is a job in itself. **v2.0 reads them for you.**
@@ -58,6 +72,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v2.1** | Personal greeting above the KPIs (time of day + streaks, personal bests, interviews, ready-to-send); asks your name on first launch, editable in Settings; live email-check status in Background work; author credit in the header and footer |
 | **v2.0** | Application emails read from Gmail, Outlook / Microsoft 365, or Apple Mail; automatic status updates with undo; Email page; assessment, interview, and offer items in Needs you |
 | **v1.3** | Runs on macOS, Windows, and Linux; one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)); built-in scheduling clock; self-healing documents and **Fix it** |
 | **v1.2** | Dashboard maps (ready to submit and submitted, with Today / All time and status chips); applied-date filter and Copy links; documents show which prompt version built them |
@@ -114,7 +129,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 - **Self-healing documents.** Bullets that are a hair too long stay on one line with slightly tighter letter
   spacing, and pages use the smaller sizes the prompt allows before overflowing. **Fix it** re-fits flagged
   documents without a Claude call, and asks for a small trim only if that isn't enough.
-- **Dashboard.** KPIs (including **applied today**), **maps of where you're applying**, a 14-day
+- **Dashboard.** A personal greeting written from the time of day and your real progress, KPIs (including **applied today**), **maps of where you're applying**, a 14-day
   applications chart, a pipeline funnel, live per-job progress bars with an honest "not started / running /
   paused" status, server-side pagination and search everywhere, and dark, light, and system themes.
 - **Application maps.** One map pins every job ready to submit. A second map pins submitted applications,
@@ -146,7 +161,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 | Platforms | macOS (primary), Windows, Linux; the Linux path was verified in a clean Debian container |
 | Maps | Leaflet with Esri gray canvas tiles (light and dark), OpenStreetMap Nominatim geocoding (cached) |
 | Email | Gmail IMAP (read-only, app password in the OS keychain via `keyring`), Microsoft Graph Mail.Read (MSAL device-code sign-in), Apple Mail through AppleScript on macOS |
-| Tests | pytest (69 tests, including Chromium-driven form-fill tests) |
+| Tests | pytest (71 tests, including Chromium-driven form-fill tests) |
 
 ## Screenshots
 
@@ -259,7 +274,8 @@ python -m app.cli check
 python -m app.cli serve
 ```
 
-Open http://127.0.0.1:5055, click **Run now**, then work through **Needs you** from top to bottom.
+Open http://127.0.0.1:5055. The first time, it asks what to call you. Then click **Run now** and work through
+**Needs you** from top to bottom.
 
 ### 4. Install the Chrome extension
 
@@ -327,6 +343,7 @@ app/
   salary.py     pay-range parsing and the minimum-pay filter
   h1b.py        USCIS import, learned sponsors, cached online sponsor lookup
   geo.py        location → place splitting and cached geocoding for the maps
+  greeting.py   the dashboard greeting: your name, the time of day, and your progress
   mailsync.py   inbox readers (Gmail, Microsoft Graph, Apple Mail), rule filter, Claude classification, job matching, undo
   prefilter.py  rule gate before any Claude call
   llm.py        Claude via Claude Code CLI or the Anthropic API; structured JSON; usage-limit pause

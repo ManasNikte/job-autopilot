@@ -161,7 +161,9 @@ the check in Step 8, or copy the files yourself. Then fill them in together with
    - Search for `[` to find the remaining placeholders. Use only facts the user gives you. Where a number is
      unknown, write `PENDING`; never invent one.
    - Keep every section heading. The app refers to them (Section I, I-B, III-0, IX-V, XI, XV).
-2. **`profile/applicant.json`**: name, email, phone, location, links, school, start date, and the fixed form
+2. **`profile/applicant.json`**: set `"preferred_name"` to the name the user wants to be greeted by on the
+   dashboard (ask them; the dashboard also asks on first launch, and it can be changed on the Settings page). Then the remaining fields:
+   name, email, phone, location, links, school, start date, and the fixed form
    answers (work authorization, sponsorship, EEO). For EEO questions, use exactly what the user chooses,
    including "Decline to self identify."
 3. **Work authorization:** if the user does **not** need visa sponsorship, set `"require_h1b_signal": false` in

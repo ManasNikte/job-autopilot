@@ -522,8 +522,25 @@ def assign(event_id: int, job_id: str) -> bool:
 
 # ----------------------------------------------------------------------------- one sync
 
+STATE: dict = {"active": False}       # live status for the Background work panel
+
+
+def _status(**kw) -> None:
+    STATE.update(kw)
+
+
 def sync(log=print) -> dict:
     """Fetch new mail from every connected account, classify, and apply. Safe to run often."""
+    import time as _t
+    try:
+        _status(active=True, started=_t.time(), step="Starting the email check", found=0, accounts=0)
+        return _sync(log)
+    finally:
+        STATE.clear()
+        STATE["active"] = False
+
+
+def _sync(log=print) -> dict:
     init()
     acc = accounts()
     days = env_int("MAIL_LOOKBACK_DAYS", 14)
@@ -533,6 +550,8 @@ def sync(log=print) -> dict:
         a = acc.get(kind)
         if not a:
             continue
+        _status(step=f"Reading {a.get('address') or kind}" + (" through the Mail app" if kind == "applemail" else ""),
+                accounts=STATE.get("accounts", 0) + 1)
         last = db.kv_get(f"mail_last:{kind}")
         since = (datetime.fromisoformat(last["v"]) - timedelta(hours=2)) if last else datetime.now(timezone.utc) - timedelta(days=days)
         started = datetime.now(timezone.utc)
@@ -554,9 +573,12 @@ def sync(log=print) -> dict:
         new = [m for m in msgs if m["msg_id"] not in seen]
         stats["fetched"] += len(new)
         fresh += new
+        _status(found=stats["fetched"])
     if fresh:
         fresh.sort(key=lambda m: m["received_at"])            # oldest first, so statuses move forward in order
+        _status(step=f"Claude is sorting {len(fresh)} application email(s)")
         results = classify(fresh)
+        _status(step="Matching emails to your jobs and updating statuses")
         stats["classified"] = len(results)
         for ev in results:
             row = apply_event(ev)

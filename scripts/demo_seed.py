@@ -244,6 +244,8 @@ def main() -> None:
     for c in companies():
         db.execute("INSERT OR REPLACE INTO source_status VALUES (?,?,?,?,?,?,?,?)",
                    (f"{c['ats']}:{c['slug']}", c["name"], c["ats"], c["slug"], 1, random.randint(5, 400), None, db.now()))
+    from app import greeting
+    greeting.set_name("Jordan Lee")                         # the fictional demo candidate
     # Email tracking: two connected inboxes (fictional) and a few application emails already read
     (DEMO / "data" / "mail_accounts.json").write_text(json.dumps({
         "gmail": {"address": "jordan.lee@example.com", "connected_at": db.now()},

@@ -143,7 +143,10 @@ def dashboard():
     by_company = db.fetchall(f"SELECT company, count(*) AS n FROM jobs WHERE {applied} GROUP BY company "
                              "ORDER BY n DESC, company COLLATE NOCASE LIMIT ? OFFSET ?", (company_page.per_page, company_page.offset))
     last_run = db.fetchone("SELECT * FROM runs ORDER BY id DESC LIMIT 1")
-    return render_template("dashboard.html", kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
+    from . import greeting
+    user_name = greeting.user_name()
+    hello = greeting.line(name=user_name) if user_name else ""
+    return render_template("dashboard.html", hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
                            today_jobs=today_jobs, by_family=by_family, by_company=by_company, last_run=last_run, counts=counts,
                            today_page=today_page, family_page=family_page, company_page=company_page,
                            applied_total=sum(r["n"] for r in fam_rows))
@@ -720,6 +723,10 @@ def map_json():
 @app.route("/progress")
 def progress_json():
     snap = progress.snapshot()
+    from . import mailsync
+    snap["mail"] = {k: v for k, v in mailsync.STATE.items()}
+    if snap["mail"].get("active"):
+        snap["mail"]["elapsed"] = int(__import__("time").time() - snap["mail"].get("started", 0))
     pu = worker.state.get("paused_until")
     snap["paused_until"] = datetime.fromtimestamp(pu).strftime("%I:%M %p").lstrip("0") if pu else None
     return jsonify(snap)
@@ -992,7 +999,8 @@ def settings_page():
     current = {k: env(k, str(DEFAULTS[k])) for k, *_ in TUNABLES}
     from . import mailsync
     ms_id = request.args.get("ms", "")
-    return render_template("settings.html", mail_accounts=mailsync.accounts(), ms_client=ms_id, is_mac=sys.platform == "darwin",
+    from . import greeting
+    return render_template("settings.html", user_name=greeting.user_name(), mail_accounts=mailsync.accounts(), ms_client=ms_id, is_mac=sys.platform == "darwin",
                            ms_state=mailsync.ms_signin_state(ms_id) if ms_id else None, sched=schedule.status(), tunables=TUNABLES, current=current,
                            feeds=feeds_config(), ampm=_ampm)
 
@@ -1000,6 +1008,17 @@ def settings_page():
 def _ampm(t: str) -> str:
     h, m = (int(x) for x in t.split(":"))
     return strf(datetime(2000, 1, 1, h, m), "%-I:%M %p")
+
+
+@app.post("/settings/name")
+def set_user_name():
+    """Your name for greetings (saved to profile/applicant.json, which stays on your computer)."""
+    from . import greeting
+    name = re.sub(r"\s+", " ", request.form.get("name", "")).strip()[:60]
+    if name:
+        greeting.set_name(name)
+        flash(f"Nice to meet you, {name.split()[0]}!")
+    return redirect(request.referrer or url_for("dashboard"))
 
 
 @app.post("/settings/restart")

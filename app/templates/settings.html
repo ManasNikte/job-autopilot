@@ -196,6 +196,10 @@
 
 <div class="card">
   <h2>Your profile and prompt</h2>
+  <form method="post" action="{{ url_for('set_user_name') }}" class="row" style="margin-bottom:12px">
+    <label class="sub">Your name (for the dashboard greeting) <input type="text" name="name" value="{{ user_name }}" placeholder="Your first name" maxlength="60" required></label>
+    <button class="btn small">Save name</button>
+  </form>
   <p class="sub" style="margin-top:0">Edit the master prompt (your entire profile and every resume and cover letter rule), confirmed facts, and form presets.</p>
   <a class="btn primary" href="{{ url_for('profile_page') }}">Open the profile editor</a>
 </div>

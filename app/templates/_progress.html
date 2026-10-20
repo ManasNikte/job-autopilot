@@ -26,7 +26,19 @@
     }
     const box = document.getElementById("bg-active");
     box.replaceChildren();
-    if (!d.active.length) {
+    const m = d.mail || {};
+    if (m.active) {                       // an email check is running
+      const row = el("div", "prog-row");
+      const head = el("div", "spread");
+      head.appendChild(el("b", null, "✉ Checking email"));
+      head.appendChild(el("span", "sub", fmt(m.elapsed || 0) + " elapsed"));
+      row.appendChild(head);
+      const track = el("div", "prog-track indeterminate"); track.appendChild(el("div", "prog-fill"));
+      row.appendChild(track);
+      row.appendChild(el("div", "sub prog-stage", (m.step || "Working") + (m.found ? ` · ${m.found} application email(s) found so far` : "")));
+      box.appendChild(row);
+    }
+    if (!d.active.length && !m.active) {
       const docs = d.queued.filter(q => q.status === "to_tailor").length;
       if (!d.queued_total) box.appendChild(el("p", "muted", "Nothing running. Click Run now to fetch and process new jobs."));
       else if (d.run || docs) box.appendChild(el("p", "muted", "Starting the next job…"));

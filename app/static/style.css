@@ -261,3 +261,11 @@ footer.credit .credit-icons { display: inline-flex; gap: 8px; }
 footer.credit .credit-icons a { display: inline-flex; color: var(--muted); }
 footer.credit .credit-icons a:hover { color: var(--accent); }
 footer.credit svg { width: 14px; height: 14px; }
+
+/* Dashboard greeting */
+h2.hello { margin: 4px 0 14px; font-size: 19px; font-weight: 600; letter-spacing: -.01em; color: var(--text); }
+form.hello-ask { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; font-size: 16px; font-weight: 600; }
+form.hello-ask input { font-weight: 400; min-width: 200px; }
+.prog-track.indeterminate .prog-fill { width: 30%; animation: prog-slide 1.4s ease-in-out infinite; }
+@keyframes prog-slide { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
+@media (prefers-reduced-motion: reduce) { .prog-track.indeterminate .prog-fill { animation: none; width: 100%; opacity: .5; } }

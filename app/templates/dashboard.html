@@ -4,6 +4,15 @@
 <div class="spread"><h1>Dashboard</h1>
   <span class="muted">{% if last_run %}Last run {{ last_run.started_at|ago }} · {{ last_run.status }}{% else %}No runs yet. Click "Run now".{% endif %}</span></div>
 
+{% if user_name %}
+<h2 class="hello">{{ hello }}</h2>
+{% else %}
+<form class="hello-ask" method="post" action="{{ url_for('set_user_name') }}">
+  <span>👋 Welcome! What should we call you?</span>
+  <input type="text" name="name" placeholder="Your first name" required maxlength="60" autocomplete="given-name">
+  <button class="btn primary small">Save</button>
+</form>
+{% endif %}
 <div class="grid kpis">
   <a class="tile" href="{{ url_for('jobs') }}"><div class="v">{{ kpis.posted_today }}</div><div class="k">Relevant roles posted today</div></a>
   <a class="tile" href="{{ url_for('jobs', status='ready') }}"><div class="v">{{ kpis.ready }}</div><div class="k">Ready to submit</div></a>
