@@ -102,13 +102,76 @@ drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles for all
   using (id = auth.uid()) with check (id = auth.uid());
 
+-- ---------------------------------------------------------------- extra sign-in emails
+-- An owner can let other email addresses sign in to the same dashboard (for example a personal and a
+-- university address). Each address is its own confirmed account with its own password; it sees the
+-- owner's data and can send requests to the owner's computers, but can't connect computers or add emails.
+create table if not exists public.account_emails (
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  email text not null check (email = lower(email) and char_length(email) between 3 and 254 and email like '%_@_%'),
+  created_at timestamptz not null default now(),
+  primary key (owner_id, email)
+);
+alter table public.account_emails enable row level security;
+
+-- Owners whose data the signed-in user may see: themselves, plus anyone who added their confirmed email.
+create or replace function public.viewable_owner_ids() returns setof uuid
+language sql stable security definer set search_path = public as $$
+  select auth.uid()
+  union
+  select a.owner_id from public.account_emails a
+  where a.email = lower(auth.jwt() ->> 'email') and a.owner_id <> auth.uid()
+$$;
+revoke all on function public.viewable_owner_ids() from public, anon;
+grant execute on function public.viewable_owner_ids() to authenticated;
+
+drop policy if exists "owner manages" on public.account_emails;
+create policy "owner manages" on public.account_emails for all to authenticated
+  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+drop policy if exists "member sees and leaves" on public.account_emails;
+create policy "member sees and leaves" on public.account_emails for select to authenticated
+  using (email = lower(auth.jwt() ->> 'email'));
+drop policy if exists "member leaves" on public.account_emails;
+create policy "member leaves" on public.account_emails for delete to authenticated
+  using (email = lower(auth.jwt() ->> 'email'));
+
+create or replace function public.account_email_limit() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if (select count(*) from public.account_emails where owner_id = new.owner_id) >= 5 then
+    raise exception 'at most 5 extra emails';
+  end if;
+  return new;
+end $$;
+drop trigger if exists account_email_limit on public.account_emails;
+create trigger account_email_limit before insert on public.account_emails
+  for each row execute function public.account_email_limit();
+
+-- ---------------------------------------------------------------- policies
+-- Read: your rows and those of owners who added your email. Write: only your own rows, except that a
+-- request (command) may be queued for an owner who shared with you.
 do $$
 declare t text;
 begin
   foreach t in array array['machines', 'snapshots', 'jobs', 'email_updates', 'commands'] loop
     execute format('drop policy if exists "own rows" on public.%I', t);
-    execute format('create policy "own rows" on public.%I for all to authenticated
+    execute format('drop policy if exists "read shared" on public.%I', t);
+    execute format('drop policy if exists "write own" on public.%I', t);
+    execute format('drop policy if exists "update own" on public.%I', t);
+    execute format('drop policy if exists "delete own" on public.%I', t);
+    execute format('create policy "read shared" on public.%I for select to authenticated
+                    using (user_id in (select public.viewable_owner_ids()))', t);
+    execute format('create policy "update own" on public.%I for update to authenticated
                     using (user_id = auth.uid()) with check (user_id = auth.uid())', t);
+    execute format('create policy "delete own" on public.%I for delete to authenticated
+                    using (user_id = auth.uid())', t);
+    if t = 'commands' then
+      execute format('create policy "write own" on public.%I for insert to authenticated
+                      with check (user_id in (select public.viewable_owner_ids()))', t);
+    else
+      execute format('create policy "write own" on public.%I for insert to authenticated
+                      with check (user_id = auth.uid())', t);
+    end if;
   end loop;
 end $$;
 
@@ -150,5 +213,13 @@ revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
 
 -- Live updates on the website when the Mac pushes a new snapshot or finishes a command.
-alter publication supabase_realtime add table public.snapshots;
-alter publication supabase_realtime add table public.commands;
+do $$
+declare t text;
+begin
+  foreach t in array array['snapshots', 'commands'] loop
+    if not exists (select 1 from pg_publication_tables
+                   where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;

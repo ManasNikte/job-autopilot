@@ -139,6 +139,20 @@
       <details class="card danger-zone">
         <summary>Account</summary>
         <p class="sub">Signed in as <b id="who"></b>.</p>
+        <div id="shared-with-me" hidden>
+          <p class="sub">You're seeing a dashboard someone shared with this email.</p>
+          <button class="btn small" id="leave-shared" type="button">Stop seeing it</button>
+        </div>
+        <h3>Other emails that can sign in</h3>
+        <p class="sub">Use more than one address (say, a personal and a university email)? Add it here, then create an
+          account with that address on this site. It sees this dashboard and can start runs, but can't add emails or connect computers.</p>
+        <div id="aliases"></div>
+        <form id="form-alias" class="inline-form" novalidate>
+          <input type="email" name="email" placeholder="another@example.edu" aria-label="Email to add" autocomplete="off" required>
+          <button class="btn small" type="submit">Add</button>
+        </form>
+        <p class="msg" id="alias-msg" role="status"></p>
+        <hr>
         <button class="btn small danger" id="delete-account" type="button">Delete my account and all its data</button>
       </details>
     </div>

@@ -92,19 +92,23 @@
   $("#signout").addEventListener("click", async () => { await sb.auth.signOut(); location.hash = "#signin"; });
 
   // ------------------------------------------------------------------ dashboard
-  let machines = [], machineId = null, timer = null, channel = null, jobTab = "applied", jobLimit = 25, started = false;
+  let me = null, machines = [], machineId = null, timer = null, channel = null, jobTab = "applied", jobLimit = 25, started = false;
   const TABS = [["ready", "Ready"], ["applied", "Applied"], ["interviewing", "Interviewing"], ["closed", "Rejected"], ["all", "All"]];
 
   async function startDashboard(session) {
     if (started) return; started = true;
     $("#who").textContent = session.user.email;
-    const { data } = await sb.from("machines").select("id,name,last_seen,platform").order("last_seen", { ascending: false, nullsFirst: false });
+    const { data } = await sb.from("machines").select("id,user_id,name,last_seen,platform").order("last_seen", { ascending: false, nullsFirst: false });
     machines = data || [];
     const sel = $("#machine"); sel.replaceChildren();
     machines.forEach((m) => sel.appendChild(Object.assign(el("option", null, m.name), { value: m.id })));
     sel.hidden = machines.length < 2;
     $("#no-machine").hidden = machines.length > 0; $("#dash-body").hidden = machines.length === 0;
-    const prof = await sb.from("profiles").select("display_name").maybeSingle();
+    me = session.user;
+    loadAliases();
+    $("#form-alias").addEventListener("submit", addAlias);
+    $("#leave-shared").onclick = leaveShared;
+    const prof = await sb.from("profiles").select("display_name").eq("id", me.id).maybeSingle();
     if (!machines.length) { $("#hello-title").textContent = `Welcome${prof.data?.display_name ? ", " + prof.data.display_name : ""} 👋`; return; }
     machineId = sel.value || machines[0].id;
     sel.onchange = () => { machineId = sel.value; refresh(); };
@@ -220,12 +224,46 @@
   async function send(kind, btn) {
     const { data: { session } } = await sb.auth.getSession();
     btn.disabled = true;
-    const { error } = await sb.from("commands").insert({ user_id: session.user.id, machine_id: machineId, kind });
+    const owner = machines.find((m) => m.id === machineId)?.user_id || session.user.id;   // shared dashboards queue for the owner
+    const { error } = await sb.from("commands").insert({ user_id: owner, machine_id: machineId, kind });
     btn.disabled = false;
     const online = $("#machine-status").dataset.online === "1";
     $("#cmd-msg").textContent = error ? (error.message.includes("too many") ? "Too many requests this hour. Try again later." : "Couldn't send: " + error.message)
       : online ? "Sent. Your computer picks it up within 30 seconds." : "Sent. Your computer is asleep or offline; it runs at its next wake-up.";
     loadCommands();
+  }
+
+  // ---- extra sign-in emails (account_emails): mine to manage, or shared with me to leave
+  async function loadAliases() {
+    const { data } = await sb.from("account_emails").select("owner_id,email,created_at").order("created_at");
+    const rows = data || [];
+    const mine = rows.filter((r) => r.owner_id === me.id);
+    $("#shared-with-me").hidden = !rows.some((r) => r.owner_id !== me.id);
+    const box = $("#aliases"); box.replaceChildren();
+    if (!mine.length) box.appendChild(el("p", "sub small", "None yet."));
+    mine.forEach((r) => {
+      const row = el("div", "job"); const btn = el("button", "btn small", "Remove"); btn.type = "button";
+      btn.onclick = async () => { btn.disabled = true; await sb.from("account_emails").delete().eq("owner_id", me.id).eq("email", r.email); loadAliases(); };
+      row.append(el("div", null, r.email), btn); box.appendChild(row);
+    });
+  }
+
+  async function addAlias(ev) {
+    ev.preventDefault();
+    const f = ev.target, msg = $("#alias-msg"), email = f.email.value.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = "Enter a valid email."; return; }
+    if (email === (me.email || "").toLowerCase()) { msg.textContent = "That's the email you're signed in with."; return; }
+    const { error } = await sb.from("account_emails").insert({ owner_id: me.id, email });
+    msg.textContent = error ? (error.code === "23505" ? "Already added." : error.message.includes("at most") ? "You can add up to 5 emails." : "Couldn't add it. Try again.")
+      : `Added. Now create an account with ${email} on this site (or sign in, if it already has one).`;
+    if (!error) f.reset();
+    loadAliases();
+  }
+
+  async function leaveShared() {
+    if (!confirm("Stop seeing the shared dashboard? The owner can add your email again later.")) return;
+    await sb.from("account_emails").delete().eq("email", (me.email || "").toLowerCase()).neq("owner_id", me.id);
+    location.reload();
   }
 
   async function deleteAccount() {

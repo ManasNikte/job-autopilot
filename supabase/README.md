@@ -24,7 +24,7 @@ connects their computer in **Settings → Online dashboard**.
    save the database password in your password manager. The app never needs it.
 2. Open **SQL Editor → New query**, paste the whole of [`schema.sql`](schema.sql), and click **Run**. It
    creates the tables, row-level security policies, rate limit, and account-deletion function. Running it
-   again is safe.
+   again is safe, and it's how you apply updates to the schema.
 
 ## 2. Auth settings (Authentication in the left sidebar)
 
@@ -130,7 +130,9 @@ Only email people who ticked that box, and include a way to stop in every messag
 - **Sessions** use Supabase's PKCE flow. The site has a strict Content-Security-Policy (scripts only from
   itself and one pinned, integrity-checked supabase-js file), refuses to be framed, and renders all data as
   text, never as HTML.
-- **Row-level security** on every table: a user reads and writes only their own rows. A trigger stops anyone
+- **Row-level security** on every table: a user reads and writes only their own rows. The one exception is
+  **extra sign-in emails**: an owner can add up to 5 of their other addresses. Each is its own confirmed account
+  with its own password; it can read the owner's rows and queue requests, but can't change data or add emails. A trigger stops anyone
   from sending a request to a computer that isn't theirs, and limits requests to 30 an hour.
 - **Computers** keep only a renewable refresh token in the OS keychain, never the password. They accept
   exactly four requests (run, process the queue, check email, resume), ignore anything older than 6 hours,

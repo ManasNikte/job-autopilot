@@ -81,3 +81,7 @@ code { font-size: 13px; background: var(--surface-2); padding: 1px 5px; border-r
 @media (min-width: 1800px) { main { max-width: 1560px; } }
 @media (min-width: 2400px) { html { zoom: 1.3; } }
 @media (min-width: 3200px) { html { zoom: 1.7; } }
+
+.inline-form { display: flex; gap: 8px; margin: 8px 0 4px; } .inline-form input { flex: 1; min-width: 0; }
+.danger-zone h3 { font-size: 14px; margin: 16px 0 4px; } .danger-zone hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
+#aliases .job { align-items: center; }
