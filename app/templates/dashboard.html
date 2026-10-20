@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 {% from "_pager.html" import pager %}
 {% block content %}
-<div class="spread"><h1>Dashboard</h1>
+<div class="spread hello-row">
+  {% if hello %}<div class="hello"><h1>{{ hello.title }}</h1><p>{{ hello.text }}</p></div>{% else %}<h1>Dashboard</h1>{% endif %}
   <span class="muted">{% if last_run %}Last run {{ last_run.started_at|ago }} · {{ last_run.status }}{% else %}No runs yet. Click "Run now".{% endif %}</span></div>
 
-{% if user_name %}
-<h2 class="hello">{{ hello }}</h2>
-{% else %}
+{% if not user_name %}
 <form class="hello-ask" method="post" action="{{ url_for('set_user_name') }}">
   <span>👋 Welcome! What should we call you?</span>
   <input type="text" name="name" placeholder="Your first name" required maxlength="60" autocomplete="given-name">

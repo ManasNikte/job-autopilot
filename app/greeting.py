@@ -74,55 +74,66 @@ def stats(today: date | None = None) -> dict:
     }
 
 
-def _when(hour: int) -> tuple[str, str]:
-    """(greeting, flavor) for the hour on your computer's clock."""
+def _when(hour: int) -> tuple[str, str, str]:
+    """(greeting, flavor, emoji) for the hour on your computer's clock."""
     if hour < 4:
-        return "Still up", "late-night"
+        return "Still up", "late-night", "🌙"
     if hour < 7:
-        return "Up early", "early"
+        return "Up early", "early", "🌅"
     if hour < 12:
-        return "Good morning", "morning"
+        return "Good morning", "morning", "☀️"
     if hour < 17:
-        return "Good afternoon", "afternoon"
+        return "Good afternoon", "afternoon", "🌤️"
     if hour < 21:
-        return "Good evening", "evening"
-    return "Working late", "night"
+        return "Good evening", "evening", "🌆"
+    return "Working late", "night", "🌙"
 
 
-def line(now: datetime | None = None, s: dict | None = None, name: str | None = None) -> str:
-    """One short, specific line. Celebrates real progress, never invents any."""
+def greet(now: datetime | None = None, s: dict | None = None, name: str | None = None) -> dict:
+    """{'title': 'Good morning, Manas ☀️', 'text': '📝 Roblox sent an assessment. …'}.
+    Celebrates real progress, never invents any."""
     now = now or datetime.now()
     s = s if s is not None else stats(now.date())
     name = user_name() if name is None else name
-    hello, flavor = _when(now.hour)
-    who = f"{hello}, {name}" if name else hello
+    hello, flavor, sky = _when(now.hour)
+    mark = "?" if flavor == "late-night" else ""
+    title = f"{hello}, {name}{mark} {sky}" if name else f"{hello}{mark} {sky}"
     pl = lambda n, word: f"{n} {word}{'' if n == 1 else 's'}"
+    return {"title": title, "text": _message(s, flavor, pl)}
 
-    # 1. Real wins first: offers and interviews from the last few days
+
+def _message(s: dict, flavor: str, pl) -> str:
+    # 1. Real wins first: offers, interviews, assessments from the last few days (still open in Needs you)
     if s.get("offer"):
-        return f"{who}. An offer from {s['offer']['company']} 🎉 Take a moment, you earned this."
+        return f"🎉 An offer from {s['offer']['company']}! Take a moment, you earned this."
     if s.get("interview"):
-        return f"{who}. {s['interview']['company']} wants to talk to you. Time to prep your stories."
+        return f"📞 {s['interview']['company']} wants to talk to you. Time to prep your stories."
     if s.get("assessment"):
-        return f"{who}. {s['assessment']['company']} sent an assessment. Knock it out while you're sharp."
+        return f"📝 {s['assessment']['company']} sent an assessment. Knock it out while you're sharp."
     # 2. Today's momentum
     if s["today"] and s["today"] > s["past_best"] >= 3:
-        return f"{who}. {pl(s['today'], 'application')} today, a new personal best. Keep it rolling."
+        return f"🏆 {pl(s['today'], 'application')} today, a new personal best. Keep it rolling."
     if s["streak"] >= 3:
-        tail = f" and {s['ready']} more ready to send" if s["ready"] else ""
-        return f"{who}. {s['streak']}-day application streak{tail}. Consistency wins this game."
+        tail = f", and {s['ready']} more ready to send" if s["ready"] else ""
+        return f"🔥 {s['streak']}-day application streak{tail}. Consistency wins this game."
     if s["today"]:
         if flavor == "late-night":
-            return f"{who}? {pl(s['today'], 'application')} in today. The night shift counts, now get some sleep."
+            return f"🦉 {pl(s['today'], 'application')} in today. The night shift counts, now get some sleep."
         if flavor == "early":
-            return f"{who}. {pl(s['today'], 'application')} before most people's alarms. Early birds get interviews."
-        return f"{who}. {pl(s['today'], 'application')} in today, {s['week']} this week. Every one is a door you opened."
+            return f"🐦 {pl(s['today'], 'application')} before most people's alarms. Early birds get interviews."
+        return f"✅ {pl(s['today'], 'application')} in today, {s['week']} this week. Every one is a door you opened."
     # 3. Nothing sent yet today
     if s["ready"]:
-        lead = {"late-night": f"{who}? While you can't sleep:", "early": f"{who}. Quiet hours are perfect:"}.get(flavor, f"{who}.")
-        return f"{lead} {pl(s['ready'], 'tailored application')} ready. About 10 minutes sends them all."
+        lead = {"late-night": "While you can't sleep: ", "early": "Quiet hours are perfect: "}.get(flavor, "")
+        return f"🚀 {lead}{pl(s['ready'], 'tailored application')} ready. About 10 minutes sends them all."
     if s["week"] and s["week"] > s["prev_week"]:
-        return f"{who}. {s['week']} applications this week, up from {s['prev_week']} last week. The numbers are moving."
+        return f"📈 {s['week']} applications this week, up from {s['prev_week']} last week. The numbers are moving."
     if s["total"]:
-        return f"{who}. {pl(s['total'], 'application')} so far, and the autopilot is out finding the next ones."
-    return f"{who}. Your autopilot is ready. Click Run now and let's find your first roles."
+        return f"🧭 {pl(s['total'], 'application')} so far, and the autopilot is out finding the next ones."
+    return "✨ Your autopilot is ready. Click Run now and let's find your first roles."
+
+
+def line(now: datetime | None = None, s: dict | None = None, name: str | None = None) -> str:
+    """The greeting as one sentence (title + message)."""
+    g = greet(now, s, name)
+    return f"{g['title']} {g['text']}"

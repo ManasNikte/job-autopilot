@@ -27,9 +27,11 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 **v2.1: a dashboard that knows you.** On first launch it asks your name (editable in **Settings**). It then
 greets you with one line above the KPIs, written from your computer's clock and your real progress:
 
-> *Up early, Jordan. 3 applications before most people's alarms. Early birds get interviews.*
-> *Still up? 4 applications in today. The night shift counts, now get some sleep.*
-> *Good morning, Jordan. 5-day application streak and 6 more ready to send. Consistency wins this game.*
+> **Up early, Jordan 🌅**<br>🐦 3 applications before most people's alarms. Early birds get interviews.
+>
+> **Still up, Jordan? 🌙**<br>🦉 4 applications in today. The night shift counts, now get some sleep.
+>
+> **Good morning, Jordan ☀️**<br>📝 Roblox sent an assessment. Knock it out while you're sharp.
 
 Offers, interviews, and assessments from your email come first; then personal bests, streaks, and
 ready-to-send applications. The line never invents progress. Email checks now show live in the

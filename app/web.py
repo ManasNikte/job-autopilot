@@ -145,7 +145,7 @@ def dashboard():
     last_run = db.fetchone("SELECT * FROM runs ORDER BY id DESC LIMIT 1")
     from . import greeting
     user_name = greeting.user_name()
-    hello = greeting.line(name=user_name) if user_name else ""
+    hello = greeting.greet(name=user_name) if user_name else None
     return render_template("dashboard.html", hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
                            today_jobs=today_jobs, by_family=by_family, by_company=by_company, last_run=last_run, counts=counts,
                            today_page=today_page, family_page=family_page, company_page=company_page,
