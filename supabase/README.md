@@ -119,6 +119,21 @@ where p.marketing_opt_in order by p.opt_in_at desc;
 
 Only email people who ticked that box, and include a way to stop in every message.
 
+## 7. Optional: see how many people use your site
+
+Add your own account as the site operator (once, in the SQL editor, after you've created your account):
+
+```sql
+insert into public.operators (user_id)
+select id from auth.users where email = 'you@example.com'
+on conflict do nothing;
+```
+
+The footer of your local dashboard then shows **👥 users · 🟢 active**. *Users* counts confirmed accounts, not
+counting extra sign-in emails. *Active* counts people who applied to at least one job in the last 14 days.
+Nobody else sees it: the operators table can't be read or changed through the API, and the counts come back
+empty for every other account.
+
 ---
 
 ## Security summary

@@ -213,6 +213,36 @@ end $$;
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
 
+-- ---------------------------------------------------------------- operator stats
+-- Site-wide counts for the person who runs the site, shown in the footer of their local dashboard.
+-- The operators table has row-level security and no policies, so nobody can read or change it through
+-- the API; add yourself once in the SQL editor (see supabase/README.md). Everyone else gets null.
+create table if not exists public.operators (
+  user_id uuid primary key references auth.users(id) on delete cascade
+);
+alter table public.operators enable row level security;
+
+create or replace function public.operator_stats() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.operators where user_id = auth.uid()) then
+    return null;
+  end if;
+  return jsonb_build_object(
+    -- confirmed accounts, not counting extra sign-in emails (the same person)
+    'users', (select count(*) from auth.users u
+              where u.email_confirmed_at is not null
+                and not exists (select 1 from public.account_emails a
+                                where a.email = lower(u.email) and a.owner_id <> u.id)),
+    -- active: applied to at least one job in the last 14 days
+    'active', (select count(distinct j.user_id) from public.jobs j
+               where j.applied_at > now() - interval '14 days'),
+    'connected', (select count(distinct m.user_id) from public.machines m),
+    'as_of', now());
+end $$;
+revoke all on function public.operator_stats() from public, anon;
+grant execute on function public.operator_stats() to authenticated;
+
 -- Live updates on the website when the Mac pushes a new snapshot or finishes a command.
 do $$
 declare t text;

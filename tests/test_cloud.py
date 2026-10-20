@@ -136,3 +136,30 @@ def test_cross_site_posts_are_blocked(tmp_path, monkeypatch):
     assert c.post("/email/check", headers={"Origin": "https://evil.example"}).status_code == 403
     assert c.post("/email/check", headers={"Origin": "http://localhost"}).status_code in (200, 302)
     assert c.post("/email/check").status_code in (200, 302)                 # same-origin form (no Origin header)
+
+
+def test_operator_stats_only_when_the_site_returns_them(fake, monkeypatch):
+    cloud.connect("me@example.com", "correct horse 1", "Laptop")
+    replies = {"value": None}
+
+    def post(url, json=None, headers=None, timeout=None):
+        if "/rpc/operator_stats" in url:
+            return FakeResp(200, replies["value"])
+        return fake.post(url, json=json, headers=headers, timeout=timeout)
+    monkeypatch.setattr(cloud.requests, "post", post)
+    assert cloud.operator_stats() is None                                  # not the operator: null
+    replies["value"] = {"users": 7, "active": 4, "connected": 5}
+    assert cloud.operator_stats()["active"] == 4
+
+
+def test_footer_shows_user_counts_only_for_the_operator(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    from app.web import app
+    c = app.test_client()
+    monkeypatch.setitem(cloud.STATUS, "operator", None)
+    assert "op-stats" not in c.get("/").get_data(as_text=True)
+    monkeypatch.setitem(cloud.STATUS, "operator", {"users": 12, "active": 5})
+    html = c.get("/").get_data(as_text=True)
+    assert "12 users" in html and "5 active" in html
+    assert "op-stats" not in c.get("/settings").get_data(as_text=True)    # dashboard footer only

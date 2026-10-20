@@ -31,7 +31,7 @@ APP_VERSION = "3.0"
 ALLOWED = {"run", "process", "mail", "resume"}
 STATE_FILE = DATA_DIR / "cloud.json"
 KEY = "cloud:refresh"
-STATUS: dict = {"connected": False, "last_sync": None, "error": "", "queued_from_phone": 0}
+STATUS: dict = {"connected": False, "last_sync": None, "error": "", "queued_from_phone": 0, "operator": None}
 _lock = threading.Lock()
 _token: dict = {"access": "", "exp": 0.0}
 
@@ -136,7 +136,7 @@ def disconnect() -> None:
         STATE_FILE.unlink()
     except OSError:
         pass
-    STATUS.update(connected=False, last_sync=None, error="")
+    STATUS.update(connected=False, last_sync=None, error="", operator=None)
 
 
 def _rest(method: str, table: str, params: dict | None = None, json=None, prefer: str | None = None):
@@ -245,9 +245,22 @@ def sync_once(log=print, full: bool = True) -> dict:
                   json=[{"machine_id": mid, "user_id": uid, "event_id": e["id"], **{k: e[k] for k in e if k != "id"}} for e in evs])
             db.kv_set("cloud_email_since", str(evs[-1]["id"]))
         _rest("PATCH", "machines", params={"id": f"eq.{mid}"}, json={"last_seen": now, "app_version": APP_VERSION})
+        STATUS["operator"] = operator_stats()
     queued = _run_requests(mid, log)
     STATUS.update(connected=True, last_sync=now, error="")
     return {"queued": queued}
+
+
+def operator_stats() -> dict | None:
+    """Site-wide user counts, only for the account listed in the site's operators table (else None)."""
+    try:
+        c = config()
+        r = requests.post(f"{c['supabase_url']}/rest/v1/rpc/operator_stats", json={},
+                          headers=_headers(access_token()), timeout=30)
+        d = r.json() if r.status_code == 200 and r.text else None
+        return d if isinstance(d, dict) and "users" in d else None
+    except Exception:   # older site without the function, offline, ...: just hide the footer line
+        return None
 
 
 def _run_requests(mid: str, log) -> int:

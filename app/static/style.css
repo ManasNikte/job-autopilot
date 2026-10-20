@@ -315,3 +315,5 @@ form.hello-ask input { font-weight: 400; min-width: 200px; }
 /* QHD / 4K monitors and TVs: scale the whole interface so it reads from across the room */
 @media (min-width: 2400px) { html { zoom: 1.25; } }
 @media (min-width: 3200px) { html { zoom: 1.6; } }
+
+footer.credit .op-stats { padding: 2px 10px; border: 1px solid var(--border); border-radius: 999px; white-space: nowrap; font-variant-numeric: tabular-nums; }

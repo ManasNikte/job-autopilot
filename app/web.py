@@ -83,7 +83,9 @@ def inject():
         unmatched_mail = db.count("email_events", "state='unmatched'")
     except Exception:
         unmatched_mail = 0
-    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
+    from . import cloud
+    op = cloud.STATUS.get("operator") if request.endpoint == "dashboard" else None
+    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
 
 
 def _followups() -> None:
