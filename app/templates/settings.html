@@ -1,8 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Settings · Job Autopilot{% endblock %}
 {% block content %}
-<h1>Settings</h1>
+<div class="page-head">
+  <h1 style="margin-bottom:2px">{{ section_title }}</h1>
+  <span class="sub">{{ section_help }}</span>
+</div>
+<nav class="tabs settings-tabs" aria-label="Settings sections">
+  {% for key, label, _ in settings_sections %}<a href="{{ url_for('settings_page', section=key) }}" class="tab {{ 'on' if key == section }}"{% if key == section %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+<script>
+  // Old links like /settings#cloud open the matching page.
+  (function () { var m = { cloud: "online", email: "email", updates: "updates", tour: "start", profile: "start", pipeline: "pipeline", schedule: "schedule", wake: "schedule" };
+    var h = location.hash.slice(1); if (m[h] && m[h] !== "{{ section }}") location.replace("{{ url_for('settings_page', section='__S__') }}".replace("__S__", m[h]) + location.hash); })();
+</script>
 
+{% if section == 'schedule' %}
 <div class="grid g2">
   <div class="card" id="schedule">
     <h2>Daily runs</h2>
@@ -55,13 +67,15 @@
   </div>
 </div>
 
+{% endif %}
+{% if section == 'pipeline' %}
 <div class="card" id="pipeline">
   <h2>Pipeline</h2>
   <form method="post">
     <input type="hidden" name="section" value="pipeline">
     <div class="grid g2">
       {% for key, label, kind, help, rng in tunables %}
-      <div>
+      <div id="set-{{ key }}" class="set-item">
         <label><b>{{ label }}</b></label><br>
         {% if kind == 'int' %}
           <input type="number" name="{{ key }}" value="{{ current[key] }}" min="{{ rng[0] }}" max="{{ rng[1] }}" style="width:120px">
@@ -73,13 +87,13 @@
         <div class="muted" style="font-size:12px">{{ help }}</div>
       </div>
       {% endfor %}
-      <div>
+      <div id="set-feeds" class="set-item">
         <label><b>Job feeds</b></label><br>
         <label class="sub"><input type="checkbox" name="feed_jobright" value="1" {{ 'checked' if feeds.get('jobright', {}).get('enabled') }}> Jobright new-grad lists</label><br>
         <label class="sub"><input type="checkbox" name="feed_simplify" value="1" {{ 'checked' if feeds.get('simplify', {}).get('enabled') }}> SimplifyJobs</label><br>
         <label class="sub"><input type="checkbox" name="feed_hn_who_is_hiring" value="1" {{ 'checked' if feeds.get('hn_who_is_hiring', {}).get('enabled') }}> Hacker News "Who is hiring?" (startups)</label>
       </div>
-      <div>
+      <div id="set-h1b" class="set-item">
         <label><b>H-1B filter</b></label><br>
         <label class="sub"><input type="checkbox" name="require_h1b_signal" value="1" {{ 'checked' if feeds.get('require_h1b_signal', True) }}> Only queue feed jobs with an H-1B sponsorship signal</label>
       </div>
@@ -91,12 +105,16 @@
   </form>
 </div>
 
+{% endif %}
+{% if section == 'start' %}
 <div class="card" id="tour">
   <div class="spread"><div><h2 style="margin:0">Getting started</h2>
     <p class="sub" style="margin:4px 0 0">A one-minute walkthrough of the dashboard: running searches, Needs you, applying with the extension, and tracking replies.</p></div>
     <a class="btn small" href="{{ url_for('dashboard', tour=1) }}">Replay the tour</a></div>
 </div>
 
+{% endif %}
+{% if section == 'updates' %}
 <div class="card" id="updates">
   <h2>App updates</h2>
   <p style="margin-top:0">You're on <b>v{{ app_version }}</b>{% if upd_state.checked_at %} · checked {{ upd_state.checked_at|ago }}{% endif %}.
@@ -109,6 +127,8 @@
   </div>
 </div>
 
+{% endif %}
+{% if section == 'online' %}
 <div class="card" id="cloud">
   <h2>Online dashboard: check progress from your phone</h2>
   {% if not cloud_cfg %}
@@ -169,6 +189,8 @@
   {% endif %}
 </div>
 
+{% endif %}
+{% if section == 'email' %}
 <div class="card" id="email">
   <h2>Email: track application replies</h2>
   <p class="sub" style="margin-top:0">Reads your inboxes <b>read-only</b> to find application emails: received, rejected, online assessment, interview, offer. Matching jobs update automatically (see the <a href="{{ url_for('email_page') }}">Email</a> page; every change can be undone). Only emails that look like application updates are sent to Claude to classify. Nothing is ever sent, deleted, or marked as read.</p>
@@ -264,7 +286,7 @@
   const tick = async () => {
     try {
       const d = await (await fetch("{{ url_for('email_ms_status') }}?client_id=" + encodeURIComponent(box.dataset.client))).json();
-      if (d.status === "done" || d.status === "error") { location.href = "{{ url_for('settings_page') }}" + (d.status === "error" ? "?ms=" + box.dataset.client : "") + "#email"; return; }
+      if (d.status === "done" || d.status === "error") { location.href = "{{ url_for('settings_page', section='email') }}" + (d.status === "error" ? "?ms=" + box.dataset.client : ""); return; }
     } catch (e) {}
     setTimeout(tick, 3000);
   };
@@ -272,6 +294,8 @@
 })();
 </script>
 
+{% endif %}
+{% if section == 'start' %}
 <div class="card" id="profile">
   <h2>Your profile and prompt</h2>
   <form method="post" action="{{ url_for('set_user_name') }}" class="row" style="margin-bottom:12px">
@@ -294,4 +318,5 @@
     inp.focus();
   }
 </script>
+{% endif %}
 {% endblock %}

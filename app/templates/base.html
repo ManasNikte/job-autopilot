@@ -96,6 +96,55 @@
     });
     matchMedia("(max-width: 1000px)").addEventListener("change", () => setDrawer(false));
   })();
+  // Sidebar search: pages, sub-pages, settings pages, and individual settings. ⌘K / Ctrl+K focuses it.
+  (() => {
+    const q = document.getElementById("sb-q"), box = document.getElementById("sb-results"), nav = document.getElementById("primary-nav");
+    const items = JSON.parse(document.getElementById("nav-index").textContent);
+    const root = document.documentElement, narrow = () => matchMedia("(max-width: 1000px)").matches;
+    let hits = [], sel = 0;
+    const score = (it, words) => {
+      const t = it.t.toLowerCase(), hay = t + " " + it.p.toLowerCase() + " " + it.k;
+      if (!words.every((w) => hay.includes(w))) return 0;
+      const rest = it.p.toLowerCase() + " " + it.k;
+      return (t.startsWith(words[0]) ? 30 : 0) + (t.includes(words.join(" ")) ? 20 : 0)
+           + words.reduce((n, w) => n + (t.includes(w) ? 5 : rest.includes(w) ? 2 : 0), 0)
+           - (it.p === "Settings" ? 1 : 0) + 1;                  // a specific setting beats the page that holds it
+    };
+    function render() {
+      const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const on = words.length > 0;
+      nav.hidden = on; box.hidden = !on; q.setAttribute("aria-expanded", String(on));
+      if (!on) return;
+      hits = items.map((it) => [score(it, words), it]).filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).slice(0, 12).map(([, it]) => it);
+      sel = Math.min(sel, Math.max(0, hits.length - 1));
+      box.replaceChildren();
+      if (!hits.length) { const e = document.createElement("p"); e.className = "sb-empty"; e.textContent = "Nothing found. Try another word."; box.appendChild(e); return; }
+      hits.forEach((it, i) => {
+        const a = document.createElement("a"); a.href = it.u; a.className = "sb-result" + (i === sel ? " sel" : "");
+        a.setAttribute("role", "option"); a.setAttribute("aria-selected", String(i === sel));
+        const t = document.createElement("span"); t.className = "t"; t.textContent = it.t;
+        const pth = document.createElement("span"); pth.className = "p"; pth.textContent = it.p;
+        a.append(t, pth); a.addEventListener("mousemove", () => { sel = i; paint(); }); box.appendChild(a);
+      });
+    }
+    const paint = () => [...box.querySelectorAll(".sb-result")].forEach((a, i) => { a.classList.toggle("sel", i === sel); a.setAttribute("aria-selected", String(i === sel)); });
+    q.addEventListener("input", () => { sel = 0; render(); });
+    q.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown") { e.preventDefault(); sel = Math.min(sel + 1, hits.length - 1); paint(); box.querySelector(".sel")?.scrollIntoView({ block: "nearest" }); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); sel = Math.max(sel - 1, 0); paint(); box.querySelector(".sel")?.scrollIntoView({ block: "nearest" }); }
+      else if (e.key === "Enter" && hits[sel]) { e.preventDefault(); location.href = hits[sel].u; }
+      else if (e.key === "Escape") { q.value = ""; render(); q.blur(); }
+    });
+    const focusSearch = () => {
+      if (narrow()) { document.body.classList.add("sb-open"); document.getElementById("sb-backdrop").hidden = false; }
+      else if (root.classList.contains("sb-rail")) { root.classList.remove("sb-rail"); try { localStorage.setItem("sidebar", "full"); } catch (e) {} }
+      setTimeout(() => { q.focus(); q.select(); }, 60);
+    };
+    document.getElementById("sb-search-btn").addEventListener("click", focusSearch);
+    document.addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); focusSearch(); } });
+    // Arriving from a search result: briefly highlight the setting it points at.
+    if (location.hash) { const t = document.getElementById(location.hash.slice(1)); if (t) { t.classList.add("found"); setTimeout(() => t.classList.remove("found"), 2200); } }
+  })();
   // Theme toggle: Dark -> Light -> System (follows macOS)
   (() => {
     const order = ["dark", "light", "system"], icon = { dark: "☾", light: "☀", system: "◐" },

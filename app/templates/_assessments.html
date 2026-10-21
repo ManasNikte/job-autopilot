@@ -1,0 +1,24 @@
+{# Pending online assessments (dashboard card and the Assessments page). Needs `assess`. #}
+{% if assess %}
+<div class="card assess-card" id="assessments">
+  <div class="spread"><h2 style="margin:0">⏰ Assessments to finish</h2>
+    <span class="sub small">Reminders every morning, and 3 hours before each is due.</span></div>
+  <div class="assess-list">
+  {% for a in assess %}
+    <div class="assess{{ ' urgent' if a.urgent }}{{ ' overdue' if a.overdue }}">
+      <div class="assess-main">
+        <b>{{ a.shown_company }}</b>{% if a.shown_role %}<span class="sub"> · {{ a.shown_role }}</span>{% endif %}
+        <div class="assess-due">{{ a.label }}</div>
+        {% if a.summary %}<div class="sub small">{{ a.summary }}</div>{% endif %}
+      </div>
+      <div class="assess-actions">
+        {% if a.link %}<a class="btn primary small" href="{{ a.link }}" target="_blank" rel="noopener noreferrer">Open assessment</a>{% endif %}
+        <a class="btn small" href="{{ url_for('email_page', id=a.ids[-1]) }}">See the email</a>
+        <form method="post" action="{{ url_for('assessment_mark', event_id=a.id, how='done') }}"><button class="btn small">✓ Done</button></form>
+        <form method="post" action="{{ url_for('assessment_mark', event_id=a.id, how='skip') }}"><button class="btn small ghost" title="Stop reminding me" onclick="return confirm('Stop reminders for this assessment?')">Not doing it</button></form>
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+</div>
+{% endif %}

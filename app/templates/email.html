@@ -12,7 +12,7 @@
   <div class="spread">
     <div class="row" style="gap:16px">
       {% for kind, a in accounts.items() %}<span><span class="badge apply">Connected</span> {{ a.address or kind }}</span>{% else %}
-      <span class="muted">No inbox connected yet. <a href="{{ url_for('settings_page') }}#email">Connect Gmail or Outlook in Settings →</a></span>{% endfor %}
+      <span class="muted">No inbox connected yet. <a href="{{ url_for('settings_page', section='email') }}">Connect Gmail or Outlook in Settings →</a></span>{% endfor %}
     </div>
     <span class="sub small">{% if last_at %}Last check {{ last_at|ago }}{% if last %}: {{ last.fetched }} new, {{ last.applied }} matched, {{ last.unmatched }} unmatched{% if last.errors %} · <span style="color:var(--critical)">{{ last.errors|join('; ') }}</span>{% endif %}{% endif %}{% endif %}</span>
   </div>

@@ -8,7 +8,7 @@
     <span class="sub">Create your free online-dashboard account in a minute; after that you just sign in on the site.</span></span>
   <span class="update-actions">
     <form method="post" action="{{ url_for('cloud_prompt_dismiss') }}"><button class="btn small ghost" type="submit">Not now</button></form>
-    <a class="btn primary small" href="{{ url_for('settings_page') }}#cloud">Set it up</a>
+    <a class="btn primary small" href="{{ url_for('settings_page', section='online') }}">Set it up</a>
   </span>
 </div>
 {% endif %}
@@ -31,32 +31,10 @@
   <a class="tile" href="{{ url_for('jobs', status='applied_all') }}" title="Sunday to Saturday"><div class="v">{{ kpis.applied_week }}</div><div class="k">Applied this week</div></a>
   <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_total }}</div><div class="k">Applied, all time</div></a>
   <a class="tile" href="{{ url_for('jobs', status='interviewing') }}"><div class="v">{{ kpis.interviewing }}</div><div class="k">Interviewing / offers</div></a>
-  <a class="tile{{ ' tile-alert' if assess and assess[0].urgent }}" href="{{ '#assessments' if assess else url_for('email_page', event='assessment') }}"><div class="v">{{ kpis.assessments }}</div><div class="k">Online assessments to finish</div></a>
+  <a class="tile{{ ' tile-alert' if assess and assess[0].urgent }}" href="{{ url_for('assessments_page') }}"><div class="v">{{ kpis.assessments }}</div><div class="k">Online assessments to finish</div></a>
 </div>
 
-{% if assess %}
-<div class="card assess-card" id="assessments">
-  <div class="spread"><h2 style="margin:0">⏰ Assessments to finish</h2>
-    <span class="sub small">Reminders every morning, and 3 hours before each is due.</span></div>
-  <div class="assess-list">
-  {% for a in assess %}
-    <div class="assess{{ ' urgent' if a.urgent }}{{ ' overdue' if a.overdue }}">
-      <div class="assess-main">
-        <b>{{ a.shown_company }}</b>{% if a.shown_role %}<span class="sub"> · {{ a.shown_role }}</span>{% endif %}
-        <div class="assess-due">{{ a.label }}</div>
-        {% if a.summary %}<div class="sub small">{{ a.summary }}</div>{% endif %}
-      </div>
-      <div class="assess-actions">
-        {% if a.link %}<a class="btn primary small" href="{{ a.link }}" target="_blank" rel="noopener noreferrer">Open assessment</a>{% endif %}
-        <a class="btn small" href="{{ url_for('email_page', id=a.ids[-1]) }}">See the email</a>
-        <form method="post" action="{{ url_for('assessment_mark', event_id=a.id, how='done') }}"><button class="btn small">✓ Done</button></form>
-        <form method="post" action="{{ url_for('assessment_mark', event_id=a.id, how='skip') }}"><button class="btn small ghost" title="Stop reminding me" onclick="return confirm('Stop reminders for this assessment?')">Not doing it</button></form>
-      </div>
-    </div>
-  {% endfor %}
-  </div>
-</div>
-{% endif %}
+{% include "_assessments.html" %}
 
 <div style="margin-top:16px" data-tour="background">{% include "_progress.html" %}</div>
 
@@ -101,7 +79,7 @@
   const jobUrl = id => "{{ url_for('job_detail', job_id='__ID__') }}".replace("__ID__", encodeURIComponent(id)).replace(/%3A/g, ":");
   const color = s => s === "ready" ? css("--accent") : s === "closed" ? css("--critical") : s === "assessment" ? css("--warning")
                    : (s === "interviewing" || s === "offer") ? css("--accent") : css("--good");
-  const linkFor = id => String(id).startsWith("email:") ? "{{ url_for('dashboard') }}#assessments" : jobUrl(id);   // assessment with no job
+  const linkFor = id => String(id).startsWith("email:") ? "{{ url_for('assessments_page') }}" : jobUrl(id);   // assessment with no job
   const tagFor = j => j.status === "assessment" ? `assessment ${j.note || ""}`.trim() : j.status === "closed" ? "rejected" : "";
 
   function makeMap(id) {

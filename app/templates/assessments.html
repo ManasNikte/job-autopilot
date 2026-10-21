@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Assessments · Job Autopilot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 style="margin-bottom:2px">Online assessments</h1>
+  <span class="sub">Read from your inbox with their exact due times, including companies you applied to outside the app. Reminders every morning and 3 hours before each is due.</span>
+</div>
+{% if assess %}{% include "_assessments.html" %}{% else %}
+<div class="card"><p class="muted" style="margin:0">Nothing to finish right now. New assessment emails show up here on their own after each email check.</p></div>
+{% endif %}
+<div class="card">
+  <h2>Finished or dismissed</h2>
+  {% if done %}
+  <table class="jobs-table">
+    <thead><tr><th>Company</th><th>Due</th><th>Status</th><th></th></tr></thead>
+    {% for d in done %}
+    <tr>
+      <td class="role"><b>{{ d.company }}</b>{% if d.role %}<div class="meta">{{ d.role }}</div>{% endif %}</td>
+      <td class="sub small nowrap" data-label="Due">{{ d.due_at|local if d.due_at else '—' }}</td>
+      <td data-label="Status"><span class="badge {{ 'apply' if d.done_how == 'done' else '' }}">{{ 'Done' if d.done_how == 'done' else 'Not doing it' }}</span> <span class="sub small">{{ d.done_at|ago }}</span></td>
+      <td class="num"><a class="btn small" href="{{ url_for('email_page', id=d.id) }}">See the email</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">None yet.</p>{% endif %}
+</div>
+{% endblock %}

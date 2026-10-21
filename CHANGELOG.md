@@ -3,6 +3,11 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.9 (2026-10-21)
+- **Settings are separate pages:** Schedule, Pipeline and limits, Email inboxes, Online dashboard, App updates, and Getting started, each with its own address and tabs at the top. Older links such as /settings#cloud still open the right page.
+- **Assessments has its own page**, with the ones still to finish and the ones you finished or dismissed.
+- **Search the app from the sidebar** (⌘K or Ctrl+K): pages, sub-pages, and individual settings such as "minimum pay", "Claude usage", "Gmail", or "run times". Picking a setting opens its page and highlights it.
+
 ## 3.8 (2026-10-21)
 - **A sidebar instead of the top menu.** Every page and its sub-pages are in one compact list: job filters (Ready to submit, In progress, …), email filters (Assessments, Interviews, Not matched, …), your profile files, and each Settings section. The group you're in opens on its own, and the arrows fold the others.
 - Collapse it to an icon rail with the menu button or **Collapse**; it remembers your choice. In a narrow window it slides in as a drawer (Esc or a tap outside closes it).

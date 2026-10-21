@@ -97,6 +97,57 @@ def local(iso: str | None) -> str:
     return dt.astimezone().strftime("%b %d, %I:%M %p") if dt else "—"
 
 
+def nav_index(operator: bool = False) -> list[dict]:
+    """Everything the sidebar search can find: pages, sub-pages, settings pages, and individual settings.
+    t = title, p = where it lives, u = link, k = extra words people might type."""
+    S = lambda sec, anchor="": url_for("settings_page", section=sec) + (f"#{anchor}" if anchor else "")
+    items = [
+        ("Dashboard", "Overview", url_for("dashboard"), "home overview kpi numbers greeting maps chart"),
+        ("Needs you", "Overview", url_for("inbox"), "to-do todo inbox decisions referral missing facts submit review"),
+        ("Background", "Overview", url_for("background"), "progress queue runs activity log working screening"),
+        ("All jobs", "Jobs", url_for("jobs"), "jobs postings roles search list"),
+        ("Ready to submit", "Jobs", url_for("jobs", status="ready"), "ready apply documents resume cover letter"),
+        ("In progress", "Jobs", url_for("jobs", status="queued"), "queued screening tailoring waiting"),
+        ("Below threshold", "Jobs", url_for("jobs", status="below_threshold"), "low match score held"),
+        ("Don't apply", "Jobs", url_for("jobs", status="rejected"), "rejected skipped not a fit"),
+        ("Filtered out", "Jobs", url_for("jobs", status="filtered_out"), "rules prefilter dropped"),
+        ("Applied", "Jobs", url_for("jobs", status="applied_all"), "submitted applications copy links date today yesterday week"),
+        ("Assessments", "Jobs", url_for("assessments_page"), "online assessment oa test hackerrank codesignal due deadline reminder"),
+        ("Email", "Inbox & network", url_for("email_page"), "inbox replies messages"),
+        ("Email: assessments", "Email", url_for("email_page", event="assessment"), "oa test"),
+        ("Email: interviews", "Email", url_for("email_page", event="interview"), "recruiter call schedule"),
+        ("Email: offers", "Email", url_for("email_page", event="offer"), "offer letter"),
+        ("Email: rejections", "Email", url_for("email_page", event="rejection"), "rejected declined not moving forward"),
+        ("Email: not matched", "Email", url_for("email_page", state="unmatched"), "unmatched match to a job"),
+        ("Outreach", "Inbox & network", url_for("outreach"), "linkedin notes messages connect"),
+        ("People", "Inbox & network", url_for("people"), "contacts referrals networking spreadsheet xlsx"),
+        ("Profile: master prompt", "Setup", url_for("profile_page"), "profile resume rules background experience prompt"),
+        ("Profile: confirmed facts", "Setup", url_for("profile_page", f="answers"), "answers facts"),
+        ("Profile: form presets", "Setup", url_for("profile_page", f="applicant"), "autofill phone address linkedin eeo applicant email"),
+        ("Sources", "Setup", url_for("sources_page"), "feeds boards greenhouse lever ashby workday uscis h-1b import csv"),
+        ("Run times", "Settings › Schedule", S("schedule", "schedule"), "schedule daily time when runs start 8 am"),
+        ("Lid closed / asleep", "Settings › Schedule", S("schedule", "wake"), "wake sleep pmset overnight laptop"),
+        ("Job feeds", "Settings › Pipeline and limits", S("pipeline", "set-feeds"), "jobright simplify hacker news who is hiring"),
+        ("H-1B filter", "Settings › Pipeline and limits", S("pipeline", "set-h1b"), "sponsor sponsorship visa h1b"),
+        ("Restart dashboard", "Settings › Pipeline and limits", S("pipeline"), "restart reload"),
+        ("Gmail", "Settings › Email inboxes", S("email"), "app password google imap connect inbox"),
+        ("Outlook / Microsoft 365", "Settings › Email inboxes", S("email"), "microsoft azure office exchange university"),
+        ("Apple Mail", "Settings › Email inboxes", S("email"), "mac mail app"),
+        ("Online dashboard account", "Settings › Online dashboard", S("online"), "phone mobile sign up password create account connect computer site link"),
+        ("Your city", "Settings › Online dashboard", S("online"), "location city operator"),
+        ("Wake for phone requests", "Settings › Online dashboard", S("online"), "every 30 minutes remote wake"),
+        ("App updates", "Settings › App updates", S("updates"), "version update check new release changelog"),
+        ("Guided tour", "Settings › Getting started", S("start", "tour"), "tour walkthrough intro help onboarding"),
+        ("Your name", "Settings › Getting started", S("start", "profile"), "name greeting"),
+    ]
+    items += [(t, "Settings", url_for("settings_page", section=k), h) for k, t, h in SETTINGS_SECTIONS]
+    items += [(label, "Settings › Pipeline and limits", S("pipeline", f"set-{key}"), f"{key.lower().replace('_', ' ')} {help_}")
+              for key, label, _, help_, _ in TUNABLES]
+    if operator:
+        items.append(("Users", "Site", url_for("users_page"), "operator users active people location"))
+    return [{"t": t, "p": p, "u": u, "k": k.lower()} for t, p, u, k in items]
+
+
 @app.context_processor
 def inject():
     open_n = db.fetchone("SELECT count(*) AS n FROM interventions WHERE status='open'")["n"]
@@ -112,7 +163,7 @@ def inject():
     from .version import VERSION
     op = cloud.STATUS.get("operator") if request.endpoint == "dashboard" else None
     upd = updater.STATE if updater.update_available() else None
-    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "operator_nav": bool(cloud.STATUS.get("operator")), "app_update": upd, "app_version": VERSION, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
+    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "operator_nav": bool(cloud.STATUS.get("operator")), "settings_nav": SETTINGS_SECTIONS, "nav_index": nav_index(bool(cloud.STATUS.get("operator"))), "app_update": upd, "app_version": VERSION, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
 
 
 def _followups() -> None:
@@ -560,8 +611,8 @@ def email_page():
 def email_check():
     from . import mailsync
     if not mailsync.accounts():
-        flash("Connect an email account first (Settings → Email).")
-        return redirect(url_for("settings_page") + "#email")
+        flash("Connect an email account first (Settings → Email inboxes).")
+        return redirect(url_for("settings_page", section="email"))
     worker.resume()
     worker.submit("mail")
     flash("Checking your inboxes in the background. Updates appear here and on each job.")
@@ -600,23 +651,23 @@ def email_gmail_save():
             mailsync.delete_secret(f"gmail:{g['address']}")
         mailsync.save_accounts(acc)
         flash("Gmail disconnected and its app password removed from the keychain.")
-        return redirect(url_for("settings_page") + "#email")
+        return redirect(url_for("settings_page", section="email"))
     address = request.form.get("address", "").strip()
     pw = request.form.get("app_password", "").replace(" ", "")
     if not address or len(pw) < 16:
         flash("Enter your Gmail address and the 16-character app password.")
-        return redirect(url_for("settings_page") + "#email")
+        return redirect(url_for("settings_page", section="email"))
     try:
         mailsync.gmail_test(address, pw)
     except Exception as e:
         flash(f"Gmail sign-in failed: {e}. Check the address, that 2-Step Verification is on, and the app password.")
-        return redirect(url_for("settings_page") + "#email")
+        return redirect(url_for("settings_page", section="email"))
     mailsync.set_secret(f"gmail:{address}", pw)
     acc = mailsync.accounts()
     acc["gmail"] = {"address": address, "connected_at": db.now()}
     mailsync.save_accounts(acc)
     flash(f"Gmail connected ({address}), read-only. Click 'Check email now' on the Email page, or wait for the next check.")
-    return redirect(url_for("settings_page") + "#email")
+    return redirect(url_for("settings_page", section="email"))
 
 
 @app.post("/settings/email/microsoft")
@@ -631,18 +682,18 @@ def email_ms_start():
         except OSError:
             pass
         flash("Microsoft account disconnected and its sign-in removed.")
-        return redirect(url_for("settings_page") + "#email")
+        return redirect(url_for("settings_page", section="email"))
     client_id = request.form.get("client_id", "").strip()
     address = request.form.get("address", "").strip()
     if not re.fullmatch(r"[0-9a-fA-F-]{36}", client_id):
         flash("Paste the Application (client) ID from your Azure app registration (36 characters).")
-        return redirect(url_for("settings_page") + "#email")
+        return redirect(url_for("settings_page", section="email"))
     tenant = address.split("@")[-1].lower() if "@" in address else "organizations"   # your organization's directory
     try:
         mailsync.ms_start_signin(client_id, tenant)
     except Exception as e:
         flash(f"Could not start Microsoft sign-in: {e}")
-    return redirect(url_for("settings_page", ms=client_id) + "#email")
+    return redirect(url_for("settings_page", section="email", ms=client_id))
 
 
 @app.route("/settings/email/applemail/accounts")
@@ -670,7 +721,7 @@ def email_applemail_save():
             acc["applemail"] = {"name": name, "address": address or name, "connected_at": db.now()}
             mailsync.save_accounts(acc)
             flash(f"Apple Mail connected ({address or name}), read-only. Click 'Check email now' on the Email page.")
-    return redirect(url_for("settings_page") + "#email")
+    return redirect(url_for("settings_page", section="email"))
 
 
 @app.route("/settings/email/microsoft/status")
@@ -1053,7 +1104,7 @@ TUNABLES = [
     ("EFFORT_SCREEN", "Screening effort", "choice", "Fit verdicts are short; low is usually enough.", ("low", "medium", "high")),
     ("AUTO_TAILOR_RISK", "Build documents for 'apply with risk' roles", "bool", "Off = those roles wait for your OK on Needs you.", None),
     ("SPONSOR_WEB_CHECKS", "Online sponsor lookups per run", "int", "For companies missing from your USCIS data, Claude searches public H-1B disclosure data (DOL LCAs, USCIS approvals) once per company and caches the answer for 90 days. Each lookup is one small Claude call with web search. 0 turns it off.", (0, 200)),
-    ("MAIL_CHECK_MINUTES", "Check email every (minutes)", "int", "How often connected inboxes are read for application updates (Settings → Email). 0 = only when you click 'Check email now'.", (0, 1440)),
+    ("MAIL_CHECK_MINUTES", "Check email every (minutes)", "int", "How often connected inboxes are read for application updates (Settings → Email inboxes). 0 = only when you click 'Check email now'.", (0, 1440)),
     ("MAIL_LOOKBACK_DAYS", "Email look-back on first check (days)", "int", "How far back the first check of a newly connected inbox reads.", (1, 90)),
     ("SCREEN_UNKNOWN_SPONSOR", "Screen jobs when sponsorship is unknown", "bool", "On = jobs from companies with no H-1B signal yet still go to Claude (its visa gate judges the posting); uses more screens. Off = they wait under Filtered out. Importing the USCIS H-1B data on Sources covers most companies either way.", None),
 ]
@@ -1062,12 +1113,30 @@ DEFAULTS = {"USAGE_PAUSE_AT": 95, "MIN_MATCH_FOR_DOCS": 7, "MIN_SALARY": 100000,
             "MAIL_CHECK_MINUTES": 60, "MAIL_LOOKBACK_DAYS": 14}
 
 
+SETTINGS_SECTIONS = [   # (key, title, one-line description): each is its own page under /settings/<key>
+    ("schedule", "Schedule", "When runs start, and waking the computer for them with the lid closed."),
+    ("pipeline", "Pipeline and limits", "Match threshold, pay floor, batch sizes, Claude usage limit, job feeds, and the H-1B filter."),
+    ("email", "Email inboxes", "Read application replies from Gmail, Outlook / Microsoft 365, or Apple Mail (read-only)."),
+    ("online", "Online dashboard", "Check progress from your phone and start runs from anywhere."),
+    ("updates", "App updates", "Your version, and one-click updates from GitHub."),
+    ("start", "Getting started", "The guided tour, your name, and your profile files."),
+]
+
+
 @app.route("/settings", methods=["GET", "POST"])
-def settings_page():
+def settings_root():
+    """/settings opens the first section (307 keeps a POST from older pages a POST)."""
+    return redirect(url_for("settings_page", section="schedule", **request.args), code=307)
+
+
+@app.route("/settings/<section>", methods=["GET", "POST"])
+def settings_page(section="schedule"):
+    if section not in {k for k, _, _ in SETTINGS_SECTIONS}:
+        abort(404)
     from . import schedule
     from .config import CONFIG_DIR, feeds_config, save_settings
     if request.method == "POST":
-        section = request.form.get("section")
+        section = request.form.get("section") or section
         try:
             if section == "schedule":
                 times = schedule.save_times([t for t in request.form.getlist("time") if t.strip()])
@@ -1102,12 +1171,14 @@ def settings_page():
                 flash("Saved. The next run uses these settings.")
         except ValueError as e:
             flash(f"Not saved: {e}")
-        return redirect(url_for("settings_page"))
+        return redirect(url_for("settings_page", section=section if section in ("schedule", "pipeline") else "schedule"))
     current = {k: env(k, str(DEFAULTS[k])) for k, *_ in TUNABLES}
     from . import mailsync
     ms_id = request.args.get("ms", "")
     from . import cloud, greeting
-    return render_template("settings.html", user_name=greeting.user_name(), cloud_cfg=cloud.config(), cloud_state=cloud.state(),
+    title, help_text = next((t, h) for k, t, h in SETTINGS_SECTIONS if k == section)
+    return render_template("settings.html", section=section, section_title=title, section_help=help_text,
+                           settings_sections=SETTINGS_SECTIONS, user_name=greeting.user_name(), cloud_cfg=cloud.config(), cloud_state=cloud.state(),
                            cloud_status=cloud.STATUS, cloud_connected=cloud.connected(), upd_state=__import__('app.updater', fromlist=['STATE']).STATE, cloud_default_name=cloud.default_machine_name(), cloud_pending=cloud.pending_signup(), cloud_email=_profile_email(), cloud_city=cloud.city() if cloud.connected() else cloud.default_city(),
                            remote_wake=schedule.remote_wake(), mail_accounts=mailsync.accounts(), ms_client=ms_id, is_mac=sys.platform == "darwin",
                            ms_state=mailsync.ms_signin_state(ms_id) if ms_id else None, sched=schedule.status(), tunables=TUNABLES, current=current,
@@ -1143,7 +1214,7 @@ def cloud_connect():
     if request.form.get("disconnect"):
         cloud.disconnect()
         flash("This computer is disconnected from the online dashboard, and its data there was removed.")
-        return redirect(url_for("settings_page") + "#cloud")
+        return redirect(url_for("settings_page", section="online"))
     email, password = request.form.get("email", "").strip(), request.form.get("password", "")
     name = (request.form.get("machine_name") or cloud.default_machine_name()).strip()
     try:
@@ -1152,7 +1223,7 @@ def cloud_connect():
         flash(f"Connected as {email}. Progress shows up on the online dashboard within a minute.")
     except Exception as e:
         flash(f"Couldn't connect: {e}")
-    return redirect(url_for("settings_page") + "#cloud")
+    return redirect(url_for("settings_page", section="online"))
 
 
 @app.post("/settings/cloud/signup")
@@ -1162,17 +1233,17 @@ def cloud_signup():
     f = request.form
     if not f.get("privacy"):
         flash("Please read and accept the privacy note first.")
-        return redirect(url_for("settings_page") + "#cloud")
+        return redirect(url_for("settings_page", section="online"))
     if f.get("password", "") != f.get("password2", ""):
         flash("The passwords don't match.")
-        return redirect(url_for("settings_page") + "#cloud")
+        return redirect(url_for("settings_page", section="online"))
     try:
         p = cloud.signup(f.get("name", ""), f.get("email", ""), f.get("password", ""),
                          (f.get("machine_name") or cloud.default_machine_name()).strip(), f.get("city", ""), bool(f.get("optin")))
         flash(f"We emailed a 6-digit code to {p['email']}. Enter it below to finish.")
     except Exception as e:
         flash(f"Couldn't create the account: {e}")
-    return redirect(url_for("settings_page") + "#cloud")
+    return redirect(url_for("settings_page", section="online"))
 
 
 @app.post("/settings/cloud/verify")
@@ -1186,7 +1257,7 @@ def cloud_verify():
               f"{cfg.get('site_url') or 'the online dashboard'} on your phone.")
     except Exception as e:
         flash(str(e))
-    return redirect(url_for("settings_page") + "#cloud")
+    return redirect(url_for("settings_page", section="online"))
 
 
 @app.post("/settings/cloud/resend")
@@ -1197,14 +1268,14 @@ def cloud_resend():
         flash("Sent a new code. Check your inbox (and spam).")
     except Exception as e:
         flash(str(e))
-    return redirect(url_for("settings_page") + "#cloud")
+    return redirect(url_for("settings_page", section="online"))
 
 
 @app.post("/settings/cloud/cancel")
 def cloud_cancel():
     from . import cloud
     cloud.cancel_signup()
-    return redirect(url_for("settings_page") + "#cloud")
+    return redirect(url_for("settings_page", section="online"))
 
 
 @app.post("/cloud/prompt/dismiss")
@@ -1221,7 +1292,7 @@ def cloud_wake():
     schedule.set_remote_wake(int(minutes))
     flash("Saved. " + ("Your Mac will check for phone requests every " + minutes + " minutes while plugged in."
                        if minutes not in ("", "0") else "Phone requests run when your Mac is awake."))
-    return redirect(url_for("settings_page") + "#cloud")
+    return redirect(url_for("settings_page", section="online"))
 
 
 @app.post("/settings/cloud/city")
@@ -1229,7 +1300,7 @@ def cloud_city():
     from . import cloud
     saved = cloud.set_city(request.form.get("city", ""))
     flash(f"Saved. The site operator sees your city as {saved}." if saved else "Saved. Your city is private now.")
-    return redirect(url_for("settings_page") + "#cloud")
+    return redirect(url_for("settings_page", section="online"))
 
 
 @app.get("/users")
@@ -1306,6 +1377,18 @@ def tour_steps(name: str | None) -> list[dict]:
     ]
 
 
+@app.route("/assessments")
+def assessments_page():
+    from . import assessments
+    assess = assessments.pending()
+    for a in assess:
+        a["label"] = assessments.due_label(a)
+    done = db.fetchall("SELECT e.id, coalesce(j.company, e.company) AS company, coalesce(j.title, e.role) AS role, e.due_at, "
+                       "e.done_at, e.done_how FROM email_events e LEFT JOIN jobs j ON j.id = e.job_id "
+                       "WHERE e.event='assessment' AND e.done_at IS NOT NULL ORDER BY e.done_at DESC LIMIT 50")
+    return render_template("assessments.html", assess=assess, done=done)
+
+
 @app.post("/assessments/<int:event_id>/<how>")
 def assessment_mark(event_id, how):
     from . import assessments
@@ -1346,7 +1429,7 @@ def update_check():
         flash(f"An update is available ({'v' + st['remote_version'] if st.get('remote_version') else str(st['behind']) + ' new change(s)'}).")
     else:
         flash("You're on the latest version.")
-    return redirect(request.referrer or url_for("settings_page"))
+    return redirect(request.referrer or url_for("settings_page", section="updates"))
 
 
 @app.post("/update")
@@ -1371,7 +1454,7 @@ def restart_dashboard():
         flash("Restarting the dashboard… refresh in a few seconds. Queued work resumes automatically.")
     else:
         flash("Restart the dashboard from your service manager (see CLAUDE_SETUP.md), or stop and start `python -m app.cli serve`.")
-    return redirect(url_for("settings_page"))
+    return redirect(url_for("settings_page", section="pipeline"))
 
 
 # ----------------------------------------------------------------------------- profile editor

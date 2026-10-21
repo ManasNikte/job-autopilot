@@ -331,7 +331,7 @@ Do this right after the dashboard is running, if `config/cloud.json` exists in t
 site). The account is created **from their own local dashboard**, which also connects this computer, so
 afterwards they only ever sign in on the site.
 
-1. Open http://127.0.0.1:5055/settings#cloud for them (or tell them to click **Set it up** in the banner on the
+1. Open http://127.0.0.1:5055/settings/online for them (or tell them to click **Set it up** in the banner on the
    dashboard). The **Online dashboard** card shows a short form, already filled in from their profile: name,
    email, city, and the computer's name. Ask them to check those.
 2. They choose a password and type it in themselves (10+ characters, with lowercase, uppercase, and a number).
@@ -365,7 +365,7 @@ Tell the user:
   https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub in their browser, then upload them on
   the dashboard's **Sources** page. Several files can go up at once. The site blocks scripted downloads, so
   don't try to fetch it yourself.
-- **Track application replies by email:** on the dashboard's **Settings → Email**, the user connects Gmail with an
+- **Track application replies by email:** on the dashboard's **Settings → Email inboxes** (http://127.0.0.1:5055/settings/email), the user connects Gmail with an
   app password they create themselves at https://myaccount.google.com/apppasswords, and/or Outlook / Microsoft 365.
   Outlook works through their own Azure app registration (5 steps listed in the card), or on macOS through
   Apple's Mail app when their organization blocks app registration. Never type passwords for them. Install the

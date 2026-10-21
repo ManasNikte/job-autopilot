@@ -32,6 +32,15 @@
     <button type="button" class="sb-close" id="sb-close" aria-label="Close menu">{{ icon('close') }}</button>
   </div>
 
+  <div class="sb-search" role="search">
+    <button type="button" class="sb-search-btn" id="sb-search-btn" aria-label="Search pages and settings" title="Search pages and settings (⌘K)">{{ icon('search') }}</button>
+    <input type="search" id="sb-q" class="sb-label" placeholder="Search the app" aria-label="Find a page or setting"
+           autocomplete="off" aria-controls="sb-results" aria-expanded="false">
+    <kbd class="sb-label sb-kbd" aria-hidden="true">⌘K</kbd>
+  </div>
+  <div class="sb-results" id="sb-results" role="listbox" aria-label="Search results" hidden></div>
+  <script type="application/json" id="nav-index">{{ nav_index|tojson }}</script>
+
   <nav class="sb-nav" id="primary-nav">
     <div class="sb-section">Overview</div>
     {{ item(url_for('dashboard'), 'Dashboard', 'home', ep == 'dashboard') }}
@@ -48,7 +57,7 @@
       {{ sub(url_for('jobs', status='filtered_out'), 'Filtered out', ep == 'jobs' and st == 'filtered_out') }}
     {% endcall %}
     {{ item(url_for('jobs', status='applied_all'), 'Applied', 'send', ep == 'jobs' and st == 'applied_all', None, 'applied') }}
-    {{ item(url_for('dashboard') ~ '#assessments', 'Assessments', 'clipboard') }}
+    {{ item(url_for('assessments_page'), 'Assessments', 'clipboard', ep == 'assessments_page') }}
 
     <div class="sb-section">Inbox &amp; network</div>
     {% call group('email', url_for('email_page'), 'Email', 'mail', ep == 'email_page' and not ev and not request.args.get('state'), ep == 'email_page', unmatched_mail or None, 'email') %}
@@ -68,13 +77,9 @@
       {{ sub(url_for('profile_page', f='applicant'), 'Form presets', ep == 'profile_page' and pf == 'applicant') }}
     {% endcall %}
     {{ item(url_for('sources_page'), 'Sources', 'rss', ep == 'sources_page') }}
-    {% call group('settings', url_for('settings_page'), 'Settings', 'settings', ep == 'settings_page', ep == 'settings_page', None, 'settings') %}
-      {{ sub(url_for('settings_page') ~ '#schedule', 'Schedule') }}
-      {{ sub(url_for('settings_page') ~ '#pipeline', 'Pipeline and limits') }}
-      {{ sub(url_for('settings_page') ~ '#email', 'Email inboxes') }}
-      {{ sub(url_for('settings_page') ~ '#cloud', 'Online dashboard') }}
-      {{ sub(url_for('settings_page') ~ '#updates', 'App updates') }}
-      {{ sub(url_for('settings_page') ~ '#tour', 'Getting started') }}
+    {% set sec = request.view_args.get('section', 'schedule') if ep == 'settings_page' and request.view_args else 'schedule' %}
+    {% call group('settings', url_for('settings_root'), 'Settings', 'settings', False, ep == 'settings_page', None, 'settings') %}
+      {% for key, label, _ in settings_nav %}{{ sub(url_for('settings_page', section=key), label, ep == 'settings_page' and sec == key) }}{% endfor %}
     {% endcall %}
     {% if operator_nav %}
     <div class="sb-section">Site</div>

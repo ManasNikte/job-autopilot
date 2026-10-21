@@ -34,7 +34,7 @@
     {% else %}
       <p class="sub">No schedule installed. Run <code>~/job-autopilot/scripts/install_schedule.sh</code>.</p>
     {% endif %}
-    <p style="margin:8px 0 0"><a class="btn small" href="{{ url_for('settings_page') }}">Change run times</a></p>
+    <p style="margin:8px 0 0"><a class="btn small" href="{{ url_for('settings_page', section='schedule') }}">Change run times</a></p>
     {% if sched_log %}<details style="margin-top:8px"><summary>Scheduled run log</summary><pre class="log">{{ sched_log }}</pre></details>{% endif %}
   </div>
 </div>

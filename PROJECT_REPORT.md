@@ -179,7 +179,7 @@ applied to within hours of going live, while applicant counts are still low.
 | `app/pipeline.py` | Fetch → prefilter → sponsor check → screen → tailor → render → check → revise → queue human steps |
 | `app/render/` | reportlab resume and cover-letter builders with justified text, live links, and per-line fill measurement |
 | `app/worker.py` | A thread pool with an atomic job claim, de-duplication, and a pause/resume across usage limits |
-| `app/web.py` + templates | Dashboard (KPIs, maps, charts), Jobs, Needs you, People, Background, Settings, and a profile/prompt editor with version history, all reached from one sidebar that lists every page and sub-page (collapses to an icon rail; a drawer in narrow windows) |
+| `app/web.py` + templates | Dashboard (KPIs, maps, charts), Jobs, Needs you, People, Background, Settings, and a profile/prompt editor with version history, all reached from one sidebar that lists every page and sub-page, with a search box that finds pages and individual settings (collapses to an icon rail; a drawer in narrow windows). Settings is six separate pages. |
 | `extension/` | Chrome MV3 side panel: matches the open page to a job, uploads the tailored PDFs, answers questions from the profile, learns from edits, never submits |
 | `app/mailsync.py` | Read-only inbox readers (Gmail IMAP, Microsoft Graph, Apple Mail), the application-email filter, Claude classification, job matching, and undo |
 | `app/assessments.py` | Due times parsed from assessment emails (time and zone), one pending list (matched or not), Needs you items, and daily and 3-hours-before reminders |

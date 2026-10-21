@@ -164,7 +164,7 @@ def test_footer_shows_user_counts_only_for_the_operator(tmp_path, monkeypatch):
     monkeypatch.setitem(cloud.STATUS, "operator", {"users": 12, "active": 5})
     html = c.get("/").get_data(as_text=True)
     assert "12 users" in html and "5 active" in html
-    assert "op-stats" not in c.get("/settings").get_data(as_text=True)    # dashboard footer only
+    assert "op-stats" not in c.get("/settings/schedule").get_data(as_text=True)    # dashboard footer only
 
 
 def test_operator_gets_one_email_per_batch_of_new_people(fake, monkeypatch):
@@ -307,7 +307,7 @@ def test_settings_signup_form_and_dashboard_prompt(fake, tmp_path, monkeypatch):
     db.kv_set("tour", "done")
     c = app.test_client()
     assert "Follow your job search from your phone" in c.get("/").get_data(as_text=True)
-    page = c.get("/settings").get_data(as_text=True)
+    page = c.get("/settings/online").get_data(as_text=True)
     assert "Create my account" in page and "I already have an account" in page
     r = c.post("/settings/cloud/signup", data={"name": "Ava", "email": "a@example.com", "password": "Correct-horse-1",
                                                "password2": "different-1A", "privacy": "1"})

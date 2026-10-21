@@ -158,7 +158,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 ![Email updates](docs/screenshots/email.png)
 
-| Connect Gmail, Outlook, or Apple Mail (Settings → Email) | Assessments and interviews land in Needs you |
+| Connect Gmail, Outlook, or Apple Mail (Settings → Email inboxes) | Assessments and interviews land in Needs you |
 |---|---|
 | ![Email settings](docs/screenshots/email-settings.png) | ![Needs you](docs/screenshots/needs-you.png) |
 
@@ -167,6 +167,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.9** | Settings split into separate pages; an Assessments page; sidebar search for pages and individual settings (⌘K) |
 | **v3.8** | Sidebar navigation with every page and sub-page; collapses to an icon rail (remembered), a drawer in narrow windows |
 | **v3.7** | Screening batches chain automatically; background work pauses at 95% of your Claude plan limit (read from Claude Code's `/usage`) and resumes after the reset |
 | **v3.6** | Online-dashboard account created and connected from the local app during setup; site linked from the repo page |
@@ -238,8 +239,10 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 - **Self-healing documents.** Bullets that are a hair too long stay on one line with slightly tighter letter
   spacing, and pages use the smaller sizes the prompt allows before overflowing. **Fix it** re-fits flagged
   documents without a Claude call, and asks for a small trim only if that isn't enough.
-- **Sidebar navigation (v3.8).** One compact list of every page and sub-page (job filters, email filters, profile
-  files, Settings sections). It collapses to an icon rail and becomes a drawer in narrow windows.
+- **Sidebar navigation (v3.8–v3.9).** One compact list of every page and sub-page: job filters, email filters,
+  profile files, and each Settings page (Schedule, Pipeline and limits, Email inboxes, Online dashboard, App updates,
+  Getting started). It collapses to an icon rail and becomes a drawer in narrow windows. **Search the app** from
+  its search box (⌘K): it finds pages and individual settings and opens the right one with the setting highlighted.
 - **Dashboard.** A personal greeting written from the time of day and your real progress, eight KPI tiles in a 4 × 2 grid (including **applied today**, **applied this week** (Sunday to Saturday), and **assessments to finish**), **maps of where you're applying**, a 14-day
   applications chart, a pipeline funnel, live per-job progress bars with an honest "not started / running /
   paused" status, server-side pagination and search everywhere, and dark, light, and system themes.
@@ -304,7 +307,7 @@ for this role.
 |---|---|
 | ![Resume sample](docs/screenshots/resume-sample.png) | ![People](docs/screenshots/people.png) |
 
-| Background runs and schedule | Settings (schedule, lid-closed wake, pay floor, sponsor lookups) |
+| Background runs and schedule | Settings → Pipeline and limits (one of six settings pages) |
 |---|---|
 | ![Background](docs/screenshots/background.png) | ![Settings](docs/screenshots/settings.png) |
 
@@ -315,6 +318,10 @@ for this role.
 | Profile and master-prompt editor | Light theme |
 |---|---|
 | ![Profile](docs/screenshots/profile.png) | ![Light theme](docs/screenshots/dashboard-light.png) |
+
+| Sidebar search (⌘K): pages and individual settings | Assessments page |
+|---|---|
+| ![Sidebar search](docs/screenshots/sidebar-search.png) | ![Assessments page](docs/screenshots/assessments-page.png) |
 
 | Sidebar collapsed to an icon rail | Sidebar as a drawer in a narrow window |
 |---|---|
@@ -428,14 +435,14 @@ dashboard's built-in clock at the times on the Settings page.
 
 | Where | What |
 |---|---|
-| **Settings** page / `config/settings.json` | Run times, match threshold for building documents, minimum pay, online sponsor lookups per run, screening unknown-sponsor jobs, per-run caps, parallelism, effort levels, posting age |
+| **Settings** pages (Schedule, Pipeline and limits) / `config/settings.json` | Run times, match threshold for building documents, minimum pay, online sponsor lookups per run, screening unknown-sponsor jobs, per-run caps, parallelism, effort levels, posting age |
 | `config/companies.json` | Your curated company boards (`greenhouse`, `lever`, or `ashby` plus slug) |
 | `config/search.json` | Role families, title exclusions, visa-blocker phrases, location rules |
 | `config/feeds.json` | Aggregator feeds, the board directory's source lists, and the "require an H-1B signal" switch |
 | `.env` | Claude backend, models, port (Settings overrides `.env`) |
-| **Settings → Email** | Connect Gmail, Outlook / Microsoft 365, or Apple Mail; check interval (`MAIL_CHECK_MINUTES`, default 60) and first-check look-back (`MAIL_LOOKBACK_DAYS`, default 14) |
+| **Settings → Email inboxes** | Connect Gmail, Outlook / Microsoft 365, or Apple Mail; check interval (`MAIL_CHECK_MINUTES`, default 60) and first-check look-back (`MAIL_LOOKBACK_DAYS`, default 14) |
 
-**Connect your email (optional, v2.0).** On **Settings → Email**:
+**Connect your email (optional, v2.0).** On **Settings → Email inboxes**:
 - **Gmail:** turn on 2-Step Verification, create an app password at
   [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), and paste it in.
 - **Outlook / Microsoft 365:** register a free app in Azure (the card lists the 5 steps), then sign in with the
