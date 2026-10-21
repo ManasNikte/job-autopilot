@@ -65,6 +65,8 @@ def _queries(job: dict) -> list[str]:
     ps = places(job.get("location") or "")
     if ps and job.get("company") and all((c := cached(p)) and not c["ok"] for p in ps):
         return [job["company"]]
+    if not ps and job.get("company_fallback") and job.get("company"):   # e.g. an assessment email with no job behind it
+        return [job["company"]]
     return ps
 
 
@@ -97,16 +99,18 @@ def pins(jobs: list[dict]) -> tuple[list[dict], list[dict]]:
         for p in qs:
             c = cached(p)
             if c and c["ok"]:
-                rejected = j["status"] == "closed"          # rejected applications get their own (red) pin
-                key = (round(c["lat"], 3), round(c["lng"], 3), rejected)
+                kind = j["status"] if j["status"] in ("closed", "assessment") else ""   # rejected (red) and
+                key = (round(c["lat"], 3), round(c["lng"], 3), kind)                    # assessment (amber) get their own pin
                 label = p if p != j.get("company") or p in places(j.get("location") or "") else f"{p} (company location)"
                 pin = by_place.setdefault(key, {"lat": c["lat"], "lng": c["lng"], "place": label, "jobs": []})
-                pin["jobs"].append({"id": j["id"], "company": j["company"], "title": j["title"], "status": j["status"]})
+                pin["jobs"].append({"id": j["id"], "company": j["company"], "title": j["title"], "status": j["status"],
+                                    **({"note": j["note"]} if j.get("note") else {})})
                 hit = True
         if not hit:
             unmapped.append({"id": j["id"], "company": j["company"], "title": j["title"], "status": j["status"],
-                             "location": j.get("location") or "", "pending": any(cached(q) is None for q in qs)})
-    for (lat, lng, rejected), pin in by_place.items():   # nudge a red pin aside only if it shares a city with others
-        if rejected and (lat, lng, False) in by_place:
-            pin["lng"] += 0.12
+                             "location": j.get("location") or "", "pending": any(cached(q) is None for q in qs),
+                             **({"note": j["note"]} if j.get("note") else {})})
+    for (lat, lng, kind), pin in by_place.items():   # nudge a red or amber pin aside only if it shares a city
+        if kind and any(k[:2] == (lat, lng) and k[2] != kind for k in by_place):
+            pin["lng"] += 0.12 if kind == "closed" else -0.12
     return list(by_place.values()), unmapped

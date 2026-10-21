@@ -69,6 +69,7 @@
       <span class="sub">Show:</span>
       <button type="button" class="chip" data-show="applied" aria-pressed="true"><i class="dot-key" style="background:var(--good)"></i>Applied</button>
       <button type="button" class="chip" data-show="interviewing" aria-pressed="true"><i class="dot-key" style="background:var(--accent)"></i>Interviewing / offer</button>
+      <button type="button" class="chip" data-show="assessment" aria-pressed="true"><i class="dot-key" style="background:var(--warning)"></i>Assessments</button>
       <button type="button" class="chip" data-show="rejected" aria-pressed="false"><i class="dot-key" style="background:var(--critical)"></i>Rejected</button>
       <button type="button" class="chip-link" id="map-only-reset" hidden>Show all</button>
       <span id="map-applied-note" class="sub" style="margin-left:auto"></span>
@@ -86,7 +87,10 @@
     return t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches); };
   const tile = kind => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${dark() ? "Dark" : "Light"}_Gray_${kind}/MapServer/tile/{z}/{y}/{x}`;
   const jobUrl = id => "{{ url_for('job_detail', job_id='__ID__') }}".replace("__ID__", encodeURIComponent(id)).replace(/%3A/g, ":");
-  const color = s => s === "ready" ? css("--accent") : s === "closed" ? css("--critical") : (s === "interviewing" || s === "offer") ? css("--accent") : css("--good");
+  const color = s => s === "ready" ? css("--accent") : s === "closed" ? css("--critical") : s === "assessment" ? css("--warning")
+                   : (s === "interviewing" || s === "offer") ? css("--accent") : css("--good");
+  const linkFor = id => String(id).startsWith("email:") ? "{{ url_for('dashboard') }}#assessments" : jobUrl(id);   // assessment with no job
+  const tagFor = j => j.status === "assessment" ? `assessment ${j.note || ""}`.trim() : j.status === "closed" ? "rejected" : "";
 
   function makeMap(id) {
     const m = L.map(id, { scrollWheelZoom: false, worldCopyJump: true, attributionControl: true }).setView([39.5, -98.35], 4);
@@ -108,8 +112,8 @@
     box.appendChild(h);
     const ul = document.createElement("ul"); ul.className = "map-pop";
     pin.jobs.slice(0, 8).forEach(j => { const li = document.createElement("li"); const a = document.createElement("a");
-      a.href = jobUrl(j.id); a.textContent = `${j.company} · ${j.title}`; li.appendChild(a);
-      if (j.status === "closed") li.append(" (rejected)"); ul.appendChild(li); });
+      a.href = linkFor(j.id); a.textContent = `${j.company} · ${j.title}`; li.appendChild(a);
+      if (tagFor(j)) li.append(` (${tagFor(j)})`); ul.appendChild(li); });
     box.appendChild(ul);
     if (pin.jobs.length > 8) box.append(`and ${pin.jobs.length - 8} more`);
     return box;
@@ -124,6 +128,7 @@
     const pts = [];
     for (const pin of d.pins) {
       const worst = pin.jobs.every(j => j.status === "closed") ? "closed"
+                  : pin.jobs.some(j => j.status === "assessment") ? "assessment"
                   : pin.jobs.some(j => ["interviewing", "offer"].includes(j.status)) ? "interviewing" : pin.jobs[0].status;
       const c = color(worst);
       L.circleMarker([pin.lat, pin.lng], { radius: Math.min(6 + 2.5 * Math.sqrt(pin.jobs.length - 1) * 2, 18), color: css("--surface"),
@@ -141,8 +146,8 @@
     box.querySelector("summary").textContent = `${list.length} not on the map (remote, country-wide, or no recognizable city)`;
     const ul = box.querySelector("ul"); ul.replaceChildren();
     list.forEach(j => { const li = document.createElement("li"); const a = document.createElement("a");
-      a.href = jobUrl(j.id); a.textContent = `${j.company} · ${j.title}`; li.appendChild(a);
-      const tag = j.status === "closed" ? "rejected" : j.status === "interviewing" || j.status === "offer" ? j.status : "";
+      a.href = linkFor(j.id); a.textContent = `${j.company} · ${j.title}`; li.appendChild(a);
+      const tag = tagFor(j) || (j.status === "interviewing" || j.status === "offer" ? j.status : "");
       li.append(` (${[j.location || "no location", tag].filter(Boolean).join(", ")})`); ul.appendChild(li); });
     if (d.pending) setTimeout(() => load(key, query, noteId), 6000);   // geocoding runs in the background, 1 place a second
   }
@@ -151,12 +156,14 @@
   let saved = {}; try { saved = JSON.parse(localStorage.getItem("mapFilters") || "{}"); } catch (e) {}
   let set = saved.set || "today";
   const chips = [...document.querySelectorAll(".chip[data-show]")];
-  if (Array.isArray(saved.show)) chips.forEach(c => c.setAttribute("aria-pressed", String(saved.show.includes(c.dataset.show))));
+  if (Array.isArray(saved.show))      // chips added after the filters were saved keep their default
+    chips.forEach(c => { if (!Array.isArray(saved.known) ? c.dataset.show !== "assessment" : saved.known.includes(c.dataset.show))
+                          c.setAttribute("aria-pressed", String(saved.show.includes(c.dataset.show))); });
   document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x.dataset.set === set));
   const shown = () => chips.filter(c => c.getAttribute("aria-pressed") === "true").map(c => c.dataset.show);
   const applied = () => {
     const show = shown();
-    try { localStorage.setItem("mapFilters", JSON.stringify({ set, show })); } catch (e) {}
+    try { localStorage.setItem("mapFilters", JSON.stringify({ set, show, known: chips.map(c => c.dataset.show) })); } catch (e) {}
     document.getElementById("map-only-reset").hidden = show.length === chips.length;
     if (!show.length) {
       seq.applied = (seq.applied || 0) + 1;            // cancel any request still in flight

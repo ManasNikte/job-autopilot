@@ -99,3 +99,27 @@ def test_dashboard_tile_and_card(data, monkeypatch):
     assert c.post(f"/assessments/{a}/done").status_code == 302
     assert 'id="assessments"' not in c.get("/").get_data(as_text=True)
     assert c.post(f"/assessments/{a}/done").status_code == 404
+
+
+def test_map_shows_assessments_as_their_own_pins(data, monkeypatch):
+    from app import geo
+    now, add = data
+    db.execute("UPDATE jobs SET location='San Mateo, CA' WHERE id='j:roblox'")
+    db.upsert_job({"id": "j:other", "company": "Initech", "title": "Analyst", "status": "applied", "location": "Austin, TX",
+                   "applied_at": now.isoformat()})
+    add("m1", "Roblox", "assessment", now + timedelta(days=6), job_id="j:roblox")
+    add("m2", "OneMain Financial", "assessment", now + timedelta(days=5), state="unmatched")
+    coords = {"san mateo, ca": (37.56, -122.32), "austin, tx": (30.27, -97.74), "onemain financial": (37.97, -87.57)}
+    monkeypatch.setattr(geo, "cached", lambda q: {"lat": coords[q.lower()][0], "lng": coords[q.lower()][1], "ok": True} if q.lower() in coords else None)
+    monkeypatch.setattr(geo, "warm", lambda jobs: 0)
+    from app.web import app
+    c = app.test_client()
+    d = c.get("/api/map?set=all&show=applied,assessment").get_json()
+    jobs = {j["id"]: j for p in d["pins"] for j in p["jobs"]}
+    assert jobs["j:roblox"]["status"] == "assessment" and "due " in jobs["j:roblox"]["note"]      # not also an "applied" pin
+    assert jobs["j:other"]["status"] == "applied"
+    email_pin = next(p for p in d["pins"] if any(j["id"].startswith("email:") for j in p["jobs"]))
+    assert email_pin["place"] == "OneMain Financial (company location)"
+    only = c.get("/api/map?set=today&show=assessment").get_json()
+    assert sorted(j["status"] for p in only["pins"] for j in p["jobs"]) == ["assessment", "assessment"]
+    assert all(j["status"] != "assessment" for p in c.get("/api/map?set=all&show=applied").get_json()["pins"] for j in p["jobs"])

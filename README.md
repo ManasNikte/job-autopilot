@@ -121,6 +121,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.5** | Assessments on the Submitted map (amber pins with due times; own filter chip) |
 | **v3.4** | Online assessments: KPI tile, due-time card with Done, daily and 3-hours-before reminders, unmatched emails included |
 | **v3.3** | Guided first-run tour of the dashboard (skippable, replay from Settings) |
 | **v3.2** | Email updates on the online dashboard follow undo, ignore, and manual matching on your computer |

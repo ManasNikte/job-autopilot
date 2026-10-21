@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.5 (2026-10-21)
+- **Assessments on the map.** The Submitted map has a new Assessments filter: pending assessments show as amber pins, and the pin's popup says when each is due. Assessments from companies you applied to outside the app are placed at the company's location.
+
 ## 3.4 (2026-10-21)
 - **Online assessments, tracked properly.** A new dashboard tile counts assessments still to finish, and an "Assessments to finish" card lists each one with its exact due time (for example "due Sun Oct 25, 8:41 PM"), read from the email, with Done and Not doing it buttons.
 - Assessments from companies you applied to outside the app are included too, and they land on Needs you.

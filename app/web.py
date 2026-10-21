@@ -751,19 +751,36 @@ def map_json():
     which = request.args.get("set", "ready")
     start_utc = datetime.combine(datetime.now().astimezone().date(), datetime.min.time()).astimezone().astimezone(timezone.utc).isoformat()
     # show = any of applied, interviewing (incl. offers), rejected; each chip on the map toggles one
-    groups = {"applied": ["applied"], "interviewing": ["interviewing", "offer"], "rejected": ["closed"]}
+    groups = {"applied": ["applied"], "interviewing": ["interviewing", "offer"], "rejected": ["closed"], "assessment": []}
     show = [g for g in request.args.get("show", "applied,interviewing").split(",") if g in groups]
     if request.args.get("rejected") == "1" and "rejected" not in show:      # older dashboards
         show.append("rejected")
     statuses = ["ready"] if which == "ready" else [st for g in show for st in groups[g]]
-    if not statuses:
+    with_assess = which != "ready" and "assessment" in show
+    if not statuses and not with_assess:
         return jsonify({"pins": [], "total": 0, "unmapped": 0, "pending": 0})
-    where = f"status IN ({','.join('?' * len(statuses))})"
-    params: tuple = tuple(statuses)
-    if which == "today":   # applied today, or moved forward / rejected today
-        where += " AND (applied_at >= ? OR (status != 'applied' AND coalesce(status_changed_at, updated_at) >= ?))"
-        params += (start_utc, start_utc)
-    jobs = db.fetchall(f"SELECT id, company, title, location, status FROM jobs WHERE {where}", params)
+    jobs = []
+    if statuses:
+        where = f"status IN ({','.join('?' * len(statuses))})"
+        params: tuple = tuple(statuses)
+        if which == "today":   # applied today, or moved forward / rejected today
+            where += " AND (applied_at >= ? OR (status != 'applied' AND coalesce(status_changed_at, updated_at) >= ?))"
+            params += (start_utc, start_utc)
+        jobs = db.fetchall(f"SELECT id, company, title, location, status FROM jobs WHERE {where}", params)
+    if with_assess:            # pending assessments are "now", so they show for Today and All time alike
+        from . import assessments
+        by_id = {j["id"]: j for j in jobs}
+        for a in assessments.pending():
+            note = assessments.due_label(a).replace(" (", ", ").rstrip(")")      # "due Sun Oct 25, 8:41 PM, in 5 days"
+            if a.get("job_id"):
+                j = by_id.get(a["job_id"]) or db.fetchone("SELECT id, company, title, location, status FROM jobs WHERE id=?", (a["job_id"],))
+                if j:
+                    j = {**j, "status": "assessment", "note": note}
+                    by_id[j["id"]] = j
+                    continue
+            by_id[f"email:{a['id']}"] = {"id": f"email:{a['id']}", "company": a["shown_company"], "title": a.get("shown_role") or "Online assessment",
+                                         "location": "", "status": "assessment", "note": note, "company_fallback": True}
+        jobs = list(by_id.values())
     pending = geo.warm(jobs)
     pins, unmapped = geo.pins(jobs)
     return jsonify({"pins": pins, "total": len(jobs), "unmapped": len(unmapped), "unmapped_jobs": unmapped[:40], "pending": pending})
