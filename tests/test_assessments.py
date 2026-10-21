@@ -8,9 +8,9 @@ from app import assessments, db
 
 def test_parse_due_reads_time_and_zone_from_the_email():
     # the two real formats: "by 6:00am PT on October 26, 2026" and "due October 25, 2026 at 8:41 PM EDT"
-    assert assessments.parse_due("2026-10-26", "finish four online assessments by 6:00am PT on October 26, 2026.") == "2026-10-26T13:00+00:00"
-    assert assessments.parse_due("2026-10-25", "due October 25, 2026 at 8:41 PM EDT.") == "2026-10-26T00:41+00:00"
-    assert assessments.parse_due("2026-10-25T20:41:00-04:00") == "2026-10-26T00:41+00:00"        # Claude's ISO answer
+    assert assessments.parse_due("2026-11-02", "finish four online assessments by 6:00am PT on October 26, 2026.") == "2026-11-02T13:00+00:00"
+    assert assessments.parse_due("2026-10-25", "due October 25, 2026 at 8:41 PM EDT.") == "2026-11-02T00:41+00:00"
+    assert assessments.parse_due("2026-10-25T20:41:00-04:00") == "2026-11-02T00:41+00:00"        # Claude's ISO answer
     assert assessments.parse_due(None, "Please complete it by Nov 3 at 11:59 pm ET", received_at="2026-10-20T10:00:00+00:00") == "2026-11-04T04:59+00:00"
     assert assessments.parse_due(None, "no date here") is None
     no_time = assessments.parse_due("2026-10-30", "complete it soon")                              # end of that local day
@@ -21,7 +21,7 @@ def test_parse_due_reads_time_and_zone_from_the_email():
 def data(tmp_path, monkeypatch):
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
     db.init()
-    db.upsert_job({"id": "j:roblox", "company": "Roblox", "title": "Software Engineer", "status": "applied"})
+    db.upsert_job({"id": "j:acme", "company": "Acme Games", "title": "Software Engineer", "status": "applied"})
     now = datetime.now(timezone.utc)
 
     def add(mid, company, event, due=None, job_id=None, state="applied", received=None):
@@ -35,18 +35,18 @@ def data(tmp_path, monkeypatch):
 
 def test_pending_includes_unmatched_soonest_first_and_marks_done(data):
     now, add = data
-    r = add("m1", "Roblox", "assessment", now + timedelta(days=6), job_id="j:roblox", state="applied")
-    o = add("m2", "OneMain Financial", "assessment", now + timedelta(days=5), state="unmatched")   # applied outside the app
-    db.add_intervention("j:roblox", "assessment", "Online assessment from Roblox · due 2026-10-26")
+    r = add("m1", "Acme Games", "assessment", now + timedelta(days=6), job_id="j:acme", state="applied")
+    o = add("m2", "Globex Analytics", "assessment", now + timedelta(days=5), state="unmatched")   # applied outside the app
+    db.add_intervention("j:acme", "assessment", "Online assessment from Acme Games · due 2026-11-02")
     p = assessments.pending()
-    assert [a["shown_company"] for a in p] == ["OneMain Financial", "Roblox"]
+    assert [a["shown_company"] for a in p] == ["Globex Analytics", "Acme Games"]
     assessments.sync_todos()
     titles = sorted(t["title"] for t in db.fetchall("SELECT title FROM interventions WHERE kind='assessment' AND status='open'"))
     assert len(titles) == 2 and all(" · due " in t for t in titles) and not any("(in " in t for t in titles)
     assessments.sync_todos()                                                    # idempotent
     assert db.count("interventions", "kind='assessment' AND status='open'") == 2
     assessments.mark([o])
-    assert [a["shown_company"] for a in assessments.pending()] == ["Roblox"]
+    assert [a["shown_company"] for a in assessments.pending()] == ["Acme Games"]
     assert db.count("interventions", "kind='assessment' AND status='open' AND job_id IS NULL") == 0
     assessments.mark([r], "skipped")
     assert assessments.pending() == [] and db.count("interventions", "kind='assessment' AND status='open'") == 0
@@ -79,23 +79,23 @@ def test_reminders_daily_from_9am_and_3_hours_before(data):
 def test_greeting_names_every_pending_assessment(data):
     from app import greeting
     now, add = data
-    add("m1", "Roblox", "assessment", now + timedelta(days=6), job_id="j:roblox")
-    add("m2", "OneMain Financial", "assessment", now + timedelta(days=5), state="unmatched")
+    add("m1", "Acme Games", "assessment", now + timedelta(days=6), job_id="j:acme")
+    add("m2", "Globex Analytics", "assessment", now + timedelta(days=5), state="unmatched")
     text = greeting.greet(name="Manas")["text"]
-    assert text.startswith("📝 2 assessments to finish: OneMain Financial (") and "Roblox (" in text
-    db.execute("DELETE FROM email_events WHERE company='Roblox'")
-    db.execute("UPDATE email_events SET due_at=? WHERE company='OneMain Financial'", ((now + timedelta(hours=20)).isoformat(),))
-    assert greeting.greet(name="Manas")["text"].startswith("📝 Your OneMain Financial assessment is due ")
+    assert text.startswith("📝 2 assessments to finish: Globex Analytics (") and "Acme Games (" in text
+    db.execute("DELETE FROM email_events WHERE company='Acme Games'")
+    db.execute("UPDATE email_events SET due_at=? WHERE company='Globex Analytics'", ((now + timedelta(hours=20)).isoformat(),))
+    assert greeting.greet(name="Manas")["text"].startswith("📝 Your Globex Analytics assessment is due ")
 
 
 def test_dashboard_tile_and_card(data, monkeypatch):
     now, add = data
-    a = add("m2", "OneMain Financial", "assessment", now + timedelta(hours=20), state="unmatched")
+    a = add("m2", "Globex Analytics", "assessment", now + timedelta(hours=20), state="unmatched")
     from app.web import app
     c = app.test_client()
     html = c.get("/").get_data(as_text=True)
     assert "Online assessments to finish" in html and 'id="assessments"' in html and "tile-alert" in html
-    assert "Open assessment" in html and "OneMain Financial" in html
+    assert "Open assessment" in html and "Globex Analytics" in html
     assert c.post(f"/assessments/{a}/done").status_code == 302
     assert 'id="assessments"' not in c.get("/").get_data(as_text=True)
     assert c.post(f"/assessments/{a}/done").status_code == 404
@@ -104,22 +104,22 @@ def test_dashboard_tile_and_card(data, monkeypatch):
 def test_map_shows_assessments_as_their_own_pins(data, monkeypatch):
     from app import geo
     now, add = data
-    db.execute("UPDATE jobs SET location='San Mateo, CA' WHERE id='j:roblox'")
+    db.execute("UPDATE jobs SET location='San Mateo, CA' WHERE id='j:acme'")
     db.upsert_job({"id": "j:other", "company": "Initech", "title": "Analyst", "status": "applied", "location": "Austin, TX",
                    "applied_at": now.isoformat()})
-    add("m1", "Roblox", "assessment", now + timedelta(days=6), job_id="j:roblox")
-    add("m2", "OneMain Financial", "assessment", now + timedelta(days=5), state="unmatched")
-    coords = {"san mateo, ca": (37.56, -122.32), "austin, tx": (30.27, -97.74), "onemain financial": (37.97, -87.57)}
+    add("m1", "Acme Games", "assessment", now + timedelta(days=6), job_id="j:acme")
+    add("m2", "Globex Analytics", "assessment", now + timedelta(days=5), state="unmatched")
+    coords = {"san mateo, ca": (37.56, -122.32), "austin, tx": (30.27, -97.74), "globex analytics": (37.97, -87.57)}
     monkeypatch.setattr(geo, "cached", lambda q: {"lat": coords[q.lower()][0], "lng": coords[q.lower()][1], "ok": True} if q.lower() in coords else None)
     monkeypatch.setattr(geo, "warm", lambda jobs: 0)
     from app.web import app
     c = app.test_client()
     d = c.get("/api/map?set=all&show=applied,assessment").get_json()
     jobs = {j["id"]: j for p in d["pins"] for j in p["jobs"]}
-    assert jobs["j:roblox"]["status"] == "assessment" and "due " in jobs["j:roblox"]["note"]      # not also an "applied" pin
+    assert jobs["j:acme"]["status"] == "assessment" and "due " in jobs["j:acme"]["note"]      # not also an "applied" pin
     assert jobs["j:other"]["status"] == "applied"
     email_pin = next(p for p in d["pins"] if any(j["id"].startswith("email:") for j in p["jobs"]))
-    assert email_pin["place"] == "OneMain Financial (company location)"
+    assert email_pin["place"] == "Globex Analytics (company location)"
     only = c.get("/api/map?set=today&show=assessment").get_json()
     assert sorted(j["status"] for p in only["pins"] for j in p["jobs"]) == ["assessment", "assessment"]
     assert all(j["status"] != "assessment" for p in c.get("/api/map?set=all&show=applied").get_json()["pins"] for j in p["jobs"])
