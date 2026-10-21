@@ -304,6 +304,15 @@ def _job_block(job: dict) -> str:
     )
 
 
+def screen_outcome(status: str, threshold: int) -> str:
+    """What happens next, for the activity log: Claude's verdict alone ("APPLY WITH RISK (6/10)") reads as if
+    documents are being built even when the job is held below your threshold."""
+    return {"rejected": "skipped: Claude says don't apply",
+            "below_threshold": f"held: below your {threshold}/10 threshold (no documents)",
+            "needs_decision": "waiting for your call on Needs you",
+            "to_tailor": "building documents"}.get(status, status)
+
+
 def screen_job(job_id: str, log: Log = _print) -> dict | None:
     job = db.get_job(job_id)
     if not db.claim(job_id, "to_screen", "screening"):
@@ -364,7 +373,7 @@ def screen_job(job_id: str, log: Log = _print) -> dict | None:
         log(f"  ↷ {job['company']} was skipped meanwhile; discarding the screen result")
         return None
     db.update_job(job_id, **fields)   # screen-stage questions are never shown; tailoring asks at most one
-    log(f"  → {verdict} ({res['match_score']}/10)")
+    log(f"  → {verdict} ({res['match_score']}/10), {screen_outcome(fields['status'], threshold)}")
     return res
 
 

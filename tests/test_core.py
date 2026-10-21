@@ -277,3 +277,26 @@ def test_ampersand_and_and_match_in_employer_names(tmp_path, monkeypatch):
     row = db.fetchone("SELECT * FROM h1b_employers WHERE name_norm='ernst young'")
     assert row["approvals"] == 8 and row["fiscal_years"] == "2024,2025"      # two spellings merged
     assert "1,357 approvals" in (h1b.lookup("Ernst & Young") or "") or "approvals" in (h1b.lookup("Ernst & Young") or "")
+
+
+@pytest.mark.parametrize("verdict, score, status, says", [
+    ("APPLY WITH RISK", 6, "below_threshold", "→ APPLY WITH RISK (6/10), held: below your 7/10 threshold (no documents)"),
+    ("APPLY", 8, "to_tailor", "→ APPLY (8/10), building documents"),
+    ("DON'T APPLY", 3, "rejected", "→ DON'T APPLY (3/10), skipped: Claude says don't apply"),
+])
+def test_screen_log_says_what_happens_next(tmp_path, monkeypatch, verdict, score, status, says):
+    """A 6/10 under a 7/10 threshold used to log just 'APPLY WITH RISK (6/10)', which read as if documents were
+    being built."""
+    from app import db, llm, pipeline
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    monkeypatch.setenv("MIN_MATCH_FOR_DOCS", "7")
+    db.upsert_job({"id": "s:1", "company": "Acme", "title": "Software Engineer", "status": "to_screen",
+                   "description": "Build things."})
+    res = {"verdict": verdict, "match_score": score, "why": ["fits"], "deal_breakers": [], "biggest_risk": "some risk",
+           "gates": {}, "recruiter_read": "", "questions": []}
+    monkeypatch.setattr(llm, "structured", lambda **kw: (kw["on_start"](), res)[1])   # like the real call
+    lines = []
+    pipeline.screen_job("s:1", lines.append)
+    assert db.get_job("s:1")["status"] == status
+    assert says in lines[-1], lines

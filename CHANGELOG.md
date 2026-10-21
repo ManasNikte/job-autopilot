@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.10.2 (2026-10-21)
+- The activity log now says what happens after each screen, not just Claude's verdict: "APPLY WITH RISK (6/10), held: below your 7/10 threshold (no documents)", "APPLY (8/10), building documents", or "DON'T APPLY (3/10), skipped". A job under your threshold no longer looks like it's getting documents.
+
 ## 3.10.1 (2026-10-21)
 - **Windows fixes** from a real Windows 11 install: assessment dates no longer crash the map and greeting; due times work without a time-zone database (and `tzdata` is installed); text is read and written as UTF-8, so "–" and "·" no longer turn into `â€“`; no terminal window flashes for each Claude call when the dashboard runs in the background.
 - **H-1B matching:** "Ernst & Young" now matches USCIS's "ERNST AND YOUNG" (also Johnson & Johnson, Marsh & McLennan, and others). Existing data is updated once, automatically.
