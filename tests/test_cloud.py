@@ -260,3 +260,57 @@ def test_email_updates_follow_undo_ignore_and_reassign(fake, monkeypatch):
     assert now_online[a] == "undone" and c not in now_online and b not in now_online
     assert len(now_online) == 2                                                # the re-matched Initech email
     assert db.fetchall("SELECT id FROM email_events_deleted") == []            # tombstones cleared once sent
+
+
+def test_signup_from_this_computer_confirms_and_connects(fake, tmp_path, monkeypatch):
+    monkeypatch.setattr(cloud, "PENDING_FILE", tmp_path / "pending.json")
+    calls = []
+
+    def post(url, json=None, headers=None, timeout=None):
+        calls.append((url.split("/auth/v1/")[-1], json))
+        if url.endswith("/signup"):
+            if json["email"] == "taken@example.com":
+                return FakeResp(200, {"id": "x", "identities": []})          # Supabase's "already registered" answer
+            return FakeResp(200, {"id": "user-1", "identities": [{"id": "i"}]})
+        if url.endswith("/verify"):
+            return FakeResp(200, {"access_token": "AT", "refresh_token": "RT", "expires_in": 3600, "user": {"id": "user-1"}}) \
+                if json["token"] == "123456" else FakeResp(403, {"msg": "Token has expired or is invalid"})
+        if url.endswith("/resend"):
+            return FakeResp(200, {})
+        return fake.post(url, json=json, headers=headers, timeout=timeout)
+    monkeypatch.setattr(cloud.requests, "post", post)
+
+    with pytest.raises(RuntimeError, match="10 characters"):
+        cloud.signup("Ava", "ava@example.com", "short1A", "Laptop")
+    with pytest.raises(RuntimeError, match="already have an account"):
+        cloud.signup("Ava", "taken@example.com", "Correct-horse-1", "Laptop")
+    p = cloud.signup("Ava Lee", "Ava@Example.com", "Correct-horse-1", "Ava's Laptop", "Austin, TX", opt_in=True)
+    assert p["email"] == "ava@example.com" and "Correct-horse-1" not in (tmp_path / "pending.json").read_text()
+    sent = next(j for u, j in calls if u == "signup" and j["email"] == "ava@example.com")
+    assert sent["data"] == {"display_name": "Ava Lee", "marketing_opt_in": True}
+    cloud.resend_code()
+    with pytest.raises(RuntimeError, match="didn't work"):
+        cloud.verify("000000")
+    assert not cloud.connected()
+    st = cloud.verify(" 123 456 ")
+    assert cloud.connected() and st["email"] == "ava@example.com" and st["city"] == "Austin, TX"
+    assert fake.tables["machines"][0]["name"] == "Ava's Laptop" and fake.secrets == {cloud.KEY: "RT"}
+    assert cloud.pending_signup() == {}
+    assert "Correct-horse-1" not in (tmp_path / "cloud.json").read_text()
+
+
+def test_settings_signup_form_and_dashboard_prompt(fake, tmp_path, monkeypatch):
+    monkeypatch.setattr(cloud, "PENDING_FILE", tmp_path / "pending.json")
+    from app import greeting
+    from app.web import app
+    monkeypatch.setattr(greeting, "user_name", lambda: "Ava")
+    db.kv_set("tour", "done")
+    c = app.test_client()
+    assert "Follow your job search from your phone" in c.get("/").get_data(as_text=True)
+    page = c.get("/settings").get_data(as_text=True)
+    assert "Create my account" in page and "I already have an account" in page
+    r = c.post("/settings/cloud/signup", data={"name": "Ava", "email": "a@example.com", "password": "Correct-horse-1",
+                                               "password2": "different-1A", "privacy": "1"})
+    assert r.status_code == 302 and not cloud.pending_signup()                # mismatched passwords: nothing sent
+    c.post("/cloud/prompt/dismiss")
+    assert "Follow your job search from your phone" not in c.get("/").get_data(as_text=True)

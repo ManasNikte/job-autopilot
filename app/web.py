@@ -13,7 +13,7 @@ from pathlib import Path
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, send_file, url_for
 
 from . import db, h1b, llm, progress, worker
-from .config import ANSWERS_FILE, DATA_DIR, PROFILE_DIR, ROOT, applicant, companies, env
+from .config import ANSWERS_FILE, APPLICANT_FILE, DATA_DIR, PROFILE_DIR, ROOT, applicant, companies, env
 from .pipeline import output_path_ok
 
 app = Flask(__name__)
@@ -131,6 +131,15 @@ def _followups() -> None:
                                 "One follow-up max. A 15-minute coffee chat or one question about the team.")
 
 
+def _profile_email() -> str:
+    """The email in your form presets (profile/applicant.json), unless it's still the placeholder."""
+    try:
+        e = (json.loads(APPLICANT_FILE.read_text()).get("email") or "").strip()
+    except (OSError, ValueError):
+        return ""
+    return "" if e.endswith("@example.com") else e
+
+
 def week_start_utc(today=None) -> str:
     """This calendar week's start, Sunday 00:00 on this computer's clock (weeks run Sunday to Saturday), in UTC."""
     today = today or datetime.now().astimezone().date()
@@ -199,7 +208,10 @@ def dashboard():
     user_name = greeting.user_name()
     hello = greeting.greet(name=user_name) if user_name else None
     show_tour = bool(request.args.get("tour")) or (bool(user_name) and not db.kv_get("tour"))   # after the name box
-    return render_template("dashboard.html", assess=assess, tour=tour_steps(user_name) if show_tour else None, just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
+    from . import cloud
+    cloud_prompt = (bool(cloud.config()) and not cloud.connected() and not db.kv_get("cloud_prompt") and bool(user_name)
+                    and not show_tour)
+    return render_template("dashboard.html", cloud_prompt=cloud_prompt, assess=assess, tour=tour_steps(user_name) if show_tour else None, just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
                            today_jobs=today_jobs, by_family=by_family, by_company=by_company, last_run=last_run, counts=counts,
                            today_page=today_page, family_page=family_page, company_page=company_page,
                            applied_total=sum(r["n"] for r in fam_rows))
@@ -1095,7 +1107,7 @@ def settings_page():
     ms_id = request.args.get("ms", "")
     from . import cloud, greeting
     return render_template("settings.html", user_name=greeting.user_name(), cloud_cfg=cloud.config(), cloud_state=cloud.state(),
-                           cloud_status=cloud.STATUS, cloud_connected=cloud.connected(), upd_state=__import__('app.updater', fromlist=['STATE']).STATE, cloud_default_name=cloud.default_machine_name(), cloud_city=cloud.city() if cloud.connected() else cloud.default_city(),
+                           cloud_status=cloud.STATUS, cloud_connected=cloud.connected(), upd_state=__import__('app.updater', fromlist=['STATE']).STATE, cloud_default_name=cloud.default_machine_name(), cloud_pending=cloud.pending_signup(), cloud_email=_profile_email(), cloud_city=cloud.city() if cloud.connected() else cloud.default_city(),
                            remote_wake=schedule.remote_wake(), mail_accounts=mailsync.accounts(), ms_client=ms_id, is_mac=sys.platform == "darwin",
                            ms_state=mailsync.ms_signin_state(ms_id) if ms_id else None, sched=schedule.status(), tunables=TUNABLES, current=current,
                            feeds=feeds_config(), ampm=_ampm)
@@ -1140,6 +1152,64 @@ def cloud_connect():
     except Exception as e:
         flash(f"Couldn't connect: {e}")
     return redirect(url_for("settings_page") + "#cloud")
+
+
+@app.post("/settings/cloud/signup")
+def cloud_signup():
+    """Create the online-dashboard account from here (the password goes to Supabase and isn't stored)."""
+    from . import cloud
+    f = request.form
+    if not f.get("privacy"):
+        flash("Please read and accept the privacy note first.")
+        return redirect(url_for("settings_page") + "#cloud")
+    if f.get("password", "") != f.get("password2", ""):
+        flash("The passwords don't match.")
+        return redirect(url_for("settings_page") + "#cloud")
+    try:
+        p = cloud.signup(f.get("name", ""), f.get("email", ""), f.get("password", ""),
+                         (f.get("machine_name") or cloud.default_machine_name()).strip(), f.get("city", ""), bool(f.get("optin")))
+        flash(f"We emailed a 6-digit code to {p['email']}. Enter it below to finish.")
+    except Exception as e:
+        flash(f"Couldn't create the account: {e}")
+    return redirect(url_for("settings_page") + "#cloud")
+
+
+@app.post("/settings/cloud/verify")
+def cloud_verify():
+    from . import cloud
+    try:
+        st = cloud.verify(request.form.get("code", ""))
+        worker.submit("cloud")
+        cfg = cloud.config()
+        flash(f"🎉 You're all set, {st['email']}. This computer is connected. From now on just sign in at "
+              f"{cfg.get('site_url') or 'the online dashboard'} on your phone.")
+    except Exception as e:
+        flash(str(e))
+    return redirect(url_for("settings_page") + "#cloud")
+
+
+@app.post("/settings/cloud/resend")
+def cloud_resend():
+    from . import cloud
+    try:
+        cloud.resend_code()
+        flash("Sent a new code. Check your inbox (and spam).")
+    except Exception as e:
+        flash(str(e))
+    return redirect(url_for("settings_page") + "#cloud")
+
+
+@app.post("/settings/cloud/cancel")
+def cloud_cancel():
+    from . import cloud
+    cloud.cancel_signup()
+    return redirect(url_for("settings_page") + "#cloud")
+
+
+@app.post("/cloud/prompt/dismiss")
+def cloud_prompt_dismiss():
+    db.kv_set("cloud_prompt", "dismissed")
+    return redirect(url_for("dashboard"))
 
 
 @app.post("/settings/cloud/wake")

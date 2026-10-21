@@ -14,6 +14,10 @@ your inbox** to keep every application's status current.
 Everything runs on your own machine at `http://127.0.0.1:5055`. Nothing is hosted. It runs on **macOS, Windows,
 and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up for you**.
 
+> 🌐 **Your online dashboard (phone, tablet, TV): [manasnikte.github.io/job-autopilot](https://manasnikte.github.io/job-autopilot/)**.
+> Lost the link? It's always here and in the **Website** link at the top of this repo page. Your account is created
+> on your own computer during setup (**Settings → Online dashboard**), so on the site you just sign in.
+
 ![Dashboard](docs/screenshots/dashboard.png)
 
 > 📄 **[Project report](PROJECT_REPORT.md)**: the problem, how it works overnight, time saved, architecture, and lessons learned.
@@ -48,6 +52,9 @@ when the company later invites you to interview, makes an offer, or declines.
 - **One-click updates (v3.1).** When a new version is on GitHub, the dashboard shows **Update available**.
   **What's new** lists the changes. **Update now** pulls the code, keeps your settings, installs new packages,
   and restarts itself.
+- **Account set up on your computer (v3.6).** Setup creates your online-dashboard account from the local app
+  (one form, pre-filled from your profile, plus the emailed code) and connects the computer. On the site you
+  just sign in.
 - **Guided first-run tour (v3.3).** It walks new users through Run now, the numbers, Needs you, Jobs, the Chrome
   extension, Applied, Email, Profile, and Settings. Skip it anytime, or replay it from Settings.
 - **Online dashboard (v3.1, v3.2).** Sign in with more than one email, for example personal and university.
@@ -105,7 +112,8 @@ when the company later invites you to interview, makes an offer, or declines.
 </details>
 
 To host your own copy, follow [supabase/README.md](supabase/README.md), about 15 minutes. If the repo already
-has a `config/cloud.json`, just create an account on that site and connect in **Settings → Online dashboard**.
+has a `config/cloud.json`, create your account in **Settings → Online dashboard** on your computer. That also
+connects the computer, so afterwards you only sign in on the site.
 
 ### v2.1: a dashboard that knows you
 
@@ -159,6 +167,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.6** | Online-dashboard account created and connected from the local app during setup; site linked from the repo page |
 | **v3.5.3** | New **Applied this week** tile (Sunday to Saturday); 8 tiles in a 4 × 2 grid on both dashboards |
 | **v3.5** | Assessments on the Submitted map (amber pins with due times; own filter chip) |
 | **v3.4** | Online assessments: KPI tile, due-time card with Done, daily and 3-hours-before reminders, unmatched emails included |

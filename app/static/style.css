@@ -402,3 +402,13 @@ dialog.modal[open] { display: flex; flex-direction: column; }
 .email-text { white-space: pre-wrap; margin: 8px 0 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
   background: var(--surface-2, transparent); font-size: 13px; line-height: 1.5; max-height: 360px; overflow: auto; }
 @media (min-width: 1900px) { .kpis { grid-template-columns: repeat(8, 1fr); } }   /* wide monitors: one row */
+
+/* online-dashboard account form (Settings) */
+.cloud-form { display: grid; gap: 10px; max-width: 460px; margin-top: 10px; }
+.cloud-form label { display: grid; gap: 4px; font-size: 14px; }
+.cloud-form label.check { display: flex; gap: 8px; align-items: flex-start; }
+.cloud-form label.check input { margin-top: 3px; }
+.cloud-form .hint { font-size: 12px; color: var(--muted); }
+.cloud-form button { justify-self: start; }
+.cloud-signin { margin-top: 14px; } .cloud-signin summary { cursor: pointer; color: var(--accent); }
+.update-actions form { margin: 0; }

@@ -3,6 +3,11 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.6 (2026-10-21)
+- **Your online dashboard account is set up from this computer.** Settings → Online dashboard (or **Set it up** on the dashboard) has one short form, pre-filled from your profile. Choose a password, type the emailed code, and you're connected. On the site you just sign in.
+- The online dashboard's address is on the GitHub repo page and at the top of the README, in case you lose it.
+- The computer's name defaults to its real name (for example "Ava's MacBook Air").
+
 ## 3.5.3 (2026-10-21)
 - New **Applied this week** tile (weeks run Sunday to Saturday). The dashboard now has eight tiles in an even 4 × 2 grid, and so does the online dashboard.
 

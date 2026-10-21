@@ -34,8 +34,10 @@ your work authorization, or a password-protected step. Plan on 15–30 minutes, 
 
 1. Approve Claude's commands as it works.
 2. Give Claude your resume or LinkedIn text, so it can fill in your master prompt.
-3. Load the Chrome extension: four clicks, and Claude tells you which ones.
-4. Optional: download the USCIS H-1B data in your browser and upload it on the Sources page. The government
+3. Choose a password for your online dashboard (to check progress from your phone) and type the code it emails
+   you. Your account is created and this computer connected in that one step.
+4. Load the Chrome extension: four clicks, and Claude tells you which ones.
+5. Optional: download the USCIS H-1B data in your browser and upload it on the Sources page. The government
    site blocks automated downloads.
 
 **Updating later.** When a new version is on GitHub, the dashboard shows **Update available**. Click it, read
@@ -323,6 +325,30 @@ sudo systemctl daemon-reload && sudo systemctl enable --now job-autopilot-wake.t
 
 `WakeSystem=` needs hardware support for RTC wake alarms. Check with `systemctl list-timers job-autopilot-wake.timer`.
 
+### Step 9b: Their online-dashboard account (so they can check progress from a phone)
+
+Do this right after the dashboard is running, if `config/cloud.json` exists in the repo (the project's shared
+site). The account is created **from their own local dashboard**, which also connects this computer, so
+afterwards they only ever sign in on the site.
+
+1. Open http://127.0.0.1:5055/settings#cloud for them (or tell them to click **Set it up** in the banner on the
+   dashboard). The **Online dashboard** card shows a short form, already filled in from their profile: name,
+   email, city, and the computer's name. Ask them to check those.
+2. They choose a password and type it in themselves (10+ characters, with lowercase, uppercase, and a number).
+   **Never type, suggest, or store a password for them.** They tick the privacy box. The "occasional updates" box
+   is optional and their choice; never tick it for them. Then they click **Create my account**.
+3. They type the 6-digit code from the confirmation email into the same card (**Send a new code** if it doesn't
+   arrive; check spam). The card then says they're connected. Their progress appears online within a minute.
+4. Tell them the address, `site_url` in `config/cloud.json`, and that it's always linked at the top of the
+   GitHub repo page and the README if they lose it. On their phone they just sign in with the same email and
+   password.
+5. Optional, macOS: in the same card, pick **Wake every 30 minutes** so a sleeping Mac picks up requests from the
+   phone, then re-run `sudo scripts/install_wake.sh` so the wake helper books those wakes.
+
+If they already have an account (for example, a second computer), they use **I already have an account** in
+the same card instead. Without `config/cloud.json`, skip this step; [supabase/README.md](supabase/README.md)
+explains how to host a site.
+
 ### Step 10: Chrome extension (the user clicks; you explain)
 
 Tell the user:
@@ -344,19 +370,6 @@ Tell the user:
   Outlook works through their own Azure app registration (5 steps listed in the card), or on macOS through
   Apple's Mail app when their organization blocks app registration. Never type passwords for them. Install the
   extra packages if they're missing: `pip install msal keyring`.
-- **Online dashboard (check progress from a phone, start runs remotely):** only if `config/cloud.json` exists
-  in the repo (the project's shared site). Tell the user the site address (`site_url` in that file) and ask
-  them to:
-  1. Open it in their browser, choose **Create an account**, and enter their name, email, and a password
-     (10+ characters, with lowercase, uppercase, and a number). They type the password themselves. They tick the privacy
-     box. The **updates from Manas** box is optional, and they decide; never tick it for them.
-  2. Type the 6-digit code from the confirmation email.
-  3. On the local dashboard, open **Settings → Online dashboard**, sign in with the same email and password,
-     and name the computer. The password isn't stored; the computer keeps a renewable token in the OS keychain.
-  4. Optional, macOS: pick **Wake every 30 minutes** in the same card so a sleeping Mac picks up requests from
-     the phone, then re-run `sudo scripts/install_wake.sh` so the wake helper books those wakes.
-
-  Without `config/cloud.json`, skip this; [supabase/README.md](supabase/README.md) explains how to host a site.
 - **Try the UI with sample data first:** `python scripts/demo_seed.py`, then serve with
   `JOB_AUTOPILOT_DATA=demo/data JOB_AUTOPILOT_PROFILE=demo/profile` (Windows: set those as environment
   variables first). On Windows/Linux, use a different `PORT` for the demo if the real dashboard is running.
@@ -371,7 +384,7 @@ Give the user a short summary, addressed to them by name:
   replay it from Settings → Getting started).
 - When the next scheduled run is (shown on the Settings page)
 - How runs start on their OS, and whether wake-from-sleep was set up
-- The online dashboard address, if they connected one, so they can bookmark it on their phone
+- The online dashboard address (also linked on the GitHub repo page), so they can bookmark it on their phone
 - Anything left for them to do: the extension, the USCIS import, and any `PENDING` facts in their prompt
 - How to start their first run: **Run now** on the dashboard, then work through the **Needs you** page
 

@@ -130,11 +130,101 @@ def set_city(value: str) -> str:
     return st["city"]
 
 
+PENDING_FILE = DATA_DIR / "cloud_pending.json"    # a sign-up waiting for its emailed code (never the password)
+
+
+def strong_password(pw: str) -> bool:
+    """Same rule as the website and the Supabase project: 10+ characters, lowercase, uppercase, and a number."""
+    return len(pw) >= 10 and any(c.islower() for c in pw) and any(c.isupper() for c in pw) and any(c.isdigit() for c in pw)
+
+
+def pending_signup() -> dict:
+    try:
+        return json.loads(PENDING_FILE.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def signup(name: str, email: str, password: str, machine_name: str, city_name: str = "", opt_in: bool = False) -> dict:
+    """Create the online-dashboard account from this computer. Supabase emails a 6-digit code; verify() finishes
+    the job (confirms the account and connects this computer). The password goes straight to Supabase over HTTPS
+    and is not kept anywhere."""
+    if not config():
+        raise RuntimeError("The online dashboard isn't configured for this copy (config/cloud.json).")
+    email = email.strip().lower()
+    if not name.strip():
+        raise RuntimeError("Tell us your name.")
+    if "@" not in email:
+        raise RuntimeError("Enter a valid email.")
+    if not strong_password(password):
+        raise RuntimeError("Use at least 10 characters, with a lowercase letter, an uppercase letter, and a number.")
+    c = config()
+    r = requests.post(f"{c['supabase_url']}/auth/v1/signup", headers=_headers(), timeout=30,
+                      json={"email": email, "password": password,
+                            "data": {"display_name": name.strip()[:60], "marketing_opt_in": bool(opt_in)}})
+    if r.status_code >= 400:
+        try:
+            msg = r.json().get("msg") or r.json().get("error_description") or r.text
+        except ValueError:
+            msg = r.text
+        raise RuntimeError(("Too many attempts. Wait a minute and try again." if r.status_code == 429 else msg)[:200])
+    body = r.json() if r.text else {}
+    user = body.get("user") or body
+    if isinstance(user, dict) and user.get("identities") == []:
+        # Supabase's answer when the email already has an account (it doesn't say so, to protect privacy)
+        raise RuntimeError("That email may already have an account. Use \"I already have an account\" to sign in.")
+    PENDING_FILE.write_text(json.dumps({"email": email, "name": name.strip()[:60], "machine_name": machine_name[:80],
+                                        "city": " ".join(city_name.split())[:80], "at": db.now()}))
+    return pending_signup()
+
+
+def resend_code() -> None:
+    p = pending_signup()
+    if not p:
+        raise RuntimeError("Start again: no sign-up is waiting for a code.")
+    c = config()
+    r = requests.post(f"{c['supabase_url']}/auth/v1/resend", headers=_headers(), timeout=30,
+                      json={"type": "signup", "email": p["email"]})
+    if r.status_code >= 400:
+        raise RuntimeError("Couldn't send a new code yet. Wait a minute and try again.")
+
+
+def verify(code: str) -> dict:
+    """Confirm the emailed code: that signs in, so register this computer right away."""
+    p = pending_signup()
+    if not p:
+        raise RuntimeError("Start again: no sign-up is waiting for a code.")
+    code = "".join(ch for ch in code if ch.isdigit())
+    c = config()
+    r = requests.post(f"{c['supabase_url']}/auth/v1/verify", headers=_headers(), timeout=30,
+                      json={"type": "signup", "email": p["email"], "token": code})
+    if r.status_code >= 400 or not (r.json() if r.text else {}).get("refresh_token"):
+        raise RuntimeError("That code didn't work or has expired. Check it, or send a new one.")
+    st = _attach(r.json(), p["email"], p["machine_name"], p["city"])
+    try:
+        PENDING_FILE.unlink()
+    except OSError:
+        pass
+    return st
+
+
+def cancel_signup() -> None:
+    try:
+        PENDING_FILE.unlink()
+    except OSError:
+        pass
+
+
 def connect(email: str, password: str, machine_name: str, city_name: str | None = None) -> dict:
     """Sign in once, register this computer as a machine, and remember it."""
     if not config():
         raise RuntimeError("The online dashboard isn't configured for this copy (config/cloud.json).")
     res = _auth("password", {"email": email.strip(), "password": password})
+    return _attach(res, email, machine_name, city_name)
+
+
+def _attach(res: dict, email: str, machine_name: str, city_name: str | None) -> dict:
+    """Keep the session's refresh token (keychain) and register this computer under that account."""
     _store_session(res)
     user_id = res["user"]["id"]
     place = " ".join((city_name if city_name is not None else default_city()).split())[:80]
@@ -463,4 +553,13 @@ def loop(log=print) -> None:
 
 
 def default_machine_name() -> str:
+    """The computer's own name ("Ava's MacBook Air" on a Mac), else its network name."""
+    if platform.system() == "Darwin":
+        try:
+            import subprocess
+            name = subprocess.run(["scutil", "--get", "ComputerName"], capture_output=True, text=True, timeout=5).stdout.strip()
+            if name:
+                return name[:80]
+        except Exception:
+            pass
     return (socket.gethostname().split(".")[0] or "My computer").replace("-", " ")[:80]

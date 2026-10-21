@@ -2,6 +2,16 @@
 {% from "_pager.html" import pager %}
 {% block content %}
 {% include "_update.html" %}
+{% if cloud_prompt %}
+<div class="update-banner" role="status">
+  <span class="grow"><b>📱 Follow your job search from your phone.</b>
+    <span class="sub">Create your free online-dashboard account in a minute; after that you just sign in on the site.</span></span>
+  <span class="update-actions">
+    <form method="post" action="{{ url_for('cloud_prompt_dismiss') }}"><button class="btn small ghost" type="submit">Not now</button></form>
+    <a class="btn primary small" href="{{ url_for('settings_page') }}#cloud">Set it up</a>
+  </span>
+</div>
+{% endif %}
 <div class="spread hello-row">
   {% if hello %}<div class="hello"><h1>{{ hello.title }}</h1><p>{{ hello.text }}</p></div>{% else %}<h1>Dashboard</h1>{% endif %}
   <span class="muted">{% if last_run %}Last run {{ last_run.started_at|ago }} · {{ last_run.status }}{% else %}No runs yet. Click "Run now".{% endif %}</span></div>

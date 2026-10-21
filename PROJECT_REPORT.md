@@ -111,7 +111,9 @@ on a phone, tablet, or TV. It shows the same progress, jobs, email updates,
 and assessments. It can also start a run or an email check on the candidate's computer. Behind it:
 
 - **Free hosting:** GitHub Pages and Supabase.
-- **Sign-in:** email and password, confirmed with emailed 6-digit codes.
+- **Sign-in:** email and password, confirmed with emailed 6-digit codes. The account is created during setup,
+  from the candidate's own computer, which connects it in the same step. On the site they only sign in, and the
+  link lives on the GitHub repo page.
 - **Isolation:** row-level security, so each account sees only its own rows.
 - **Outbound-only computer:** it fetches requests every 30 seconds; nothing on the internet can reach in.
 - **Sleeping Mac:** it can wake every 30 minutes to pick up requests from the phone.
