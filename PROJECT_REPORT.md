@@ -203,6 +203,11 @@ applied to within hours of going live, while applicant counts are still low.
   in the inbox, and the answer is saved and reused on every future run.
 - **Thread-local SQLite connections with WAL** keep the dashboard responsive while a dozen fetch threads write.
   An earlier one-connection-per-query design starved the UI during runs.
+- **Stop before the limit, not at it.** Before background Claude calls, the app reads the seat's real usage. It
+  asks Claude Code for `/usage` in non-interactive mode and parses the structured `usage_report.rate_limits`, a
+  local command that uses no tokens, cached for 90 seconds. At 95% of the 5-hour or weekly limit, everything
+  pauses until that window resets, so the candidate's own Claude sessions never hit a wall. Screening batches
+  chain on their own until the backlog is empty.
 - **Usage-limit resilience.** Limit errors are detected from Claude's response. All workers pause until the
   reset time, and the work resumes where it left off. A manual click resumes early if the limit was reset.
 - **Cheap online verification.** Sponsor lookups use a small task-specific system prompt (not the 180 KB

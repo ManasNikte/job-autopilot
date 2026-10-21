@@ -806,7 +806,7 @@ def run(log: Log = _print, fetch: bool = True, enqueue=None, source: str = "manu
         status = "done"
     except llm.BackendUnavailable as e:
         if e.retry_at:                         # usage limit: the worker pauses and resumes this run automatically
-            L(f"⏸ Claude usage limit reached; pausing until {datetime.fromtimestamp(e.retry_at):%I:%M %p}.")
+            L(f"⏸ {e}; pausing until {datetime.fromtimestamp(e.retry_at):%I:%M %p}.")
             db.execute("UPDATE runs SET finished_at=?, status='paused', stats_json=?, log=? WHERE id=?",
                        (db.now(), json.dumps(stats), "\n".join(lines), rid))
             progress.clear_run()

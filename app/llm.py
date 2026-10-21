@@ -118,6 +118,77 @@ def _semaphore() -> threading.BoundedSemaphore:
         return _slots
 
 
+# ----------------------------------------------------------------------------- plan usage (Claude Code seat)
+
+USAGE: dict = {"limits": None, "checked": 0.0, "error": ""}   # last reading, shown on the Background panel
+_usage_lock = threading.Lock()
+USAGE_TTL = 90                                                  # seconds between readings (each takes a few seconds)
+
+
+def read_usage(cli: str | None = None) -> list[dict] | None:
+    """The seat's plan limits from Claude Code's own `/usage` report (a local command: no tokens used).
+    Returns [{'kind': 'session', 'percent': 66, 'resets_at': '…', 'scope': None, 'is_active': True}, …], or None
+    when unavailable (API-key backend, older CLI, not a subscription login)."""
+    cli = cli or find_claude_cli()
+    if not cli:
+        return None
+    envv = dict(os.environ)
+    envv.pop("ANTHROPIC_API_KEY", None)
+    try:
+        p = subprocess.run([cli, "-p", "/usage", "--output-format", "stream-json", "--verbose", "--tools", ""],
+                           capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL, env=envv,
+                           cwd=str(DATA_DIR))
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    for line in p.stdout.splitlines():
+        try:
+            d = json.loads(line)
+        except ValueError:
+            continue
+        rl = (d.get("usage_report") or {}).get("rate_limits") if isinstance(d, dict) else None
+        if rl and isinstance(rl.get("limits"), list):
+            return rl["limits"]
+    return None
+
+
+def usage_now(force: bool = False) -> dict:
+    """Cached reading: {'limits': [...] | None, 'checked': epoch, 'worst': {...} | None}. Never raises."""
+    with _usage_lock:
+        if force or time.time() - USAGE["checked"] > USAGE_TTL:
+            try:
+                limits = read_usage() if backend() == "claude_cli" else None
+                USAGE.update(limits=limits, error="")
+            except Exception as e:
+                USAGE.update(limits=None, error=str(e)[:200])
+            USAGE["checked"] = time.time()
+        overall = [l for l in (USAGE["limits"] or []) if not l.get("scope") and isinstance(l.get("percent"), (int, float))]
+        USAGE["worst"] = max(overall, key=lambda l: l["percent"]) if overall else None
+        return USAGE
+
+
+def _iso_epoch(iso: str | None) -> float | None:
+    from datetime import datetime as _dt
+    try:
+        return _dt.fromisoformat(iso.replace("Z", "+00:00")).timestamp() if iso else None
+    except ValueError:
+        return None
+
+
+def usage_guard() -> None:
+    """Background work stops at USAGE_PAUSE_AT percent (default 95) of the session or weekly limit, and waits for
+    that limit to reset, so the seat always has room left for you. Raises BackendUnavailable(retry_at=…)."""
+    from .config import env_int
+    at = env_int("USAGE_PAUSE_AT", 95)
+    if at >= 100:
+        return
+    w = usage_now().get("worst")
+    if w and w["percent"] >= at:
+        names = {"session": "5-hour session", "weekly_all": "weekly", "weekly": "weekly"}
+        reset = _iso_epoch(w.get("resets_at")) or time.time() + 1800
+        raise BackendUnavailable(f"Claude {names.get(w.get('kind'), w.get('kind') or 'usage')} limit at {w['percent']}% "
+                                 f"(pausing at {at}%)", retry_at=reset + 120)
+
+
 class _NoLimit:
     def __enter__(self):
         return self
@@ -137,6 +208,8 @@ def structured(*, user: str, schema: dict, model: str, effort: str = "high", max
     """
     system = system or system_prompt()
     b = backend()
+    if not interactive and b == "claude_cli":
+        usage_guard()                       # near the plan limit: pause background work until it resets
     with (_NoLimit() if interactive else _semaphore()):
         if on_start:
             on_start()

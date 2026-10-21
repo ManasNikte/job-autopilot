@@ -167,6 +167,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.7** | Screening batches chain automatically; background work pauses at 95% of your Claude plan limit (read from Claude Code's `/usage`) and resumes after the reset |
 | **v3.6** | Online-dashboard account created and connected from the local app during setup; site linked from the repo page |
 | **v3.5.3** | New **Applied this week** tile (Sunday to Saturday); 8 tiles in a 4 × 2 grid on both dashboards |
 | **v3.5** | Assessments on the Submitted map (amber pins with due times; own filter chip) |
@@ -223,6 +224,10 @@ assessment surfaced with its deadline, and eight confirmations recorded.
   dashboard's built-in clock starts each run (a run missed while asleep starts on wake), with optional
   wake-from-sleep through Task Scheduler or a systemd timer. If Claude's usage limit is hit, work pauses and
   resumes at the reset time, or right away with **Resume now**. If the internet drops, work pauses and retries.
+  **It also watches your plan usage:** new jobs are screened in batches that chain until none are left. Before
+  each background Claude call, the app reads your seat's usage from Claude Code's own `/usage` report (cached for
+  90 seconds; no tokens used). At **95%** of the 5-hour or weekly limit (adjustable), it pauses until the reset, so
+  you always have room left for your own Claude work.
 - **One-command setup on any OS.** [CLAUDE_SETUP.md](CLAUDE_SETUP.md) is written *for Claude Code*. The new
   user runs one command, and their Claude detects the OS and installs prerequisites (Homebrew, winget, or
   apt/dnf/pacman). It then builds the environment, interviews them to fill in their master prompt from the

@@ -45,11 +45,21 @@
       else {
         // Screening only happens inside a run, so jobs waiting for a screen sit here until one starts.
         const line = el("div", "row");
-        line.appendChild(el("span", "muted", `Not started: ${d.queued_total} job(s) are waiting for Claude to screen them. The next run picks them up (up to ${d.screen_cap} per run), or start now.`));
+        line.appendChild(el("span", "muted", d.auto_continue
+          ? `${d.queued_total} job(s) waiting to be screened. Runs screen them in batches of ${d.screen_cap}, one batch after another, until none are left or Claude usage reaches ${d.usage_pause_at}%.`
+          : `Not started: ${d.queued_total} job(s) are waiting for Claude to screen them. The next run picks them up (up to ${d.screen_cap} per run), or start now.`));
         const f = el("form"); f.method = "post"; f.action = "{{ url_for('run_now') }}"; f.className = "inline";
         const b = el("button", "btn small primary", "Screen them now"); b.name = "kind"; b.value = "process";
         f.appendChild(b); line.appendChild(f); box.appendChild(line);
       }
+    }
+    if (d.usage) {                        // the seat's plan usage, from Claude Code's own /usage report
+      const u = d.usage, near = u.percent >= d.usage_pause_at;
+      const when = u.resets_at ? new Date(u.resets_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+      const p = el("p", "sub small usage-line" + (near ? " near" : ""),
+        `Claude usage: ${u.kind === "session" ? "5-hour session" : "weekly"} ${u.percent}%` + (when ? ` (resets ${when})` : "") +
+        (near ? ` · background work paused at ${d.usage_pause_at}%, resumes after the reset` : ` · background work pauses at ${d.usage_pause_at}%`));
+      box.appendChild(p);
     }
     for (const a of d.active) {
       const row = el("div", "prog-row");

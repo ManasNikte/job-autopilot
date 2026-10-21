@@ -124,4 +124,27 @@ def snapshot() -> dict:
         run["pct"] = int(100 * run["done"] / run["total"]) if run.get("total") else None
     return {"active": active, "queued": queued[:50], "queued_total": len(queued), "eta_secs": eta, "run": run, "last_run": last,
             "avg_doc_secs": int(per_doc), "lanes": lanes, "screen_cap": env_int("MAX_SCREEN_PER_RUN", 60),
+            "usage": _usage_view(), "usage_pause_at": env_int("USAGE_PAUSE_AT", 95),
+            "auto_continue": bool(env_int("AUTO_CONTINUE_SCREENING", 1)),
             "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+
+
+def _usage_view() -> dict | None:
+    """The last plan-usage reading for the panel; refreshed in the background when it's over 10 minutes old."""
+    import threading
+    import time
+    from . import llm
+    u = llm.USAGE
+    if time.time() - u.get("checked", 0) > 600 and not getattr(_usage_view, "busy", False):
+        def refresh():
+            _usage_view.busy = True
+            try:
+                llm.usage_now(force=True)
+            finally:
+                _usage_view.busy = False
+        threading.Thread(target=refresh, daemon=True, name="usage-check").start()
+    w = u.get("worst")
+    if not w:
+        return None
+    return {"kind": w.get("kind"), "percent": w.get("percent"), "resets_at": w.get("resets_at"),
+            "checked_ago": int(time.time() - u.get("checked", 0))}

@@ -57,6 +57,20 @@ def resume() -> bool:
     return was
 
 
+def _next_batch(stats: dict):
+    """More jobs still waiting to be screened after this batch? Queue the next batch right away (no more clicking
+    "Screen them now"). The usage check in llm.structured pauses everything at USAGE_PAUSE_AT % of the plan limit,
+    and the queued batch resumes on its own after the limit resets. Stops if a batch screened nothing."""
+    from . import db
+    if not env_int("AUTO_CONTINUE_SCREENING", 1) or not (stats.get("screened") or 0):
+        return None
+    left = db.count("jobs", "status='to_screen'")
+    if left:
+        _log(f"↻ {left} job(s) still waiting to be screened: starting the next batch")
+        return ("process", "auto")
+    return None
+
+
 def _pause(e) -> None:
     from datetime import datetime as _dt
     until = max(state["paused_until"] or 0, e.retry_at)
@@ -75,10 +89,9 @@ def _loop() -> None:
         state["active"][name] = f"{kind} {arg or ''}".strip()
         _refresh_state()
         try:
-            if kind == "run":
-                pipeline.run(_log, fetch=True, enqueue=submit, source=arg or "manual")
-            elif kind == "process":
-                pipeline.run(_log, fetch=False, enqueue=submit, source=arg or "manual")
+            if kind in ("run", "process"):
+                res = pipeline.run(_log, fetch=kind == "run", enqueue=submit, source=arg or "manual") or {}
+                retry = _next_batch(res)
             elif kind == "screen":
                 pipeline.screen_job(arg, _log)
                 from . import db

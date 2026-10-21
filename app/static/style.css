@@ -412,3 +412,4 @@ dialog.modal[open] { display: flex; flex-direction: column; }
 .cloud-form button { justify-self: start; }
 .cloud-signin { margin-top: 14px; } .cloud-signin summary { cursor: pointer; color: var(--accent); }
 .update-actions form { margin: 0; }
+.usage-line { margin: 6px 0 0; } .usage-line.near { color: var(--warning); font-weight: 600; }

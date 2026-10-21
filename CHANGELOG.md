@@ -3,6 +3,11 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.7 (2026-10-21)
+- **Screening runs to the end on its own.** No more clicking "Screen them now": after each batch (60 by default), the next batch starts by itself until every new job is screened.
+- **It respects your Claude limit.** Before Claude work in the background, the app reads your real plan usage from Claude Code. At 95% of your 5-hour session or weekly limit (adjustable in Settings), it pauses and resumes on its own after the reset, so your seat always has room left for you. Form autofill is never paused.
+- The Background panel shows your current Claude usage and when it resets.
+
 ## 3.6 (2026-10-21)
 - **Your online dashboard account is set up from this computer.** Settings → Online dashboard (or **Set it up** on the dashboard) has one short form, pre-filled from your profile. Choose a password, type the emailed code, and you're connected. On the site you just sign in.
 - The online dashboard's address is on the GitHub repo page and at the top of the README, in case you lose it.
