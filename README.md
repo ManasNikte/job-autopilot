@@ -167,6 +167,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.10** | Weekly applications chart (Sun–Sat, week picker, a number on every day), Time saved card, role-family donut, shaded pipeline, paged map list, sidebar slide arrows |
 | **v3.9** | Settings split into separate pages; an Assessments page; sidebar search for pages and individual settings (⌘K) |
 | **v3.8** | Sidebar navigation with every page and sub-page; collapses to an icon rail (remembered), a drawer in narrow windows |
 | **v3.7** | Screening batches chain automatically; background work pauses at 95% of your Claude plan limit (read from Claude Code's `/usage`) and resumes after the reset |
@@ -243,8 +244,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
   profile files, and each Settings page (Schedule, Pipeline and limits, Email inboxes, Online dashboard, App updates,
   Getting started). It collapses to an icon rail and becomes a drawer in narrow windows. **Search the app** from
   its search box (⌘K): it finds pages and individual settings and opens the right one with the setting highlighted.
-- **Dashboard.** A personal greeting written from the time of day and your real progress, eight KPI tiles in a 4 × 2 grid (including **applied today**, **applied this week** (Sunday to Saturday), and **assessments to finish**), **maps of where you're applying**, a 14-day
-  applications chart, a pipeline funnel, live per-job progress bars with an honest "not started / running /
+- **Dashboard.** A personal greeting written from the time of day and your real progress, eight KPI tiles in a 4 × 2 grid (including **applied today**, **applied this week** (Sunday to Saturday), and **assessments to finish**), a **weekly chart** (Sunday to Saturday, a number on every day, pick any week), a **Time saved** estimate, a **role-family donut**, **maps of where you're applying**, a pipeline funnel, live per-job progress bars with an honest "not started / running /
   paused" status, server-side pagination and search everywhere, and dark, light, and system themes.
 - **Online assessments with deadlines (v3.4–v3.5).** Due times are read from the email. Pending assessments get
   a KPI, a card, Needs you items, map pins, and daily and 3-hours-before reminders.
@@ -318,6 +318,10 @@ for this role.
 | Profile and master-prompt editor | Light theme |
 |---|---|
 | ![Profile](docs/screenshots/profile.png) | ![Light theme](docs/screenshots/dashboard-light.png) |
+
+| This week, day by day, and time saved | Applied by role family and the pipeline |
+|---|---|
+| ![Weekly chart and time saved](docs/screenshots/charts-week.png) | ![Role-family donut and pipeline](docs/screenshots/charts-family.png) |
 
 | Sidebar search (⌘K): pages and individual settings | Assessments page |
 |---|---|

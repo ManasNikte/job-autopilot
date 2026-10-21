@@ -3,6 +3,13 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.10 (2026-10-21)
+- **This week's applications, day by day.** Sunday to Saturday, with the count on top of every day, today highlighted, and the week's total, daily average, change from the week before, and best day. Pick any earlier week with ‹ › or the menu.
+- **Time saved.** A new card estimates the hours the app saved you: reading job descriptions to judge fit, tailoring documents, filling forms, and sorting emails.
+- **Applied by role family** is now a donut chart with a labeled legend; the pipeline chart shades stages from early to outcome and shows each stage's share.
+- The list of jobs that can't go on the map has pages.
+- On laptops and desktops the sidebar slides with the arrow above Overview; the menu button stays for narrow windows.
+
 ## 3.9 (2026-10-21)
 - **Settings are separate pages:** Schedule, Pipeline and limits, Email inboxes, Online dashboard, App updates, and Getting started, each with its own address and tabs at the top. Older links such as /settings#cloud still open the right page.
 - **Assessments has its own page**, with the ones still to finish and the ones you finished or dismissed.

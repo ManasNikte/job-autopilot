@@ -191,6 +191,115 @@ def _profile_email() -> str:
     return "" if e.endswith("@example.com") else e
 
 
+def week_series(sunday=None) -> dict:
+    """Applications per local day for one Sunday-to-Saturday week (default: this week)."""
+    today = datetime.now().astimezone().date()
+    sunday = sunday or today - timedelta(days=(today.weekday() + 1) % 7)
+    days = [sunday + timedelta(days=i) for i in range(7)]
+    per_day = {d: 0 for d in days}
+    prev = 0
+    lo = datetime.combine(sunday - timedelta(days=7), datetime.min.time()).astimezone().astimezone(timezone.utc).isoformat()
+    hi = datetime.combine(sunday + timedelta(days=7), datetime.min.time()).astimezone().astimezone(timezone.utc).isoformat()
+    for r in db.fetchall("SELECT applied_at FROM jobs WHERE applied_at >= ? AND applied_at < ?", (lo, hi)):
+        dt = _parse_dt(r["applied_at"])
+        if not dt:
+            continue
+        d = dt.astimezone().date()
+        if d in per_day:
+            per_day[d] += 1
+        elif d < sunday:
+            prev += 1
+    out = [{"date": d.isoformat(), "dow": d.strftime("%a"), "label": strf(d, "%a %b %-d"), "day": d.day, "n": per_day[d],
+            "today": d == today, "future": d > today} for d in days]
+    total = sum(x["n"] for x in out)
+    past = [x for x in out if not x["future"]] or out
+    return {"start": sunday.isoformat(), "title": f"{strf(days[0], '%b %-d')} – {strf(days[-1], '%b %-d')}",
+            "current": sunday <= today <= days[-1], "days": out, "total": total, "prev_total": prev,
+            "avg": round(total / len(past), 1), "peak": max([x["n"] for x in out] + [1]),
+            "best": max(out, key=lambda x: x["n"]) if total else None}
+
+
+def week_options(limit: int = 26) -> list[dict]:
+    """Weeks to pick from: every week since the first application (newest first), at most `limit`."""
+    today = datetime.now().astimezone().date()
+    this_sun = today - timedelta(days=(today.weekday() + 1) % 7)
+    first = db.fetchone("SELECT min(applied_at) AS a FROM jobs WHERE applied_at IS NOT NULL")["a"]
+    first_d = (_parse_dt(first) or datetime.now(timezone.utc)).astimezone().date()
+    first_sun = first_d - timedelta(days=(first_d.weekday() + 1) % 7)
+    weeks, sun = [], this_sun
+    while sun >= first_sun and len(weeks) < limit:
+        weeks.append({"start": sun.isoformat(), "label": ("This week" if sun == this_sun else "Last week" if sun == this_sun - timedelta(days=7)
+                      else f"Week of {strf(sun, '%b %-d')}")})
+        sun -= timedelta(days=7)
+    return weeks or [{"start": this_sun.isoformat(), "label": "This week"}]
+
+
+# Minutes a person would spend on each step by hand (conservative estimates, shown on the dashboard).
+MANUAL_MINUTES = {"screen": 5, "docs": 45, "form": 10, "email": 2}
+
+
+def time_saved() -> dict:
+    """Hours the app saved versus doing it by hand: reading each JD to judge fit, writing tailored documents,
+    filling application forms, and sorting replies."""
+    n = {"screen": db.count("jobs", "match_score IS NOT NULL"),
+         "docs": db.count("jobs", "tailor_json IS NOT NULL"),
+         "form": db.count("jobs", "applied_at IS NOT NULL"),
+         "email": db.count("email_events", "state != 'ignored'") if db.fetchone(
+             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='email_events'") else 0}
+    labels = {"screen": ("Job descriptions read and judged for fit", "screened"),
+              "docs": ("Tailored resumes and cover letters", "written"),
+              "form": ("Application forms filled", "filled"),
+              "email": ("Application emails sorted", "sorted")}
+    rows = [{"key": k, "label": labels[k][0], "verb": labels[k][1], "n": n[k], "per": MANUAL_MINUTES[k],
+             "hours": round(n[k] * MANUAL_MINUTES[k] / 60, 1)} for k in ("screen", "docs", "form", "email")]
+    total_h = sum(r["hours"] for r in rows)
+    peak = max([r["hours"] for r in rows] + [0.1])
+    for r in rows:
+        r["pct"] = round(r["hours"] / peak * 100, 1)
+    return {"hours": round(total_h), "days": round(total_h / 8, 1), "rows": rows}
+
+
+def donut_slices(rows: list[dict], top: int = 6) -> dict:
+    """SVG donut arcs for applications by role family: the six largest families plus Other (colors in fixed order)."""
+    import math
+    rows = [dict(r) for r in rows if r["n"]]
+    main, rest = rows[:top], rows[top:]
+    other = sum(r["n"] for r in rest) + sum(r["n"] for r in main if r["fam"] == "Other")
+    main = [r for r in main if r["fam"] != "Other"]
+    if other:
+        main.append({"fam": "Other", "n": other})
+    total = sum(r["n"] for r in main)
+    if not total:
+        return {"total": 0, "slices": []}
+    R, r_in, cx, cy, gap = 80, 52, 90, 90, 0.025       # gap: radians of surface between slices
+    out, a = [], -math.pi / 2
+    for i, row in enumerate(main):
+        sweep = row["n"] / total * 2 * math.pi
+        a0, a1 = a + (gap / 2 if len(main) > 1 else 0), a + sweep - (gap / 2 if len(main) > 1 else 0)
+        if len(main) == 1:
+            a1 = a0 + 2 * math.pi - 1e-4
+        large = 1 if a1 - a0 > math.pi else 0
+        pt = lambda rad, ang: (cx + rad * math.cos(ang), cy + rad * math.sin(ang))
+        (x0, y0), (x1, y1), (x2, y2), (x3, y3) = pt(R, a0), pt(R, a1), pt(r_in, a1), pt(r_in, a0)
+        d = (f"M{x0:.2f},{y0:.2f} A{R},{R} 0 {large} 1 {x1:.2f},{y1:.2f} L{x2:.2f},{y2:.2f} "
+             f"A{r_in},{r_in} 0 {large} 0 {x3:.2f},{y3:.2f} Z")
+        out.append({"fam": row["fam"], "n": row["n"], "pct": round(row["n"] / total * 100), "d": d,
+                    "slot": "other" if row["fam"] == "Other" else str(i + 1)})
+        a += sweep
+    return {"total": total, "slices": out}
+
+
+@app.get("/api/week")
+def week_json():
+    try:
+        sunday = datetime.strptime(request.args.get("start", ""), "%Y-%m-%d").date()
+    except ValueError:
+        sunday = None
+    if sunday:
+        sunday -= timedelta(days=(sunday.weekday() + 1) % 7)       # any date → its Sunday
+    return jsonify(week_series(sunday))
+
+
 def week_start_utc(today=None) -> str:
     """This calendar week's start, Sunday 00:00 on this computer's clock (weeks run Sunday to Saturday), in UTC."""
     today = today or datetime.now().astimezone().date()
@@ -228,28 +337,24 @@ def dashboard():
     for a in assess:
         a["label"] = assessments.due_label(a)
     kpis["assessments"] = sum(1 for a in assess if not a["overdue"])
-    # 14-day applications series (one value per local day).
-    days = [today - timedelta(days=i) for i in range(13, -1, -1)]
-    rows = db.fetchall("SELECT applied_at FROM jobs WHERE applied_at IS NOT NULL")
-    per_day = {d: 0 for d in days}
-    for r in rows:
-        d = datetime.fromisoformat(r["applied_at"]).astimezone().date()
-        if d in per_day:
-            per_day[d] += 1
-    series = [{"label": d.strftime("%b %d"), "short": d.strftime("%d"), "n": per_day[d]} for d in days]
-    peak = max([s["n"] for s in series] + [1])
-
-    funnel = [{"status": s, "label": STATUS_LABELS[s], "n": counts.get(s, 0)} for s in PIPELINE_STAGES]
+    week = week_series()
+    weeks = week_options()
+    saved = time_saved()
+    tone = {"to_screen": 1, "screening": 1, "needs_decision": 2, "to_tailor": 2, "tailoring": 2, "ready": 3,
+            "applied": 4, "interviewing": 5, "offer": 5}            # ordinal shade: early stages light, outcomes dark
+    funnel = [{"status": s, "label": STATUS_LABELS[s], "n": counts.get(s, 0), "tone": tone.get(s, 3)} for s in PIPELINE_STAGES]
     fmax = max([f["n"] for f in funnel] + [1])
+    ftotal = sum(f["n"] for f in funnel) or 1
     today_cond = "posted_at>=? AND status NOT IN ('filtered_out')"
     today_page = Page(db.count("jobs", today_cond, (start_utc,)), per_page=10, param="today_page", anchor="today")
     today_jobs = db.list_jobs(today_cond, (start_utc,), order="coalesce(match_score, -1) DESC, posted_at DESC",
                               limit=today_page.per_page, offset=today_page.offset)
     applied = "status IN ('applied','interviewing','offer','closed')"
-    fam_rows = db.fetchall(f"SELECT coalesce(role_family,'Other') AS fam, count(*) AS n FROM jobs WHERE {applied} GROUP BY fam")
+    fam_rows = db.fetchall(f"SELECT coalesce(role_family,'Other') AS fam, count(*) AS n FROM jobs WHERE {applied} "
+                           "GROUP BY fam ORDER BY n DESC, fam")
     family_page = Page(len(fam_rows), per_page=6, param="family_page", anchor="by-family")
-    by_family = db.fetchall(f"SELECT coalesce(role_family,'Other') AS fam, count(*) AS n FROM jobs WHERE {applied} "
-                            "GROUP BY fam ORDER BY n DESC, fam LIMIT ? OFFSET ?", (family_page.per_page, family_page.offset))
+    by_family = fam_rows[family_page.offset:family_page.offset + family_page.per_page]
+    donut = donut_slices(fam_rows)
     n_companies = db.fetchone(f"SELECT count(DISTINCT company) AS n FROM jobs WHERE {applied}")["n"]
     company_page = Page(n_companies, per_page=6, param="company_page", anchor="by-company")
     by_company = db.fetchall(f"SELECT company, count(*) AS n FROM jobs WHERE {applied} GROUP BY company "
@@ -262,7 +367,7 @@ def dashboard():
     from . import cloud
     cloud_prompt = (bool(cloud.config()) and not cloud.connected() and not db.kv_get("cloud_prompt") and bool(user_name)
                     and not show_tour)
-    return render_template("dashboard.html", cloud_prompt=cloud_prompt, assess=assess, tour=tour_steps(user_name) if show_tour else None, just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
+    return render_template("dashboard.html", cloud_prompt=cloud_prompt, assess=assess, tour=tour_steps(user_name) if show_tour else None, just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, week=week, weeks=weeks, saved=saved, donut=donut, funnel=funnel, fmax=fmax, ftotal=ftotal,
                            today_jobs=today_jobs, by_family=by_family, by_company=by_company, last_run=last_run, counts=counts,
                            today_page=today_page, family_page=family_page, company_page=company_page,
                            applied_total=sum(r["n"] for r in fam_rows))

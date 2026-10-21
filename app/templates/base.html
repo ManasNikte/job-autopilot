@@ -77,9 +77,12 @@
     const root = document.documentElement, body = document.body, bd = document.getElementById("sb-backdrop");
     const toggle = document.getElementById("sb-toggle"), narrow = () => matchMedia("(max-width: 1000px)").matches;
     const setDrawer = (open) => { body.classList.toggle("sb-open", open); bd.hidden = !open; toggle.setAttribute("aria-expanded", String(open)); };
-    const setRail = (rail) => { root.classList.toggle("sb-rail", rail); try { localStorage.setItem("sidebar", rail ? "rail" : "full"); } catch (e) {} };
+    const slide = document.getElementById("sb-slide");
+    const label = () => { const r = root.classList.contains("sb-rail"); slide.title = slide.ariaLabel = r ? "Expand the sidebar" : "Collapse the sidebar"; };
+    const setRail = (rail) => { root.classList.toggle("sb-rail", rail); label(); try { localStorage.setItem("sidebar", rail ? "rail" : "full"); } catch (e) {} };
     toggle.addEventListener("click", () => narrow() ? setDrawer(!body.classList.contains("sb-open")) : setRail(!root.classList.contains("sb-rail")));
-    document.getElementById("sb-collapse").addEventListener("click", () => setRail(!root.classList.contains("sb-rail")));
+    slide.addEventListener("click", () => setRail(!root.classList.contains("sb-rail")));      // the arrows above Overview
+    label();
     document.getElementById("sb-close").addEventListener("click", () => setDrawer(false));
     bd.addEventListener("click", () => setDrawer(false));
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && body.classList.contains("sb-open")) setDrawer(false); });

@@ -70,6 +70,10 @@ ready for the best matches, and a **Needs you** inbox with only these items:
 - Answer a fact only you know (asked once, remembered forever)
 - Review and submit (the Chrome extension fills the form; you press Submit)
 
+Under the tiles, a **weekly chart** shows applications for each day from Sunday to Saturday (any past week can be
+picked), next to a **Time saved** estimate: about 5 minutes per job description read, 45 per tailored document set,
+10 per form, and 2 per email sorted. A donut breaks applications down by role family.
+
 The dashboard opens with eight tiles in a 4 × 2 grid: new roles today, ready to submit, waiting on your call,
 **applied today**, **applied this week** (Sunday to Saturday), applied all time, interviewing, and assessments to
 finish. Below them are **two maps**: one pins every job that's ready to submit, and the other pins submitted applications. The second map

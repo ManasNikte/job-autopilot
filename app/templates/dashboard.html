@@ -136,11 +136,25 @@
     const list = (d.unmapped_jobs || []).filter(j => !j.pending);
     box.hidden = !list.length;
     box.querySelector("summary").textContent = `${list.length} not on the map (remote, country-wide, or no recognizable city)`;
-    const ul = box.querySelector("ul"); ul.replaceChildren();
-    list.forEach(j => { const li = document.createElement("li"); const a = document.createElement("a");
-      a.href = linkFor(j.id); a.textContent = `${j.company} · ${j.title}`; li.appendChild(a);
-      const tag = tagFor(j) || (j.status === "interviewing" || j.status === "offer" ? j.status : "");
-      li.append(` (${[j.location || "no location", tag].filter(Boolean).join(", ")})`); ul.appendChild(li); });
+    const ul = box.querySelector("ul"), per = 8;
+    let pageNo = 0;
+    const pager = box.querySelector(".map-pager") || box.appendChild(Object.assign(document.createElement("div"), { className: "map-pager" }));
+    const show = () => {
+      ul.replaceChildren();
+      list.slice(pageNo * per, pageNo * per + per).forEach(j => { const li = document.createElement("li"); const a = document.createElement("a");
+        a.href = linkFor(j.id); a.textContent = `${j.company} · ${j.title}`; li.appendChild(a);
+        const tag = tagFor(j) || (j.status === "interviewing" || j.status === "offer" ? j.status : "");
+        li.append(` (${[j.location || "no location", tag].filter(Boolean).join(", ")})`); ul.appendChild(li); });
+      const pages = Math.ceil(list.length / per);
+      pager.replaceChildren(); pager.hidden = pages < 2;
+      if (pages < 2) return;
+      const btn = (txt, to, off) => { const b = document.createElement("button"); b.type = "button"; b.className = "btn small"; b.textContent = txt;
+        b.disabled = off; b.onclick = () => { pageNo = to; show(); }; return b; };
+      const info = document.createElement("span"); info.className = "sub small";
+      info.textContent = `${pageNo * per + 1}–${Math.min(list.length, pageNo * per + per)} of ${list.length}`;
+      pager.append(btn("‹ Prev", pageNo - 1, pageNo === 0), info, btn("Next ›", pageNo + 1, pageNo >= pages - 1));
+    };
+    show();
     if (d.pending) setTimeout(() => load(key, query, noteId), 6000);   // geocoding runs in the background, 1 place a second
   }
 
@@ -179,35 +193,108 @@
 })();
 </script>
 
-<div class="grid g2">
-  <div class="card">
-    <h2>Applications submitted per day</h2>
-    <div class="bars" role="img" aria-label="Applications per day, last 14 days">
-      {% for s in series %}
-      <div class="bar-col">
-        {% if s.n and (s.n == peak or loop.last) %}<span class="val">{{ s.n }}</span>{% endif %}
-        <div class="bar" style="height: {{ (s.n / peak * 100)|round(1) }}%"></div>
-        <span class="tip">{{ s.label }}: {{ s.n }} applied</span>
+<div class="grid g2 charts">
+  <div class="card" id="applied-week">
+    <div class="spread chart-head">
+      <div><h2 style="margin:0">Applications this week</h2>
+        <div class="sub small" id="wk-sub"></div></div>
+      <div class="wk-nav" role="group" aria-label="Choose a week">
+        <button type="button" class="btn small icon" id="wk-prev" aria-label="Previous week">‹</button>
+        <select id="wk-select" aria-label="Week">{% for w in weeks %}<option value="{{ w.start }}">{{ w.label }}</option>{% endfor %}</select>
+        <button type="button" class="btn small icon" id="wk-next" aria-label="Next week">›</button>
+      </div>
+    </div>
+    <div class="wk-stats" id="wk-stats"></div>
+    <div class="wk-chart" id="wk-chart" role="img" aria-label="Applications per day this week"></div>
+    <details class="table-view"><summary>Table view</summary><table id="wk-table"></table></details>
+    <script type="application/json" id="wk-data">{{ week|tojson }}</script>
+  </div>
+
+  <div class="card saved-card" id="time-saved">
+    <h2 style="margin:0">Time saved</h2>
+    <div class="saved-hero"><span class="saved-num">{{ saved.hours }}</span><span class="saved-unit">hours</span>
+      <span class="sub">≈ {{ saved.days }} work days you didn't spend reading job descriptions, writing documents, and filling forms</span></div>
+    <div class="saved-rows">
+      {% for r in saved.rows %}
+      <div class="saved-row" title="{{ r.n }} × about {{ r.per }} min by hand">
+        <div class="spread small"><span>{{ r.label }}</span><b>{{ r.hours|round(1) }} h</b></div>
+        <div class="saved-track"><span style="width: {{ r.pct }}%"></span></div>
+        <div class="sub small">{{ r.n }} {{ r.verb }} × ~{{ r.per }} min each by hand</div>
       </div>
       {% endfor %}
     </div>
-    <div class="axis">{% for s in series %}<span>{{ s.short if loop.index0 % 2 == 1 or loop.last else '' }}</span>{% endfor %}</div>
-    <details><summary>Table view</summary>
-      <table><tr><th>Day</th><th class="num">Applied</th></tr>{% for s in series %}<tr><td>{{ s.label }}</td><td class="num">{{ s.n }}</td></tr>{% endfor %}</table>
-    </details>
+    <p class="sub small" style="margin:10px 0 0">Estimates: about 5 minutes to read a job description and decide if it fits, 45 to tailor a resume and cover letter, 10 to fill a form, and 2 to sort an email.</p>
+  </div>
+</div>
+
+<div class="grid g2 charts">
+  <div class="card" id="by-family">
+    <h2 style="margin:0 0 10px">Applied by role family <span class="muted">({{ donut.total }})</span></h2>
+    {% if donut.slices %}
+    <div class="donut-wrap">
+      <svg class="donut" viewBox="0 0 180 180" role="img" aria-label="Applications by role family">
+        {% for sl in donut.slices %}<path class="slice s{{ sl.slot }}" d="{{ sl.d }}"><title>{{ sl.fam }}: {{ sl.n }} ({{ sl.pct }}%)</title></path>{% endfor %}
+        <text x="90" y="86" text-anchor="middle" class="donut-n">{{ donut.total }}</text>
+        <text x="90" y="104" text-anchor="middle" class="donut-k">applied</text>
+      </svg>
+      <ul class="legend">
+        {% for sl in donut.slices %}<li><i class="sw s{{ sl.slot }}"></i><a href="{{ url_for('jobs', status='applied_all') }}">{{ sl.fam }}</a><b>{{ sl.n }}</b><span class="sub">{{ sl.pct }}%</span></li>{% endfor %}
+      </ul>
+    </div>
+    {% else %}<p class="muted">No applications yet.</p>{% endif %}
   </div>
   <div class="card">
     <h2>Pipeline</h2>
     {% for f in funnel %}
     <a class="funnel-row" href="{{ url_for('jobs', status=f.status) }}" title="{{ f.label }}: {{ f.n }}">
       <span class="lbl">{{ f.label }}</span>
-      <span class="funnel-track"><span class="funnel-fill" style="display:block;width: {{ (f.n / fmax * 100)|round(1) }}%"></span></span>
-      <span class="n">{{ f.n }}</span>
+      <span class="funnel-track"><span class="funnel-fill t{{ f.tone }}" style="width: {{ (f.n / fmax * 100)|round(1) }}%"></span></span>
+      <span class="n">{{ f.n }}<span class="sub"> {{ (f.n / ftotal * 100)|round|int }}%</span></span>
     </a>
     {% endfor %}
     <p class="muted" style="margin:10px 0 0">Filtered out by rules: {{ counts.get('filtered_out', 0) }} · Claude said don't apply: {{ counts.get('rejected', 0) }} · Errors: {{ counts.get('error', 0) }}</p>
   </div>
 </div>
+
+<script>
+(() => {   // weekly chart: Sunday to Saturday, a number on every day, ‹ › and a menu to pick the week
+  const chart = document.getElementById("wk-chart"), sel = document.getElementById("wk-select");
+  const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+  function draw(w) {
+    chart.replaceChildren();
+    const peak = Math.max(1, ...w.days.map((d) => d.n));
+    w.days.forEach((d) => {
+      const col = el("div", "wk-col" + (d.today ? " today" : "") + (d.future ? " future" : ""));
+      col.appendChild(el("span", "wk-val", d.future ? "" : String(d.n)));
+      const bar = el("div", "wk-bar"); bar.style.height = (d.future ? 0 : Math.max(d.n / peak * 100, d.n ? 4 : 0)) + "%";
+      col.appendChild(bar);
+      col.appendChild(el("span", "wk-tip", `${d.label}: ${d.future ? "still to come" : d.n + " applied"}`));
+      const lab = el("div", "wk-lab"); lab.append(el("b", null, d.dow), el("span", null, d.today ? "Today" : String(d.day)));
+      col.appendChild(lab); chart.appendChild(col);
+    });
+    chart.setAttribute("aria-label", `Applications per day, ${w.title}: ` + w.days.map((d) => `${d.dow} ${d.n}`).join(", "));
+    document.getElementById("wk-sub").textContent = `${w.title}${w.current ? " · this week" : ""}`;
+    const delta = w.total - w.prev_total, stats = document.getElementById("wk-stats"); stats.replaceChildren();
+    const box = (v, k, cls) => { const b = el("div", "wk-stat " + (cls || "")); b.append(el("b", null, v), el("span", null, k)); stats.appendChild(b); };
+    box(String(w.total), "applied"); box(String(w.avg), "per day");
+    box((delta > 0 ? "▲ " : delta < 0 ? "▼ " : "") + Math.abs(delta), "vs week before", delta > 0 ? "up" : delta < 0 ? "down" : "");
+    if (w.best) box(w.best.dow, `best day (${w.best.n})`);
+    const t = document.getElementById("wk-table"); t.replaceChildren();
+    const hr = el("tr"); hr.append(el("th", null, "Day"), el("th", "num", "Applied")); t.appendChild(hr);
+    w.days.forEach((d) => { const r = el("tr"); r.append(el("td", null, d.label), el("td", "num", d.future ? "—" : String(d.n))); t.appendChild(r); });
+    sel.value = w.start;
+    document.getElementById("wk-prev").disabled = sel.selectedIndex >= sel.options.length - 1;
+    document.getElementById("wk-next").disabled = sel.selectedIndex <= 0;
+  }
+  async function load(start) {
+    try { draw(await (await fetch("{{ url_for('week_json') }}?start=" + start)).json()); } catch (e) {}
+  }
+  sel.addEventListener("change", () => load(sel.value));
+  document.getElementById("wk-prev").addEventListener("click", () => { if (sel.selectedIndex < sel.options.length - 1) load(sel.options[sel.selectedIndex + 1].value); });
+  document.getElementById("wk-next").addEventListener("click", () => { if (sel.selectedIndex > 0) load(sel.options[sel.selectedIndex - 1].value); });
+  draw(JSON.parse(document.getElementById("wk-data").textContent));
+})();
+</script>
 
 <div class="card flush" id="today">
   <div class="spread" style="padding:14px 16px 0"><h2 style="margin:0">Posted today <span class="muted">({{ today_page.total }})</span></h2><a href="{{ url_for('jobs', sort='posted') }}">All jobs →</a></div>
@@ -229,10 +316,7 @@
   {% else %}<p class="muted" style="padding:0 16px 16px">Nothing relevant posted today yet. Runs pick up new postings each time.</p>{% endif %}
 </div>
 
-<div class="grid g3">
-  <div class="card" id="by-family"><h2>Applied by role family <span class="muted">({{ applied_total }})</span></h2>
-    {% if by_family %}<table>{% for r in by_family %}<tr><td><a href="{{ url_for('jobs', status='applied_all', q=None) }}">{{ r.fam }}</a></td><td class="num">{{ r.n }}</td></tr>{% endfor %}</table>
-    {{ pager(family_page, "families") }}{% else %}<p class="muted">No applications yet.</p>{% endif %}</div>
+<div class="grid g2">
   <div class="card" id="by-company"><h2>Applied by company <span class="muted">({{ company_page.total }})</span></h2>
     {% if by_company %}<table>{% for r in by_company %}<tr><td><a href="{{ url_for('jobs', status='applied_all', q=r.company) }}">{{ r.company }}</a></td><td class="num">{{ r.n }}</td></tr>{% endfor %}</table>
     {{ pager(company_page, "companies") }}{% else %}<p class="muted">No applications yet.</p>{% endif %}</div>
