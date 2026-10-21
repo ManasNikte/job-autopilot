@@ -52,8 +52,8 @@ h3 { font-size: 14px; margin: 14px 0 8px; }
 .grid { display: grid; gap: 16px; }
 .g2 { grid-template-columns: 1fr 1fr; }
 .g3 { grid-template-columns: repeat(3, 1fr); }
-.kpis { grid-template-columns: repeat(6, 1fr); }
-@media (max-width: 900px) { .g2, .g3 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(3, 1fr); } }
+.kpis { grid-template-columns: repeat(7, 1fr); }
+@media (max-width: 900px) { .g2, .g3 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 600px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
 .tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; display: block; color: inherit; }
 .tile:hover { text-decoration: none; border-color: var(--accent); }
@@ -383,3 +383,21 @@ dialog.modal[open] { display: flex; flex-direction: column; }
 .tour-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background .2s, width .2s; }
 .tour-dots i.on { width: 16px; border-radius: 3px; background: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .tour-spot, .tour-card, .tour-dots i { transition: none; } }
+
+/* ---------- Online assessments ---------- */
+@media (max-width: 1250px) and (min-width: 901px) { .kpis { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 600px) { .kpis > .tile:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+.tile.tile-alert { border-color: color-mix(in srgb, var(--critical, #e5484d) 55%, var(--border)); }
+.tile.tile-alert .v { color: var(--critical, #e5484d); }
+.assess-card { margin-top: 16px; border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.assess-list { display: grid; gap: 10px; margin-top: 12px; }
+.assess { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2, transparent); }
+.assess.urgent { border-color: color-mix(in srgb, var(--critical, #e5484d) 55%, var(--border)); }
+.assess.overdue { opacity: .75; }
+.assess-main { flex: 1; min-width: 240px; }
+.assess-due { margin: 4px 0 2px; font-weight: 600; }
+.assess.urgent .assess-due { color: var(--critical, #e5484d); }
+.assess-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.assess-actions form { margin: 0; }
+.btn.ghost { background: transparent; }

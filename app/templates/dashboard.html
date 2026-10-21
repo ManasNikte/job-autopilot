@@ -20,7 +20,31 @@
   <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_today }}</div><div class="k">Applied today</div></a>
   <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_total }}</div><div class="k">Applied, all time</div></a>
   <a class="tile" href="{{ url_for('jobs', status='interviewing') }}"><div class="v">{{ kpis.interviewing }}</div><div class="k">Interviewing / offers</div></a>
+  <a class="tile{{ ' tile-alert' if assess and assess[0].urgent }}" href="{{ '#assessments' if assess else url_for('email_page', event='assessment') }}"><div class="v">{{ kpis.assessments }}</div><div class="k">Online assessments to finish</div></a>
 </div>
+
+{% if assess %}
+<div class="card assess-card" id="assessments">
+  <div class="spread"><h2 style="margin:0">⏰ Assessments to finish</h2>
+    <span class="sub small">Reminders every morning, and 3 hours before each is due.</span></div>
+  <div class="assess-list">
+  {% for a in assess %}
+    <div class="assess{{ ' urgent' if a.urgent }}{{ ' overdue' if a.overdue }}">
+      <div class="assess-main">
+        <b>{{ a.shown_company }}</b>{% if a.shown_role %}<span class="sub"> · {{ a.shown_role }}</span>{% endif %}
+        <div class="assess-due">{{ a.label }}</div>
+        {% if a.summary %}<div class="sub small">{{ a.summary }}</div>{% endif %}
+      </div>
+      <div class="assess-actions">
+        {% if a.link %}<a class="btn primary small" href="{{ a.link }}" target="_blank" rel="noopener noreferrer">Open assessment</a>{% endif %}
+        <form method="post" action="{{ url_for('assessment_mark', event_id=a.id, how='done') }}"><button class="btn small">✓ Done</button></form>
+        <form method="post" action="{{ url_for('assessment_mark', event_id=a.id, how='skip') }}"><button class="btn small ghost" title="Stop reminding me" onclick="return confirm('Stop reminders for this assessment?')">Not doing it</button></form>
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 <div style="margin-top:16px" data-tour="background">{% include "_progress.html" %}</div>
 

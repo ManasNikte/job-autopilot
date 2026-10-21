@@ -157,6 +157,11 @@ def dashboard():
         "applied_total": applied_total,
         "interviewing": counts.get("interviewing", 0) + counts.get("offer", 0),
     }
+    from . import assessments
+    assess = assessments.pending()
+    for a in assess:
+        a["label"] = assessments.due_label(a)
+    kpis["assessments"] = sum(1 for a in assess if not a["overdue"])
     # 14-day applications series (one value per local day).
     days = [today - timedelta(days=i) for i in range(13, -1, -1)]
     rows = db.fetchall("SELECT applied_at FROM jobs WHERE applied_at IS NOT NULL")
@@ -188,7 +193,7 @@ def dashboard():
     user_name = greeting.user_name()
     hello = greeting.greet(name=user_name) if user_name else None
     show_tour = bool(request.args.get("tour")) or (bool(user_name) and not db.kv_get("tour"))   # after the name box
-    return render_template("dashboard.html", tour=tour_steps(user_name) if show_tour else None, just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
+    return render_template("dashboard.html", assess=assess, tour=tour_steps(user_name) if show_tour else None, just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
                            today_jobs=today_jobs, by_family=by_family, by_company=by_company, last_run=last_run, counts=counts,
                            today_page=today_page, family_page=family_page, company_page=company_page,
                            applied_total=sum(r["n"] for r in fam_rows))
@@ -1185,6 +1190,20 @@ def tour_steps(name: str | None) -> list[dict]:
     ]
 
 
+@app.post("/assessments/<int:event_id>/<how>")
+def assessment_mark(event_id, how):
+    from . import assessments
+    if how not in ("done", "skip"):
+        abort(404)
+    a = next((x for x in assessments.pending() if event_id in x["ids"]), None)
+    if not a:
+        abort(404)
+    assessments.mark(a["ids"], "done" if how == "done" else "skipped")
+    flash(f"Nice work on the {a['shown_company']} assessment! 🎯" if how == "done"
+          else f"Okay, no more reminders for the {a['shown_company']} assessment.")
+    return redirect(request.referrer or url_for("dashboard"))
+
+
 @app.post("/tour/<how>")
 def tour_finish(how):
     if how not in ("done", "skipped"):
@@ -1346,6 +1365,12 @@ def serve() -> None:
     threading.Thread(target=updater.loop, name="updater", daemon=True).start()
     if not db.kv_get("tour") and db.count("runs"):               # existing installs skip the first-run tour
         db.kv_set("tour", "existing")
+    try:
+        from . import assessments
+        assessments.backfill()
+        assessments.sync_todos()
+    except Exception as e:
+        print(f"assessments: {e}")
     n = worker.resume_queue()
     if n:
         print(f"Resumed {n} job(s) waiting for documents.")

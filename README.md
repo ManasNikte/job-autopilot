@@ -121,6 +121,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.4** | Online assessments: KPI tile, due-time card with Done, daily and 3-hours-before reminders, unmatched emails included |
 | **v3.3** | Guided first-run tour of the dashboard (skippable, replay from Settings) |
 | **v3.2** | Email updates on the online dashboard follow undo, ignore, and manual matching on your computer |
 | **v3.1** | One-click in-app updates with release notes; sign in to the online dashboard with more than one email; operator-only user counts and Users page; reliability fixes (cloud sync, phone requests, password reset, follow-up reminders) |
@@ -399,6 +400,7 @@ app/
   h1b.py        USCIS import, learned sponsors, cached online sponsor lookup
   geo.py        location → place splitting and cached geocoding for the maps
   cloud.py      online-dashboard connector: pushes summaries, picks up requests from your phone
+  assessments.py online assessments: due times from the email, pending list, reminders
   updater.py    in-app updates: check GitHub, show what's new, pull and restart
   greeting.py   the dashboard greeting: your name, the time of day, and your progress
   mailsync.py   inbox readers (Gmail, Microsoft Graph, Apple Mail), rule filter, Claude classification, job matching, undo

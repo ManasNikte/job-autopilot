@@ -126,7 +126,7 @@ MIGRATIONS = {   # columns added after the first release; applied idempotently o
     "jobs": {"source": "TEXT", "h1b_signal": "TEXT", "h1b_level": "TEXT", "startup": "INTEGER DEFAULT 0", "company_stage": "TEXT",
              "salary": "TEXT", "salary_max": "INTEGER", "prompt_version": "TEXT", "status_changed_at": "TEXT"},
     "runs": {"source": "TEXT"},
-    "email_events": {"updated_at": "TEXT"},
+    "email_events": {"updated_at": "TEXT", "due_at": "TEXT", "done_at": "TEXT", "done_how": "TEXT"},
 }
 
 EXTRA_SCHEMA = """

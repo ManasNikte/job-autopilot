@@ -3,6 +3,13 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.4 (2026-10-21)
+- **Online assessments, tracked properly.** A new dashboard tile counts assessments still to finish, and an "Assessments to finish" card lists each one with its exact due time (for example "due Sun Oct 25, 8:41 PM"), read from the email, with Done and Not doing it buttons.
+- Assessments from companies you applied to outside the app are included too, and they land on Needs you.
+- **Reminders:** a desktop notification every morning (from 9 AM) while assessments are pending, and another 3 hours before each is due (macOS). The welcome message names every pending assessment, soonest first.
+- An assessment closes itself when the company later invites you to interview, sends an offer, or declines.
+- The online dashboard shows the count and the list with due times.
+
 ## 3.3 (2026-10-21)
 - **A guided tour for new users.** The first time you open the dashboard, a short walkthrough highlights each part (Run now, your numbers, Needs you, Jobs, the Chrome extension, Applied, Email, Profile, Settings) and explains what it does. Skip it anytime, or replay it from Settings → Getting started.
 

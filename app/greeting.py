@@ -71,7 +71,26 @@ def stats(today: date | None = None) -> dict:
         "streak": streak, "past_best": past_best, "ready": db.count("jobs", "status='ready'"),
         "interviewing": db.count("jobs", "status IN ('interviewing','offer')"),
         "offer": fresh.get("offer"), "interview": fresh.get("interview"), "assessment": fresh.get("assessment"),
+        "assessments": _pending_assessments(),
     }
+
+
+def _pending_assessments() -> list[dict]:
+    try:
+        from . import assessments
+        return [a for a in assessments.pending() if not a["overdue"]]
+    except Exception:
+        return []
+
+
+def _assessment_line(items: list[dict]) -> str:
+    from .assessments import due_label, short_when
+    if len(items) == 1:
+        a = items[0]
+        return f"📝 Your {a['shown_company']} assessment is {due_label(a)}. Knock it out while you're sharp."
+    names = [f"{a['shown_company']} ({short_when(a)})" for a in items[:2]]
+    more = f", and {len(items) - 2} more" if len(items) > 2 else ""
+    return f"📝 {len(items)} assessments to finish: {names[0]} and {names[1]}{more}. Start with the first one."
 
 
 def _when(hour: int) -> tuple[str, str, str]:
@@ -106,8 +125,13 @@ def _message(s: dict, flavor: str, pl) -> str:
     # 1. Real wins first: offers, interviews, assessments from the last few days (still open in Needs you)
     if s.get("offer"):
         return f"🎉 An offer from {s['offer']['company']}! Take a moment, you earned this."
+    pend = s.get("assessments") or []
+    if pend and pend[0].get("urgent"):                     # due within 36 hours beats everything but an offer
+        return _assessment_line(pend)
     if s.get("interview"):
         return f"📞 {s['interview']['company']} wants to talk to you. Time to prep your stories."
+    if pend:
+        return _assessment_line(pend)
     if s.get("assessment"):
         return f"📝 {s['assessment']['company']} sent an assessment. Knock it out while you're sharp."
     # 2. Today's momentum

@@ -173,6 +173,19 @@ def _clock() -> None:
         time.sleep(30)
 
 
+def _assessment_clock() -> None:
+    """Daily reminder (from 9 AM) and a heads-up 3 hours before an assessment is due."""
+    from . import assessments
+    time.sleep(60)
+    while True:
+        try:
+            for s in assessments.remind_tick():
+                _log(f"⏰ assessment reminder sent ({s})")
+        except Exception as e:  # never let the reminder thread die
+            _log(f"assessment reminder error: {e}")
+        time.sleep(300)
+
+
 def start() -> None:
     global _started
     if _started:
@@ -181,6 +194,7 @@ def start() -> None:
     for i in range(max(1, env_int("PARALLEL_JOBS", 3))):
         threading.Thread(target=_loop, daemon=True, name=f"worker-{i + 1}").start()
     threading.Thread(target=_mail_clock, daemon=True, name="mail-clock").start()
+    threading.Thread(target=_assessment_clock, daemon=True, name="assessment-reminders").start()
     from . import cloud
     threading.Thread(target=cloud.loop, args=(_log,), daemon=True, name="cloud-sync").start()
     from .schedule import mode

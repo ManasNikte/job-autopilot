@@ -192,6 +192,23 @@ SYNC_STATUSES = ("needs_decision", "to_tailor", "tailoring", "ready", "below_thr
                  "applied", "interviewing", "offer", "closed")
 
 
+def _assessment_kpi() -> int:
+    try:
+        from . import assessments
+        return sum(1 for a in assessments.pending() if not a["overdue"])
+    except Exception:
+        return 0
+
+
+def _assessment_list() -> list[dict]:
+    try:
+        from . import assessments
+        return [{"company": a["shown_company"], "role": a.get("shown_role") or "", "due_at": a["due_at"]}
+                for a in assessments.pending() if not a["overdue"]][:10]
+    except Exception:
+        return []
+
+
 def snapshot() -> dict:
     """Progress summary for the website: greeting, KPIs, pipeline, background work, 14-day chart."""
     from . import greeting, progress, worker
@@ -220,9 +237,11 @@ def snapshot() -> dict:
             "applied_total": sum(counts.get(s, 0) for s in ("applied", "interviewing", "offer", "closed")),
             "interviewing": counts.get("interviewing", 0) + counts.get("offer", 0),
             "rejected": counts.get("closed", 0),
+            "assessments": _assessment_kpi(),
         },
         "pipeline": {k: counts.get(k, 0) for k in ("to_screen", "needs_decision", "to_tailor", "tailoring", "ready",
                                                   "applied", "interviewing", "offer", "closed")},
+        "assessments": _assessment_list(),
         "series": [{"day": (today - timedelta(days=i)).isoformat(), "n": per_day.get(today - timedelta(days=i), 0)}
                    for i in range(13, -1, -1)],
         "background": {

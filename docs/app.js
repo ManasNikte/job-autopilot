@@ -151,9 +151,21 @@
     $("#hello-text").textContent = d.greeting?.text || "";
     const k = d.kpis || {};
     const tiles = [["Applied today", k.applied_today], ["Applied, all time", k.applied_total], ["Ready to submit", k.ready],
-                   ["Interviewing / offers", k.interviewing], ["Waiting on your call", k.decide], ["Rejected", k.rejected]];
+                   ["Interviewing / offers", k.interviewing], ["Waiting on your call", k.decide], ["Rejected", k.rejected],
+                   ["Assessments to finish", k.assessments]];
     const box = $("#kpis"); box.replaceChildren();
     tiles.forEach(([label, v]) => { const t = el("div", "tile"); t.append(el("div", "v", String(v ?? 0)), el("div", "k", label)); box.appendChild(t); });
+    const al = d.assessments || [], abox = $("#assess-list");
+    $("#assess-card").hidden = !al.length; abox.replaceChildren();
+    al.forEach((a) => {
+      const due = a.due_at ? new Date(a.due_at) : null;
+      const hrs = due ? (due - Date.now()) / 3600000 : null;
+      const when = due ? due.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "no due date";
+      const rel = hrs == null ? "" : hrs < 6 ? ` (in ${Math.max(0, Math.floor(hrs))}h ${Math.max(0, Math.round((hrs % 1) * 60))}m)` : hrs < 48 ? (new Date().toDateString() === due.toDateString() ? " (today)" : " (tomorrow)") : ` (in ${Math.round(hrs / 24)} days)`;
+      const r = el("div", "job" + (hrs != null && hrs < 36 ? " urgent" : ""));
+      const left = el("div"); left.append(el("div", "job-title", a.company + (a.role ? " · " + a.role : "")), el("div", "sub small", "Due " + when + rel));
+      r.append(left); abox.appendChild(r);
+    });
     const bg = $("#background"); bg.replaceChildren();
     const b = d.background || {};
     if (b.paused_until) bg.appendChild(el("p", "warn", "Paused: Claude usage limit reached. It resumes automatically."));
