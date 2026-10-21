@@ -103,7 +103,7 @@ def test_connect_keeps_only_a_refresh_token(fake, tmp_path):
     st = cloud.connect("me@example.com", "correct horse 1", "Laptop")
     assert st["machine_id"] == "m-1" and fake.tables["machines"][0]["user_id"] == "user-1"
     assert fake.secrets == {cloud.KEY: "RT"}                              # no password anywhere
-    assert "correct horse" not in (tmp_path / "cloud.json").read_text()
+    assert "correct horse" not in (tmp_path / "cloud.json").read_text(encoding="utf-8")
 
 
 def test_sync_pushes_summaries_and_runs_allowed_requests(fake):
@@ -209,14 +209,14 @@ def test_users_page_is_operator_only_and_shows_no_companies(tmp_path, monkeypatc
 def test_city_defaults_to_form_presets_and_can_be_cleared(fake, tmp_path, monkeypatch):
     import app.config as cfg
     f = tmp_path / "applicant.json"
-    f.write_text(json.dumps({"location": "Austin, TX"}))
+    f.write_text(json.dumps({"location": "Austin, TX"}), encoding="utf-8")
     monkeypatch.setattr(cfg, "APPLICANT_FILE", f)
     cloud.connect("me@example.com", "correct horse 1", "Laptop")
     assert cloud.city() == "Austin, TX" and fake.tables["machines"][0]["city"] == "Austin, TX"
     cloud.sync_once(log=lambda *_: None)
     assert fake.tables["machines"][0]["city"] == "Austin, TX"
     assert cloud.set_city("  ") == "" and fake.tables["machines"][0]["city"] == ""
-    f.write_text(json.dumps({"location": "City, ST"}))
+    f.write_text(json.dumps({"location": "City, ST"}), encoding="utf-8")
     assert cloud.default_city() == ""
 
 
@@ -285,7 +285,7 @@ def test_signup_from_this_computer_confirms_and_connects(fake, tmp_path, monkeyp
     with pytest.raises(RuntimeError, match="already have an account"):
         cloud.signup("Ava", "taken@example.com", "Correct-horse-1", "Laptop")
     p = cloud.signup("Ava Lee", "Ava@Example.com", "Correct-horse-1", "Ava's Laptop", "Austin, TX", opt_in=True)
-    assert p["email"] == "ava@example.com" and "Correct-horse-1" not in (tmp_path / "pending.json").read_text()
+    assert p["email"] == "ava@example.com" and "Correct-horse-1" not in (tmp_path / "pending.json").read_text(encoding="utf-8")
     sent = next(j for u, j in calls if u == "signup" and j["email"] == "ava@example.com")
     assert sent["data"] == {"display_name": "Ava Lee", "marketing_opt_in": True}
     cloud.resend_code()
@@ -296,7 +296,7 @@ def test_signup_from_this_computer_confirms_and_connects(fake, tmp_path, monkeyp
     assert cloud.connected() and st["email"] == "ava@example.com" and st["city"] == "Austin, TX"
     assert fake.tables["machines"][0]["name"] == "Ava's Laptop" and fake.secrets == {cloud.KEY: "RT"}
     assert cloud.pending_signup() == {}
-    assert "Correct-horse-1" not in (tmp_path / "cloud.json").read_text()
+    assert "Correct-horse-1" not in (tmp_path / "cloud.json").read_text(encoding="utf-8")
 
 
 def test_settings_signup_form_and_dashboard_prompt(fake, tmp_path, monkeypatch):

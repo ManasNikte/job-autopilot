@@ -31,7 +31,7 @@ from app.render import pdfgen  # noqa: E402
 
 random.seed(7)
 NOW = datetime.now(timezone.utc)
-FIXTURE = json.loads((ROOT / "tests/fixtures/sample_tailor.json").read_text())
+FIXTURE = json.loads((ROOT / "tests/fixtures/sample_tailor.json").read_text(encoding="utf-8"))
 
 
 def iso(dt: datetime) -> str:
@@ -249,7 +249,7 @@ def main() -> None:
     # Email tracking: two connected inboxes (fictional) and a few application emails already read
     (DEMO / "data" / "mail_accounts.json").write_text(json.dumps({
         "gmail": {"address": "jordan.lee@example.com", "connected_at": db.now()},
-        "applemail": {"name": "Exchange", "address": "jlee@university.example.edu", "connected_at": db.now()}}, indent=2))
+        "applemail": {"name": "Exchange", "address": "jlee@university.example.edu", "connected_at": db.now()}}, indent=2), encoding="utf-8")
     pick = lambda st: db.fetchall("SELECT id, company, title, status FROM jobs WHERE status=? ORDER BY applied_at DESC", (st,))
     emails = []
     for j in pick("closed"):

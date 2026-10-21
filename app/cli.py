@@ -96,7 +96,7 @@ def check() -> None:
     from .config import OUTPUT_DIR, ROOT
     from .render import pdfgen
     try:
-        data = json.loads((ROOT / "tests/fixtures/sample_tailor.json").read_text())
+        data = json.loads((ROOT / "tests/fixtures/sample_tailor.json").read_text(encoding="utf-8"))
         out = Path(tempfile.mkdtemp(dir=OUTPUT_DIR)) / "check.pdf"
         pdfgen.build_resume(data, str(out))
         print(f"PDF generation OK: {out}")

@@ -45,7 +45,7 @@ def test_board_from_url(url, expected):
 ])
 def test_sponsorship_refusals_are_blockers(text):
     from app import prefilter
-    from app.config import search_config
+    from conftest import fixture_search_config as search_config
     job = {"title": "Software Engineer", "location": "Austin, TX", "posted_at": None, "description": text}
     ok, reason, *_ = prefilter.check(job, search_config(), 0)
     assert not ok and "blocker" in reason

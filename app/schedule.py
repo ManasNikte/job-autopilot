@@ -25,7 +25,7 @@ TIME_RE = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
 
 def load_times() -> list[str]:
     try:
-        times = json.loads(SCHEDULE_FILE.read_text())["times"]
+        times = json.loads(SCHEDULE_FILE.read_text(encoding="utf-8"))["times"]
     except (OSError, ValueError, KeyError):
         times = ["08:00", "15:00"]
     return sorted({t for t in times if TIME_RE.match(t)}, key=_minutes)
@@ -45,7 +45,7 @@ def save_times(times: list[str]) -> list[str]:
     data = {**_raw(), "_comment": "Daily run times (24-hour, your local time). Edit on the dashboard's Settings page; "
                         "the launchd agent and the lid-closed wake-ups follow this file.", "times": clean}
     tmp = SCHEDULE_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2))
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
     tmp.replace(SCHEDULE_FILE)        # one atomic write, so the wake helper sees a complete file
     install_agent(clean)
     return clean
@@ -53,7 +53,7 @@ def save_times(times: list[str]) -> list[str]:
 
 def _raw() -> dict:
     try:
-        return json.loads(SCHEDULE_FILE.read_text())
+        return json.loads(SCHEDULE_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
@@ -76,7 +76,7 @@ def set_remote_wake(minutes: int) -> None:
     minutes = minutes if minutes in (0, 15, 30, 60) else 30
     data = {**_raw(), "remote_wake_minutes": minutes}
     tmp = SCHEDULE_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2))
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
     tmp.replace(SCHEDULE_FILE)
     if sys.platform != "darwin":
         return                        # Windows / Linux: the dashboard's sync thread already checks every 30 s
@@ -143,7 +143,7 @@ def status() -> dict:
         info["wakes_match"] = False
         return info
     try:
-        info["wake_follows_settings"] = "WatchPaths" in WAKE_PLIST.read_text()
+        info["wake_follows_settings"] = "WatchPaths" in WAKE_PLIST.read_text(encoding="utf-8")
     except OSError:
         pass
     try:

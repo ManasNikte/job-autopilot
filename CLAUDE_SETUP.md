@@ -66,7 +66,9 @@ before moving on. Keep the user informed in plain language.
 - The user's personal data stays local. `profile/` (except `profile/examples/`), `data/`, and `.env` are
   gitignored. Never commit or push anything from this setup.
 - Use the project's virtual environment for every Python command: `.venv/bin/python` on macOS/Linux and
-  `.venv\Scripts\python.exe` on Windows. Calling it directly avoids PowerShell's activation-script policy.
+  `.venv\Scripts\python.exe -X utf8` on Windows. Calling it directly avoids PowerShell's activation-script
+  policy, and `-X utf8` makes Python read and write text as UTF-8 (Windows defaults to cp1252, which garbles
+  "–" and "·" in documents).
 - If a step fails, read the error, fix the cause, and retry. Only ask the user when the fix needs them.
 
 ### Step 0: Greet the user and ask their name
@@ -97,12 +99,25 @@ Required: **Python 3.11 or newer**, **git**, and **Google Chrome** (for the auto
 | | Python 3.12 | git |
 |---|---|---|
 | macOS | `brew install python@3.12` | `brew install git` (or `xcode-select --install`) |
-| Windows | `winget install -e --id Python.Python.3.12` | `winget install -e --id Git.Git` |
+| Windows | `winget install -e --id Python.Python.3.12 --scope user` | `winget install -e --id Git.Git` |
 | Debian/Ubuntu | `sudo apt install -y python3 python3-venv python3-pip` | `sudo apt install -y git` |
 | Fedora | `sudo dnf install -y python3 python3-pip` | `sudo dnf install -y git` |
 | Arch | `sudo pacman -S --needed python python-pip` | `sudo pacman -S --needed git` |
 
-On Windows, open a new PowerShell window after installing, so `PATH` picks up the new tools.
+**Windows notes:**
+
+- **License terms are the user's to accept.** The first `winget` run asks to accept the Microsoft Store source
+  terms, and each package has its own license. Tell the user, and run winget so they can answer the prompt
+  themselves. Add `--accept-source-agreements --accept-package-agreements` only if the user explicitly asks you to
+  accept on their behalf, after reading the terms.
+- **Admin prompt:** the Git installer shows a Windows UAC prompt. Warn the user before running it, so they know to
+  approve it. `--scope user` installs Python without one.
+- **New tools aren't on PATH in your shell yet.** You can't open a new PowerShell window, and each command you run
+  starts a fresh shell. Start every command that needs a just-installed tool with:
+
+  ```powershell
+  $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+  ```
 
 ### Step 3: Get the code
 
@@ -130,12 +145,15 @@ python3 -m venv .venv
 ```
 
 ```powershell
-# Windows
+# Windows (refresh PATH first if Python or git was just installed; see Step 2)
 py -3 -m venv .venv
-.venv\Scripts\python.exe -m pip install --upgrade pip
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe -m playwright install chromium
+.venv\Scripts\python.exe -X utf8 -m pip install --upgrade pip
+.venv\Scripts\python.exe -X utf8 -m pip install -r requirements.txt
+.venv\Scripts\python.exe -X utf8 -m playwright install chromium
 ```
+
+On Windows, `requirements.txt` also installs `tzdata`: Windows Python has no time-zone database, and assessment
+due times ("8:41 PM EDT") need one.
 
 On Linux, Playwright may also need system libraries: `.venv/bin/python -m playwright install-deps chromium`.
 That command uses sudo, so ask first.
@@ -162,10 +180,39 @@ The PDFs use **Times New Roman**. The app looks for it in the standard font fold
    from `command -v claude` on macOS/Linux or `(Get-Command claude).Source` on Windows. On Windows, prefer the
    native installer's `claude.exe` over an npm `claude.cmd` shim.
 
+   **On Windows, always set it.** The native installer puts `claude.exe` in `%USERPROFILE%\.local\bin` and
+   often leaves that folder off PATH, so `claude -p "Reply with OK"` in item 1 fails as "not found". Find it, use
+   the full path for every `claude` call during setup, and write it to `.env`:
+
+   ```powershell
+   $cli = (Get-Command claude -ErrorAction SilentlyContinue).Source
+   if (-not $cli -and (Test-Path "$HOME\.local\bin\claude.exe")) { $cli = "$HOME\.local\bin\claude.exe" }
+   & $cli -p "Reply with OK"
+   Add-Content .env "CLAUDE_CLI_PATH=$cli"
+   ```
+
 ### Step 7: Create the user's profile (the important part)
 
 On first run, the app copies templates from `profile/examples/` into `profile/`. Trigger that now by running
-the check in Step 8, or copy the files yourself. Then fill them in together with the user:
+the check in Step 8, or copy the files yourself.
+
+**First, ask what they're looking for.** The template and `config/search.json` are set up for a new-grad
+software or data role. For anyone else (finance, consulting, risk, product, marketing, or experienced hires),
+ask before filling anything:
+
+- **Target role families**, for example FP&A, risk and treasury, consulting, M&A, business analyst.
+- **Seniority:** which titles are fine (remove "senior" and "sr" from `title_exclude` if they are) and the
+  maximum years of experience a posting may ask for (`max_years_required`; the default 3 rejects 4+ year roles).
+- **Locations** they'll work in.
+
+Then update `config/search.json` to match: role families with title keywords, `title_exclude`, and
+`max_years_required`. Point the Jobright feed in `config/feeds.json` at matching lists; the `jobright-ai` GitHub
+organization has `2026-Account-New-Grad`, `2026-Consultant-New-Grad`, `2026-Business-Analyst-New-Grad`,
+`2026-Data-Analysis-New-Grad`, Management, Marketing, Product-Management and more. In the master prompt, edit the
+leveling rules (the verdict rules, gates, and "commodity skill" lists) for their level: as shipped they treat
+4+ years as DON'T APPLY and demote Excel and BI.
+
+Then fill the profile in together with the user:
 
 1. **`profile/system_prompt.md`** is the master prompt: a complete template with every rule for screening,
    resumes, cover letters, and the one-page layout already written.
@@ -200,12 +247,13 @@ the check in Step 8, or copy the files yourself. Then fill them in together with
 
 ```powershell
 # Windows
-.venv\Scripts\python.exe -m app.cli check
-.venv\Scripts\python.exe -m pytest -q
+.venv\Scripts\python.exe -X utf8 -m app.cli check
+.venv\Scripts\python.exe -X utf8 -m pytest -q
 ```
 
 `check` must report the Claude backend, load the prompt, get a reply from Claude, and build a test PDF. All
-tests should pass. A Linux machine that has only Liberation Serif still passes.
+tests should pass, whatever the user's search settings (the tests use their own copy). A Linux machine that has
+only Liberation Serif still passes.
 
 ### Step 9: Run the dashboard, and start it automatically at login
 
@@ -216,7 +264,7 @@ First run it in the foreground once and open http://127.0.0.1:5055:
 ```
 
 ```powershell
-.venv\Scripts\python.exe -m app.cli serve  # Windows
+.venv\Scripts\python.exe -X utf8 -m app.cli serve  # Windows
 ```
 
 Port 5055 is fixed, because the Chrome extension talks to it. Stop the server with Ctrl+C, then install the
@@ -247,14 +295,32 @@ rights needed):
 
 ```powershell
 $root = "$HOME\job-autopilot"
-$action = New-ScheduledTaskAction -Execute "$root\.venv\Scripts\pythonw.exe" -Argument "-m app.cli serve" -WorkingDirectory $root
+$action = New-ScheduledTaskAction -Execute "$root\.venv\Scripts\pythonw.exe" -Argument "-X utf8 -m app.cli serve" -WorkingDirectory $root
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit 0 -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName "JobAutopilot Dashboard" -Action $action -Trigger $trigger -Settings $settings -Force
 Start-ScheduledTask -TaskName "JobAutopilot Dashboard"
 ```
 
-Optional, with the user's OK: wake the PC from sleep 2 minutes before each run. Create one task per time in
+`pythonw.exe` has no console window; the app starts Claude and git without flashing a terminal each time.
+
+**Keep the laptop awake (ask first; it changes power settings).** Many Windows laptops use Modern Standby: when
+the lid closes or the PC idles (often after 3–5 minutes), desktop apps are suspended, scheduled runs don't
+happen, and the dashboard looks frozen. Check with `powercfg /a`; "Standby (S0 Low Power Idle)" means Modern
+Standby. With the user's OK, change the **plugged-in** settings only (lid close: do nothing; sleep: never), and
+tell them to keep it plugged in overnight:
+
+```powershell
+powercfg /setacvalueindex SCHEME_CURRENT 4f971e89-eebd-4455-a8de-9e59040e7347 5ca83367-6e45-459f-a27b-476b1d01c936 0
+powercfg /setacvalueindex SCHEME_CURRENT 238c9fa8-0aad-41ed-83f4-97be242c8f20 29f6c1db-86da-48c5-9fdb-f2b67b1f44da 0
+powercfg /setactive SCHEME_CURRENT
+```
+
+On some laptops `powercfg /q` hides the lid setting; the user can set it in Control Panel → Power Options →
+"Choose what closing the lid does". Battery settings stay as they are.
+
+Optional, with the user's OK: wake the PC from sleep 2 minutes before each run (on Modern Standby machines wake
+timers are unreliable, so the plugged-in settings above matter more). Create one task per time in
 `config/schedule.json`, each with a wake timer, that does nothing except wake the machine:
 
 ```powershell
@@ -267,7 +333,8 @@ foreach ($t in $times) {
 }
 ```
 
-Wake timers must be allowed in Power Options. The user can check with `powercfg /waketimers`, and allow them
+Wake timers must be allowed in Power Options. `powercfg /waketimers` lists them, but needs an elevated
+PowerShell, so skip it unless the user wants to run it. They can allow wake timers
 under Control Panel → Power Options → Change plan settings → Advanced → Sleep → Allow wake timers. If the run
 times change on the Settings page, re-run this block. Remove tasks with
 `Unregister-ScheduledTask -TaskName "JobAutopilot*" -Confirm:$false`.
@@ -345,6 +412,17 @@ afterwards they only ever sign in on the site.
 5. Optional, macOS: in the same card, pick **Wake every 30 minutes** so a sleeping Mac picks up requests from the
    phone, then re-run `sudo scripts/install_wake.sh` so the wake helper books those wakes.
 
+6. **Check it actually finished.** You never type the password, so it's easy to move on with the sign-up half
+   done. Afterwards, check:
+
+   ```bash
+   .venv/bin/python -c "from app import cloud; print('connected' if cloud.connected() else ('waiting for the code' if cloud.pending_signup() else 'not set up'))"
+   ```
+
+   (Windows: `.venv\Scripts\python.exe -X utf8 -c ...`.) If it doesn't say `connected`, tell the user plainly
+   that their online account isn't finished yet, and what's left: the form, or the emailed code. They won't
+   appear in the site operator's user list until it's done.
+
 If they already have an account (for example, a second computer), they use **I already have an account** in
 the same card instead. Without `config/cloud.json`, skip this step; [supabase/README.md](supabase/README.md)
 explains how to host a site.
@@ -364,12 +442,26 @@ Tell the user:
 - **USCIS H-1B data** (only if the user needs sponsorship): ask them to download the yearly CSVs from
   https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub in their browser, then upload them on
   the dashboard's **Sources** page. Several files can go up at once. The site blocks scripted downloads, so
-  don't try to fetch it yourself.
+  don't try to fetch it yourself. If the upload button doesn't work (file pickers in some built-in browsers, such
+  as the Claude desktop app's, don't hand the file to the page), import from the command line instead; one year
+  (about 43,000 employers) takes a few seconds:
+
+  ```bash
+  .venv/bin/python -m app.cli import-h1b "path/to/Employer Information.csv"            # macOS / Linux
+  ```
+
+  ```powershell
+  .venv\Scripts\python.exe -X utf8 -m app.cli import-h1b "path\to\Employer Information.csv"   # Windows
+  ```
 - **Track application replies by email:** on the dashboard's **Settings → Email inboxes** (http://127.0.0.1:5055/settings/email), the user connects Gmail with an
   app password they create themselves at https://myaccount.google.com/apppasswords, and/or Outlook / Microsoft 365.
   Outlook works through their own Azure app registration (5 steps listed in the card), or on macOS through
   Apple's Mail app when their organization blocks app registration. Never type passwords for them. Install the
   extra packages if they're missing: `pip install msal keyring`.
+  **On Windows, with a school or work account that blocks app registration** (the Azure route fails with "need
+  admin approval"), there's no Apple Mail fallback. The simplest option is for the user to forward application
+  emails from that account to the Gmail they connected (an Outlook rule they set up themselves). Don't create
+  forwarding rules for them.
 - **Try the UI with sample data first:** `python scripts/demo_seed.py`, then serve with
   `JOB_AUTOPILOT_DATA=demo/data JOB_AUTOPILOT_PROFILE=demo/profile` (Windows: set those as environment
   variables first). On Windows/Linux, use a different `PORT` for the demo if the real dashboard is running.
@@ -416,6 +508,7 @@ settings are gitignored or kept, so nothing personal is lost.
    - **macOS:** `launchctl kickstart -k gui/$(id -u)/com.jobautopilot.dashboard`
    - **Linux:** `systemctl --user restart job-autopilot`
    - **Windows:** `Stop-ScheduledTask -TaskName "JobAutopilot Dashboard"; Start-ScheduledTask -TaskName "JobAutopilot Dashboard"`
+     (the task already runs Python with `-X utf8`; for a foreground copy use `.venv\Scripts\python.exe -X utf8 -m app.cli serve`)
    - Not running as a service: stop `python -m app.cli serve` (Ctrl+C) and start it again.
 5. Check http://127.0.0.1:5055/healthz shows the new version (it matches `VERSION` in `app/version.py`), and
    tell the user what changed (the newest section of `CHANGELOG.md`).
@@ -432,3 +525,10 @@ settings are gitignored or kept, so nothing personal is lost.
 | No internet during a run | The app pauses and retries every 5 minutes; nothing is marked failed |
 | PowerShell blocks `Activate.ps1` | Don't activate; call `.venv\Scripts\python.exe` directly |
 | Scheduled run didn't happen (Windows/Linux) | The dashboard must be running at that time, or wake within 90 minutes; check the Background page's activity log |
+| Windows: `claude` "not found" right after installing | The installer leaves `%USERPROFILE%\.local\bin` off PATH; use the full path and set `CLAUDE_CLI_PATH` (Step 6) |
+| Windows: `py` or `git` "not found" right after installing | Refresh PATH in the same command (Step 2, Windows notes) |
+| Windows: `ZoneInfoNotFoundError` | `.venv\Scripts\python.exe -m pip install tzdata` (it's in `requirements.txt`; an older install may lack it) |
+| Windows: "–" shows as `â€“` in documents or the dashboard | Run Python with `-X utf8` (Steps 8–9, and the scheduled task's arguments) and update the app |
+| Windows: a terminal window flashes for every Claude call | Update the app; it starts Claude and git without a console when the dashboard runs under `pythonw.exe` |
+| Windows: dashboard frozen, no runs after closing the lid | Modern Standby suspends apps; change the plugged-in lid and sleep settings (Step 9, Windows) |
+| Tests fail after changing role families | Update the app; the tests now use their own copy of the default search settings |

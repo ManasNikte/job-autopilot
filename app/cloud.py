@@ -40,7 +40,7 @@ _token: dict = {"access": "", "exp": 0.0}
 
 def config() -> dict:
     try:
-        c = json.loads((CONFIG_DIR / "cloud.json").read_text())
+        c = json.loads((CONFIG_DIR / "cloud.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
     return c if c.get("supabase_url") and c.get("anon_key") else {}
@@ -48,13 +48,13 @@ def config() -> dict:
 
 def state() -> dict:
     try:
-        return json.loads(STATE_FILE.read_text())
+        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
 def _save_state(s: dict) -> None:
-    STATE_FILE.write_text(json.dumps(s, indent=2))
+    STATE_FILE.write_text(json.dumps(s, indent=2), encoding="utf-8")
 
 
 def connected() -> bool:
@@ -106,7 +106,7 @@ def default_city() -> str:
     """The city from your form presets (profile/applicant.json "location"), unless it's still the placeholder."""
     from .config import APPLICANT_FILE
     try:
-        loc = (json.loads(APPLICANT_FILE.read_text()).get("location") or "").strip()
+        loc = (json.loads(APPLICANT_FILE.read_text(encoding="utf-8")).get("location") or "").strip()
     except (OSError, ValueError):
         return ""
     return "" if loc.lower() in ("", "city, st") else loc[:80]
@@ -140,7 +140,7 @@ def strong_password(pw: str) -> bool:
 
 def pending_signup() -> dict:
     try:
-        return json.loads(PENDING_FILE.read_text())
+        return json.loads(PENDING_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
@@ -174,7 +174,7 @@ def signup(name: str, email: str, password: str, machine_name: str, city_name: s
         # Supabase's answer when the email already has an account (it doesn't say so, to protect privacy)
         raise RuntimeError("That email may already have an account. Use \"I already have an account\" to sign in.")
     PENDING_FILE.write_text(json.dumps({"email": email, "name": name.strip()[:60], "machine_name": machine_name[:80],
-                                        "city": " ".join(city_name.split())[:80], "at": db.now()}))
+                                        "city": " ".join(city_name.split())[:80], "at": db.now()}), encoding="utf-8")
     return pending_signup()
 
 

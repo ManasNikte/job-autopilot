@@ -145,3 +145,27 @@ def test_applied_this_week_tile(data):
     i = html.index("Applied this week")
     assert '<div class="v">1</div><div class="k">Applied this week' in html[i - 60:i + 20]
     assert html.count('class="tile') >= 8
+
+
+def test_due_times_work_without_a_timezone_database(monkeypatch):
+    """Windows Python ships no tz database; due times must still come out right."""
+    def no_db(name):
+        raise KeyError(name)
+    monkeypatch.setattr(assessments, "ZoneInfo", no_db)
+    assert assessments.parse_due("2026-10-26", "by 6:00am PT on October 26, 2026.") == "2026-10-26T13:00+00:00"
+    assert assessments.parse_due("2026-10-25", "due October 25, 2026 at 8:41 PM EDT.") == "2026-10-26T00:41+00:00"
+    assert assessments.parse_due("2026-12-01", "by 5 pm ET") == "2026-12-01T22:00+00:00"      # standard time in December
+
+
+def test_no_platform_specific_strftime_flags():
+    """%-d / %-I crash strftime on Windows: they must go through app.fmt.strf."""
+    import re
+    from pathlib import Path
+    bad = []
+    for f in Path(__file__).parent.parent.joinpath("app").rglob("*.py"):
+        if f.name == "fmt.py":
+            continue
+        for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            if re.search(r"strftime\([^)]*%-[a-zA-Z]", line):
+                bad.append(f"{f.name}:{n}")
+    assert not bad, bad

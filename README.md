@@ -191,6 +191,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.10.1** | Windows fixes (dates, time zones, UTF-8, no console pop-ups), "&"/"and" H-1B employer matching, a Windows-tested setup guide |
 | **v3.10** | Weekly applications chart (Sun–Sat, week picker, a number on every day), Time saved card, role-family donut, shaded pipeline, paged map list, sidebar slide arrows |
 | **v3.9** | Settings split into separate pages; an Assessments page; sidebar search for pages and individual settings (⌘K) |
 | **v3.8** | Sidebar navigation with every page and sub-page; collapses to an icon rail (remembered), a drawer in narrow windows |

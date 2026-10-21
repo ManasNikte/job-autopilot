@@ -44,14 +44,14 @@ def accounts() -> dict:
     """{'gmail': {...}, 'microsoft': {...}} from data/mail_accounts.json (no secrets in it)."""
     p = DATA_DIR / "mail_accounts.json"
     try:
-        return json.loads(p.read_text())
+        return json.loads(p.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
 def save_accounts(acc: dict) -> None:
     p = DATA_DIR / "mail_accounts.json"
-    p.write_text(json.dumps(acc, indent=2))
+    p.write_text(json.dumps(acc, indent=2), encoding="utf-8")
 
 
 def set_secret(name: str, value: str) -> None:
@@ -182,7 +182,7 @@ def _msal_app(client_id: str, tenant: str = "organizations"):
     import msal
     cache = msal.SerializableTokenCache()
     if MS_CACHE.exists():
-        cache.deserialize(MS_CACHE.read_text())
+        cache.deserialize(MS_CACHE.read_text(encoding="utf-8"))
     app = msal.PublicClientApplication(client_id, authority=f"https://login.microsoftonline.com/{tenant or 'organizations'}",
                                        token_cache=cache)
     return app, cache
@@ -190,7 +190,7 @@ def _msal_app(client_id: str, tenant: str = "organizations"):
 
 def _save_cache(cache) -> None:
     if cache.has_state_changed:
-        MS_CACHE.write_text(cache.serialize())
+        MS_CACHE.write_text(cache.serialize(), encoding="utf-8")
         try:
             os.chmod(MS_CACHE, 0o600)
         except OSError:

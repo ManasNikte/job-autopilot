@@ -15,6 +15,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from . import db
+from .fmt import strf
 from .h1b import norm as company_norm
 
 TZ = {"PT": "America/Los_Angeles", "PST": "America/Los_Angeles", "PDT": "America/Los_Angeles",
@@ -26,6 +27,25 @@ _TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s*m\.?(?:\s*\(?\s*(PT|
                    re.I)
 _MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
 _DATE = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?", re.I)
+
+
+_FIXED = {"PST": -8, "PDT": -7, "MST": -7, "MDT": -6, "CST": -6, "CDT": -5, "EST": -5, "EDT": -4, "UTC": 0, "GMT": 0}
+_STD = {"PT": -8, "MT": -7, "CT": -6, "ET": -5}
+
+
+def _zone(abbr: str, day: date):
+    """The time zone for an abbreviation. Uses the system's time-zone database; where there is none (Windows
+    without the tzdata package) falls back to fixed US offsets with the daylight-saving rule."""
+    try:
+        return ZoneInfo(TZ[abbr])
+    except Exception:
+        pass
+    if abbr in _FIXED:
+        return timezone(timedelta(hours=_FIXED[abbr]))
+    # US daylight time: second Sunday of March to first Sunday of November
+    mar = date(day.year, 3, 8); start = mar + timedelta(days=(6 - mar.weekday()) % 7)
+    nov = date(day.year, 11, 1); end = nov + timedelta(days=(6 - nov.weekday()) % 7)
+    return timezone(timedelta(hours=_STD.get(abbr, 0) + (1 if start <= day < end else 0)))
 
 
 def parse_due(deadline: str | None, *texts: str, received_at: str | None = None) -> str | None:
@@ -60,7 +80,7 @@ def parse_due(deadline: str | None, *texts: str, received_at: str | None = None)
         h, mi, ap, tz = int(m.group(1)), int(m.group(2) or 0), m.group(3).lower(), m.group(4)
         if 1 <= h <= 12 and mi < 60:
             t = time(h % 12 + (12 if ap == "p" else 0), mi)
-            zone = ZoneInfo(TZ[tz.upper()]) if tz else None
+            zone = _zone(tz.upper(), d) if tz else None
             break
     if t is None:
         return datetime.combine(d, time(23, 59)).astimezone().astimezone(timezone.utc).isoformat(timespec="minutes")
@@ -120,7 +140,7 @@ def due_label(a: dict, now: datetime | None = None) -> str:
     local = a["due"].astimezone()
     now_local = (now or datetime.now(timezone.utc)).astimezone()
     days = (local.date() - now_local.date()).days
-    when = local.strftime("%a %b %-d, %-I:%M %p")
+    when = strf(local, "%a %b %-d, %-I:%M %p")
     if a["overdue"]:
         return f"was due {when}"
     left = a["seconds_left"]
@@ -130,7 +150,7 @@ def due_label(a: dict, now: datetime | None = None) -> str:
 
 
 def short_when(a: dict) -> str:
-    return a["due"].astimezone().strftime("%a %-I:%M %p") if a.get("due") else "no date"
+    return strf(a["due"].astimezone(), "%a %-I:%M %p") if a.get("due") else "no date"
 
 
 def mark(ids: list[int], how: str = "done") -> None:
@@ -148,7 +168,7 @@ def mark(ids: list[int], how: str = "done") -> None:
 def sync_todos() -> None:
     """Make sure every pending assessment, matched to a job or not, is on Needs you with its due time."""
     for a in pending():
-        when = f"due {a['due'].astimezone().strftime('%a %b %-d, %-I:%M %p')}" if a.get("due") else "no due date"
+        when = f"due {strf(a['due'].astimezone(), '%a %b %-d, %-I:%M %p')}" if a.get("due") else "no due date"
         title = f"Online assessment from {a['shown_company']} · {when}"
         detail = f"{a.get('summary') or ''}\n{a.get('link') or ''}".strip()
         if a.get("job_id"):

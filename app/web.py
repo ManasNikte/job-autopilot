@@ -41,9 +41,7 @@ def _credits() -> dict:
         return {}
 
 
-def strf(dt, fmt: str) -> str:
-    """strftime with %-d / %-I (no leading zero) on every OS; Windows' strftime rejects the '-' flag."""
-    return dt.strftime(fmt.replace("%-d", str(dt.day)).replace("%-I", str(int(dt.strftime("%I")))))
+from .fmt import strf  # noqa: E402  (Windows-safe %-d / %-I)
 
 
 app.add_template_filter(strf, "strf")
@@ -185,7 +183,7 @@ def _followups() -> None:
 def _profile_email() -> str:
     """The email in your form presets (profile/applicant.json), unless it's still the placeholder."""
     try:
-        e = (json.loads(APPLICANT_FILE.read_text()).get("email") or "").strip()
+        e = (json.loads(APPLICANT_FILE.read_text(encoding="utf-8")).get("email") or "").strip()
     except (OSError, ValueError):
         return ""
     return "" if e.endswith("@example.com") else e
@@ -315,7 +313,7 @@ def dashboard():
         from . import updater
         from .version import VERSION
         try:
-            notes = updater.parse_changelog((updater.ROOT / "CHANGELOG.md").read_text(), "0")
+            notes = updater.parse_changelog((updater.ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), "0")
             just_updated = next((n for n in notes if n["version"] == VERSION), {"version": VERSION, "items": []})
         except OSError:
             just_updated = {"version": VERSION, "items": []}
@@ -577,7 +575,7 @@ def job_action(job_id):
         elif not job.get("resume_pdf"):
             flash("No resume PDF for this job yet; build the documents first.")
         else:
-            log = open(DATA_DIR / "autofill.log", "a")
+            log = open(DATA_DIR / "autofill.log", "a", encoding="utf-8")
             log.write(f"\n=== {datetime.now():%Y-%m-%d %H:%M} {job['company']} | {job['title']}\n")
             log.flush()
             subprocess.Popen([sys.executable, "-m", "app.autofill", job_id], cwd=ROOT, stdout=log, stderr=log)
@@ -1272,7 +1270,7 @@ def settings_page(section="schedule"):
                 fc["require_h1b_signal"] = bool(request.form.get("require_h1b_signal"))
                 for feed in ("jobright", "simplify", "hn_who_is_hiring"):
                     fc.setdefault(feed, {})["enabled"] = bool(request.form.get(f"feed_{feed}"))
-                (CONFIG_DIR / "feeds.json").write_text(__import__("json").dumps(fc, indent=2, ensure_ascii=False))
+                (CONFIG_DIR / "feeds.json").write_text(__import__("json").dumps(fc, indent=2, ensure_ascii=False), encoding="utf-8")
                 flash("Saved. The next run uses these settings.")
         except ValueError as e:
             flash(f"Not saved: {e}")
@@ -1669,6 +1667,11 @@ def serve() -> None:
     threading.Thread(target=updater.loop, name="updater", daemon=True).start()
     if not db.kv_get("tour") and db.count("runs"):               # existing installs skip the first-run tour
         db.kv_set("tour", "existing")
+    try:
+        from . import h1b
+        h1b.renormalize()                      # once after a norm() change ("&" vs "and" in employer names)
+    except Exception as e:
+        print(f"h1b names: {e}")
     try:
         from . import assessments
         assessments.backfill()

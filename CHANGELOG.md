@@ -3,6 +3,12 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.10.1 (2026-10-21)
+- **Windows fixes** from a real Windows 11 install: assessment dates no longer crash the map and greeting; due times work without a time-zone database (and `tzdata` is installed); text is read and written as UTF-8, so "–" and "·" no longer turn into `â€“`; no terminal window flashes for each Claude call when the dashboard runs in the background.
+- **H-1B matching:** "Ernst & Young" now matches USCIS's "ERNST AND YOUNG" (also Johnson & Johnson, Marsh & McLennan, and others). Existing data is updated once, automatically.
+- The setup guide (CLAUDE_SETUP.md) walks Windows users through PATH, license prompts, the Claude CLI path, power settings, the USCIS command-line import, and checking the online account; and asks non-software job seekers about their target roles and seniority first.
+- Tests no longer depend on your own search settings.
+
 ## 3.10 (2026-10-21)
 - **This week's applications, day by day.** Sunday to Saturday, with the count on top of every day, today highlighted, and the week's total, daily average, change from the week before, and best day. Pick any earlier week with ‹ › or the menu.
 - **Time saved.** A new card estimates the hours the app saved you: reading job descriptions to judge fit, tailoring documents, filling forms, and sorting emails.

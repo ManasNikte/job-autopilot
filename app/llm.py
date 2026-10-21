@@ -136,7 +136,7 @@ def read_usage(cli: str | None = None) -> list[dict] | None:
     envv.pop("ANTHROPIC_API_KEY", None)
     try:
         p = subprocess.run([cli, "-p", "/usage", "--output-format", "stream-json", "--verbose", "--tools", ""],
-                           capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL, env=envv,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, stdin=subprocess.DEVNULL, env=envv,
                            cwd=str(DATA_DIR))
     except (subprocess.TimeoutExpired, OSError):
         return None
@@ -288,7 +288,7 @@ def _via_cli(system: str, user: str, schema: dict, model: str, effort: str, web_
     envv = dict(os.environ)
     envv.pop("ANTHROPIC_API_KEY", None)      # make sure the CLI uses the logged-in seat, not a key
     try:
-        p = subprocess.run(cmd, input=user, capture_output=True, text=True, timeout=1800, cwd=cache, env=envv)
+        p = subprocess.run(cmd, input=user, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1800, cwd=cache, env=envv)
     except subprocess.TimeoutExpired as e:
         raise LLMError("Claude CLI timed out after 30 minutes.") from e
     try:
@@ -322,7 +322,7 @@ def _via_cli(system: str, user: str, schema: dict, model: str, effort: str, web_
 
 
 def _log_line(d: dict) -> None:
-    with open(DATA_DIR / "usage.jsonl", "a") as f:
+    with open(DATA_DIR / "usage.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps({"at": time.strftime("%Y-%m-%dT%H:%M:%S"), **d}) + "\n")
 
 
@@ -336,5 +336,5 @@ def _log_usage(model: str, usage) -> None:
         "cache_write": getattr(usage, "cache_creation_input_tokens", 0),
         "output": getattr(usage, "output_tokens", 0),
     }
-    with open(DATA_DIR / "usage.jsonl", "a") as f:
+    with open(DATA_DIR / "usage.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps(line) + "\n")

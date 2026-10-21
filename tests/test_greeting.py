@@ -25,8 +25,8 @@ def test_name_from_profile_and_placeholder(tmp_path, monkeypatch):
     f = tmp_path / "applicant.json"
     monkeypatch.setattr(greeting, "APPLICANT_FILE", f)
     monkeypatch.setattr(greeting, "SYSTEM_PROMPT_FILE", tmp_path / "missing.md")
-    f.write_text(json.dumps({"name": "Your Name"}))
+    f.write_text(json.dumps({"name": "Your Name"}), encoding="utf-8")
     assert greeting.user_name() == ""                      # template placeholder: ask on the dashboard
     greeting.set_name("Priya Shah")
     assert greeting.user_name() == "Priya"
-    assert json.loads(f.read_text())["name"] == "Priya Shah"
+    assert json.loads(f.read_text(encoding="utf-8"))["name"] == "Priya Shah"

@@ -58,7 +58,7 @@ def test_extract_fill_and_learn(page, tmp_path, monkeypatch):
     snap = form_fill.snapshot(page)
     learned = form_fill.learn({"company": "Acme"}, ex, res["values"], snap, submitted=True)
     assert len(learned) == 2
-    mem = json.loads((tmp_path / "mem.json").read_text())
+    mem = json.loads((tmp_path / "mem.json").read_text(encoding="utf-8"))
     assert mem["how did you hear about {company}"]["answer"] == "Referral"
     assert mem["salary expectations"]["answer"] == "120000"
     assert "will you require sponsorship" in mem      # kept-and-submitted answers are remembered too

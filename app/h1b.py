@@ -15,10 +15,50 @@ from . import db
 SUFFIXES = r"\b(incorporated|inc|llc|l\.l\.c|corp|corporation|co|company|ltd|limited|lp|llp|plc|pbc|holdings|group|technologies|technology|labs|usa|us|na)\b"
 
 
+NORM_VERSION = 2      # bump when norm() changes; renormalize() then rewrites stored keys once
+
+
 def norm(name: str) -> str:
     s = re.sub(r"[^a-z0-9 ]", " ", (name or "").lower())
+    s = re.sub(r"\band\b", " ", s)          # "Ernst & Young" (posting) == "ERNST AND YOUNG" (USCIS)
     s = re.sub(SUFFIXES, " ", s)
     return re.sub(r"\s+", " ", s).strip()
+
+
+def renormalize() -> int:
+    """Rewrite stored name keys after norm() changed (runs once per NORM_VERSION). Employers whose names now
+    collapse to the same key are merged: approvals and denials add up, fiscal years are combined."""
+    done = (db.kv_get("h1b_norm_version") or {}).get("v")
+    if done == str(NORM_VERSION):
+        return 0
+    changed = 0
+    try:
+        rows = db.fetchall("SELECT name_norm, name, approvals, denials, fiscal_years FROM h1b_employers")
+    except Exception:
+        rows = []
+    merged: dict[str, dict] = {}
+    for r in rows:
+        n = norm(r["name"] or r["name_norm"])
+        changed += n != r["name_norm"]
+        m = merged.setdefault(n, {"name": r["name"], "approvals": 0, "denials": 0, "years": set()})
+        m["approvals"] += _int(r["approvals"]); m["denials"] += _int(r["denials"])
+        m["years"] |= {y for y in (r["fiscal_years"] or "").split(",") if y}
+    if changed:
+        with db._lock, db.connect() as c:
+            c.execute("DELETE FROM h1b_employers")
+            c.executemany("INSERT INTO h1b_employers VALUES (?,?,?,?,?)",
+                          [(n, m["name"], m["approvals"], m["denials"], ",".join(sorted(m["years"]))) for n, m in merged.items()])
+    for table, name_col in (("sponsors", "name"), ("sponsor_checks", "name")):
+        try:
+            for r in db.fetchall(f"SELECT name_norm, {name_col} AS nm FROM {table}"):
+                n = norm(r["nm"] or r["name_norm"])
+                if n != r["name_norm"]:
+                    db.execute(f"UPDATE OR REPLACE {table} SET name_norm=? WHERE name_norm=?", (n, r["name_norm"]))
+                    changed += 1
+        except Exception:
+            pass
+    db.kv_set("h1b_norm_version", str(NORM_VERSION))
+    return changed
 
 
 def _int(v) -> int:

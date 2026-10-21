@@ -30,7 +30,7 @@ _lock = threading.Lock()
 
 
 def _git(*args: str, timeout: int = 60) -> str:
-    r = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip().splitlines()[-1] if (r.stderr or r.stdout).strip() else f"git {args[0]} failed")
     return r.stdout
@@ -153,11 +153,11 @@ def apply() -> dict:
             changed = _git("diff", "--name-only", before, after).splitlines()
             if "requirements.txt" in changed:
                 r = subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-r", str(ROOT / "requirements.txt")],
-                                   capture_output=True, text=True, timeout=900)
+                                   capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
                 if r.returncode != 0:
                     raise RuntimeError("The code updated, but installing new packages failed: "
                                        + (r.stderr.strip().splitlines() or ["pip error"])[-1][:200])
-            m = re.search(r'VERSION\s*=\s*"([^"]+)"', (ROOT / "app" / "version.py").read_text())
+            m = re.search(r'VERSION\s*=\s*"([^"]+)"', (ROOT / "app" / "version.py").read_text(encoding="utf-8"))
             STATE.update(behind=0, notes=[], commits=[])
             return {"ok": True, "message": "Updated.", "version": m.group(1) if m else None, "restart": True}
         except Exception as e:
@@ -173,7 +173,8 @@ def restart_soon(delay: float = 1.5) -> None:
         sys.stdout.flush()
         sys.stderr.flush()
         os.chdir(ROOT)
-        os.execv(sys.executable, [sys.executable, "-m", "app.cli", "serve"])
+        flags = ["-X", "utf8"] if sys.flags.utf8_mode else []     # keep Windows' UTF-8 mode across the restart
+        os.execv(sys.executable, [sys.executable, *flags, "-m", "app.cli", "serve"])
     threading.Thread(target=go, daemon=True).start()
 
 

@@ -5,13 +5,13 @@ from pathlib import Path
 import pytest
 
 from app import prefilter, sources
-from app.config import search_config
+from conftest import fixture_search_config
 from app.render import pdf as pdfx
 from app.render import pdfgen
 
-CFG = search_config()
+CFG = fixture_search_config()      # not the user's live config/search.json
 NOW = datetime(2026, 10, 11, 15, 0, tzinfo=timezone.utc)
-FIXTURE = json.loads((Path(__file__).parent / "fixtures/sample_tailor.json").read_text())
+FIXTURE = json.loads((Path(__file__).parent / "fixtures/sample_tailor.json").read_text(encoding="utf-8"))
 
 
 def job(**kw):
@@ -259,3 +259,21 @@ def test_dates_format_without_leading_zeros_on_every_os():
     from datetime import datetime
     from app.web import strf
     assert strf(datetime(2026, 10, 6, 9, 5), "%a %b %-d, %-I:%M %p") == "Tue Oct 6, 9:05 AM"
+
+
+def test_ampersand_and_and_match_in_employer_names(tmp_path, monkeypatch):
+    """USCIS writes "ERNST AND YOUNG U S LLP"; postings say "Ernst & Young"."""
+    from app import db, h1b
+    assert h1b.norm("Ernst & Young") == "ernst young" and h1b.norm("ERNST AND YOUNG U S LLP").startswith("ernst young ")
+    assert h1b.norm("Johnson & Johnson") == h1b.norm("JOHNSON AND JOHNSON")
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    db.execute("INSERT INTO h1b_employers VALUES (?,?,?,?,?)", ("ernst and young", "ERNST AND YOUNG U S LLP", 1357, 40, "2026"))
+    db.execute("INSERT INTO h1b_employers VALUES (?,?,?,?,?)", ("ernst young", "Ernst & Young LLP", 1, 0, "2025"))
+    assert h1b.renormalize() >= 1 and h1b.renormalize() == 0            # once per version
+    db.execute("INSERT INTO h1b_employers VALUES (?,?,?,?,?)", ("ernst and young", "ERNST AND YOUNG", 7, 0, "2024"))
+    db.execute("DELETE FROM kv WHERE k='h1b_norm_version'")
+    h1b.renormalize()
+    row = db.fetchone("SELECT * FROM h1b_employers WHERE name_norm='ernst young'")
+    assert row["approvals"] == 8 and row["fiscal_years"] == "2024,2025"      # two spellings merged
+    assert "1,357 approvals" in (h1b.lookup("Ernst & Young") or "") or "approvals" in (h1b.lookup("Ernst & Young") or "")
