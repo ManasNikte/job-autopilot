@@ -18,6 +18,7 @@
   <a class="tile" href="{{ url_for('jobs', status='ready') }}"><div class="v">{{ kpis.ready }}</div><div class="k">Ready to submit</div></a>
   <a class="tile" href="{{ url_for('jobs', status='needs_decision') }}"><div class="v">{{ kpis.decide }}</div><div class="k">Waiting on your call</div></a>
   <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_today }}</div><div class="k">Applied today</div></a>
+  <a class="tile" href="{{ url_for('jobs', status='applied_all') }}" title="Sunday to Saturday"><div class="v">{{ kpis.applied_week }}</div><div class="k">Applied this week</div></a>
   <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_total }}</div><div class="k">Applied, all time</div></a>
   <a class="tile" href="{{ url_for('jobs', status='interviewing') }}"><div class="v">{{ kpis.interviewing }}</div><div class="k">Interviewing / offers</div></a>
   <a class="tile{{ ' tile-alert' if assess and assess[0].urgent }}" href="{{ '#assessments' if assess else url_for('email_page', event='assessment') }}"><div class="v">{{ kpis.assessments }}</div><div class="k">Online assessments to finish</div></a>

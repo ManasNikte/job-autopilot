@@ -131,6 +131,13 @@ def _followups() -> None:
                                 "One follow-up max. A 15-minute coffee chat or one question about the team.")
 
 
+def week_start_utc(today=None) -> str:
+    """This calendar week's start, Sunday 00:00 on this computer's clock (weeks run Sunday to Saturday), in UTC."""
+    today = today or datetime.now().astimezone().date()
+    sunday = today - timedelta(days=(today.weekday() + 1) % 7)     # weekday(): Monday 0 … Sunday 6
+    return datetime.combine(sunday, datetime.min.time()).astimezone().astimezone(timezone.utc).isoformat()
+
+
 @app.route("/")
 def dashboard():
     _followups()
@@ -147,12 +154,11 @@ def dashboard():
     start_utc = datetime.combine(today, datetime.min.time()).astimezone().astimezone(timezone.utc).isoformat()
     counts = {r["status"]: r["n"] for r in db.fetchall("SELECT status, count(*) AS n FROM jobs GROUP BY status")}
     applied_total = sum(counts.get(s, 0) for s in ("applied", "interviewing", "offer", "closed"))
-    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     kpis = {
         "posted_today": db.fetchone("SELECT count(*) AS n FROM jobs WHERE posted_at>=? AND status!='filtered_out'", (start_utc,))["n"],
         "ready": counts.get("ready", 0),
         "decide": counts.get("needs_decision", 0),
-        "applied_week": db.fetchone("SELECT count(*) AS n FROM jobs WHERE applied_at>=?", (week_ago,))["n"],
+        "applied_week": db.fetchone("SELECT count(*) AS n FROM jobs WHERE applied_at>=?", (week_start_utc(),))["n"],
         "applied_today": db.fetchone("SELECT count(*) AS n FROM jobs WHERE applied_at>=?", (start_utc,))["n"],
         "applied_total": applied_total,
         "interviewing": counts.get("interviewing", 0) + counts.get("offer", 0),

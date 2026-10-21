@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.5.3 (2026-10-21)
+- New **Applied this week** tile (weeks run Sunday to Saturday). The dashboard now has eight tiles in an even 4 × 2 grid, and so does the online dashboard.
+
 ## 3.5.2 (2026-10-21)
 - Maps: amber (assessment) and red (rejected) pins are drawn on top, so a big city pin can't hide them.
 - README and project report refreshed with new screenshots.

@@ -192,6 +192,12 @@ SYNC_STATUSES = ("needs_decision", "to_tailor", "tailoring", "ready", "below_thr
                  "applied", "interviewing", "offer", "closed")
 
 
+def _applied_this_week() -> int:
+    """Applications since Sunday 00:00 local time (weeks run Sunday to Saturday)."""
+    from .web import week_start_utc
+    return db.count("jobs", "applied_at >= ?", (week_start_utc(),))
+
+
 def _assessment_kpi() -> int:
     try:
         from . import assessments
@@ -238,6 +244,7 @@ def snapshot() -> dict:
             "interviewing": counts.get("interviewing", 0) + counts.get("offer", 0),
             "rejected": counts.get("closed", 0),
             "assessments": _assessment_kpi(),
+            "applied_week": _applied_this_week(),
         },
         "pipeline": {k: counts.get(k, 0) for k in ("to_screen", "needs_decision", "to_tailor", "tailoring", "ready",
                                                   "applied", "interviewing", "offer", "closed")},

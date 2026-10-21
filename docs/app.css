@@ -88,6 +88,6 @@ code { font-size: 13px; background: var(--surface-2); padding: 1px 5px; border-r
 
 .assess-card { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
 #assess-list .job.urgent .sub { color: #e5484d; font-weight: 600; }
-.kpis { grid-template-columns: repeat(7, 1fr) !important; }
-@media (max-width: 1250px) { .kpis { grid-template-columns: repeat(4, 1fr) !important; } }
-@media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, 1fr) !important; } .kpis > .tile:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+.kpis { grid-template-columns: repeat(4, 1fr) !important; }              /* 8 tiles: a 4 × 2 grid */
+@media (min-width: 1900px) { .kpis { grid-template-columns: repeat(8, 1fr) !important; } }
+@media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, 1fr) !important; } }

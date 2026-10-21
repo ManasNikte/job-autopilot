@@ -123,3 +123,25 @@ def test_map_shows_assessments_as_their_own_pins(data, monkeypatch):
     only = c.get("/api/map?set=today&show=assessment").get_json()
     assert sorted(j["status"] for p in only["pins"] for j in p["jobs"]) == ["assessment", "assessment"]
     assert all(j["status"] != "assessment" for p in c.get("/api/map?set=all&show=applied").get_json()["pins"] for j in p["jobs"])
+
+
+def test_week_runs_sunday_to_saturday():
+    from datetime import date
+    from app.web import week_start_utc
+    start = lambda d: datetime.fromisoformat(week_start_utc(d)).astimezone().date()
+    assert start(date(2026, 10, 18)) == date(2026, 10, 18)        # Sunday: the week starts today
+    assert start(date(2026, 10, 21)) == date(2026, 10, 18)        # Wednesday
+    assert start(date(2026, 10, 24)) == date(2026, 10, 18)        # Saturday: last day of the same week
+    assert start(date(2026, 10, 25)) == date(2026, 10, 25)        # next Sunday: a new week
+    assert datetime.fromisoformat(week_start_utc(date(2026, 10, 21))).astimezone().strftime("%H:%M") == "00:00"
+
+
+def test_applied_this_week_tile(data):
+    from app.web import app, week_start_utc
+    sunday = datetime.fromisoformat(week_start_utc())
+    db.upsert_job({"id": "w:1", "company": "A", "title": "T", "status": "applied", "applied_at": (sunday + timedelta(minutes=5)).isoformat()})
+    db.upsert_job({"id": "w:2", "company": "B", "title": "T", "status": "applied", "applied_at": (sunday - timedelta(minutes=5)).isoformat()})
+    html = app.test_client().get("/").get_data(as_text=True)
+    i = html.index("Applied this week")
+    assert '<div class="v">1</div><div class="k">Applied this week' in html[i - 60:i + 20]
+    assert html.count('class="tile') >= 8

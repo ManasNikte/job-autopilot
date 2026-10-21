@@ -64,9 +64,11 @@ when the company later invites you to interview, makes an offer, or declines.
 
 ### v3.0: check on your job search from your phone, and start a run from anywhere
 
-- **Responsive everywhere.** The dashboard now fits a phone, a tablet, a laptop, or a 32-inch monitor or TV:
-  - On phones: a menu button, stacked tables, and swipeable tabs.
-  - On big screens: wider layouts and larger type, readable from across the room.
+- **Two dashboards, each for its screen.**
+  - **The local app** (`127.0.0.1`) runs on your laptop or desktop. It adapts to the window: a narrow
+    split-screen window gets a compact menu and stacked tables, and a 32-inch monitor gets wider layouts and
+    larger type.
+  - **The online dashboard** is the one for your phone, tablet, or TV.
 - **An online dashboard** you can host for free (GitHub Pages + Supabase). Sign in with your email and password
   to see:
   - your greeting, KPIs, and live background work
@@ -89,18 +91,16 @@ when the company later invites you to interview, makes an offer, or declines.
 - **Only summaries go online:** counts, job titles and statuses, and one-line email summaries. Resumes, cover
   letters, your prompt, and email text stay on your computer.
 
-| Online: sign in | Online: forgot password (emailed code) | Online: dashboard on a phone | Local dashboard on a phone |
-|---|---|---|---|
-| ![Sign in](docs/screenshots/online-signin.png) | ![Reset](docs/screenshots/online-reset.png) | ![Online phone](docs/screenshots/online-phone.png) | ![Local phone](docs/screenshots/dashboard-phone.png) |
+| Online: sign in | Online: forgot password (emailed code) | Online: dashboard on a phone |
+|---|---|---|
+| ![Sign in](docs/screenshots/online-signin.png) | ![Reset](docs/screenshots/online-reset.png) | ![Online phone](docs/screenshots/online-phone.png) |
 
 ![Online dashboard on a laptop](docs/screenshots/online-desktop.png)
 
 <details>
-<summary>Tablet and TV views</summary>
+<summary>On a TV or 32-inch monitor</summary>
 
-| Tablet (local dashboard) | 2560-px monitor or TV (online dashboard) |
-|---|---|
-| ![Tablet](docs/screenshots/dashboard-tablet.png) | ![TV](docs/screenshots/online-tv.png) |
+![Online dashboard on a 2560-px screen](docs/screenshots/online-tv.png)
 
 </details>
 
@@ -159,12 +159,13 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.5.3** | New **Applied this week** tile (Sunday to Saturday); 8 tiles in a 4 × 2 grid on both dashboards |
 | **v3.5** | Assessments on the Submitted map (amber pins with due times; own filter chip) |
 | **v3.4** | Online assessments: KPI tile, due-time card with Done, daily and 3-hours-before reminders, unmatched emails included |
 | **v3.3** | Guided first-run tour of the dashboard (skippable, replay from Settings) |
 | **v3.2** | Email updates on the online dashboard follow undo, ignore, and manual matching on your computer |
 | **v3.1** | One-click in-app updates with release notes; sign in to the online dashboard with more than one email; operator-only user counts and Users page; reliability fixes (cloud sync, phone requests, password reset, follow-up reminders) |
-| **v3.0** | Responsive UI for phones, tablets, and big screens; free hosted online dashboard (GitHub Pages + Supabase) with email/password sign-in, emailed-code confirmation and password reset; remote Run now / Check email from your phone; scheduled Mac wake to pick up requests; operator email when someone joins |
+| **v3.0** | Local app adapts from split-screen windows to 32-inch monitors; phone, tablet, and TV via the online dashboard; free hosted online dashboard (GitHub Pages + Supabase) with email/password sign-in, emailed-code confirmation and password reset; remote Run now / Check email from your phone; scheduled Mac wake to pick up requests; operator email when someone joins |
 | **v2.1** | Personal greeting above the KPIs (time of day + streaks, personal bests, interviews, ready-to-send); asks your name on first launch, editable in Settings; live email-check status in Background work; author credit in the header and footer |
 | **v2.0** | Application emails read from Gmail, Outlook / Microsoft 365, or Apple Mail; automatic status updates with undo; Email page; assessment, interview, and offer items in Needs you |
 | **v1.3** | Runs on macOS, Windows, and Linux; one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)); built-in scheduling clock; self-healing documents and **Fix it** |
@@ -222,7 +223,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 - **Self-healing documents.** Bullets that are a hair too long stay on one line with slightly tighter letter
   spacing, and pages use the smaller sizes the prompt allows before overflowing. **Fix it** re-fits flagged
   documents without a Claude call, and asks for a small trim only if that isn't enough.
-- **Dashboard.** A personal greeting written from the time of day and your real progress, KPIs (including **applied today**), **maps of where you're applying**, a 14-day
+- **Dashboard.** A personal greeting written from the time of day and your real progress, eight KPI tiles in a 4 × 2 grid (including **applied today**, **applied this week** (Sunday to Saturday), and **assessments to finish**), **maps of where you're applying**, a 14-day
   applications chart, a pipeline funnel, live per-job progress bars with an honest "not started / running /
   paused" status, server-side pagination and search everywhere, and dark, light, and system themes.
 - **Online assessments with deadlines (v3.4–v3.5).** Due times are read from the email. Pending assessments get
@@ -301,10 +302,6 @@ for this role.
 | Email updates (read-only inbox tracking) | Users page (site operator only; counts, never companies) |
 |---|---|
 | ![Email](docs/screenshots/email.png) | ![Users](docs/screenshots/users.png) |
-
-| Phone | Tablet |
-|---|---|
-| ![Phone](docs/screenshots/dashboard-phone.png) | ![Tablet](docs/screenshots/dashboard-tablet.png) |
 
 ---
 

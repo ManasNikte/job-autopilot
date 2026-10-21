@@ -150,7 +150,7 @@
     $("#hello-title").textContent = d.greeting?.title || "Welcome";
     $("#hello-text").textContent = d.greeting?.text || "";
     const k = d.kpis || {};
-    const tiles = [["Applied today", k.applied_today], ["Applied, all time", k.applied_total], ["Ready to submit", k.ready],
+    const tiles = [["Applied today", k.applied_today], ["Applied this week", k.applied_week], ["Applied, all time", k.applied_total], ["Ready to submit", k.ready],
                    ["Interviewing / offers", k.interviewing], ["Waiting on your call", k.decide], ["Rejected", k.rejected],
                    ["Assessments to finish", k.assessments]];
     const box = $("#kpis"); box.replaceChildren();

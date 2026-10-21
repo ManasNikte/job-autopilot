@@ -52,8 +52,8 @@ h3 { font-size: 14px; margin: 14px 0 8px; }
 .grid { display: grid; gap: 16px; }
 .g2 { grid-template-columns: 1fr 1fr; }
 .g3 { grid-template-columns: repeat(3, 1fr); }
-.kpis { grid-template-columns: repeat(7, 1fr); }
-@media (max-width: 900px) { .g2, .g3 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(4, 1fr); } }
+.kpis { grid-template-columns: repeat(4, 1fr); }   /* 8 tiles: a 4 × 2 grid */
+@media (max-width: 900px) { .g2, .g3 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
 .tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; display: block; color: inherit; }
 .tile:hover { text-decoration: none; border-color: var(--accent); }
@@ -385,8 +385,6 @@ dialog.modal[open] { display: flex; flex-direction: column; }
 @media (prefers-reduced-motion: reduce) { .tour-spot, .tour-card, .tour-dots i { transition: none; } }
 
 /* ---------- Online assessments ---------- */
-@media (max-width: 1250px) and (min-width: 901px) { .kpis { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 600px) { .kpis > .tile:last-child:nth-child(odd) { grid-column: 1 / -1; } }
 .tile.tile-alert { border-color: color-mix(in srgb, var(--critical, #e5484d) 55%, var(--border)); }
 .tile.tile-alert .v { color: var(--critical, #e5484d); }
 .assess-card { margin-top: 16px; border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
@@ -403,3 +401,4 @@ dialog.modal[open] { display: flex; flex-direction: column; }
 .btn.ghost { background: transparent; }
 .email-text { white-space: pre-wrap; margin: 8px 0 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
   background: var(--surface-2, transparent); font-size: 13px; line-height: 1.5; max-height: 360px; overflow: auto; }
+@media (min-width: 1900px) { .kpis { grid-template-columns: repeat(8, 1fr); } }   /* wide monitors: one row */

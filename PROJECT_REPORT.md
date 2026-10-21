@@ -8,7 +8,7 @@ including overnight with the laptop lid closed, so the candidate's time goes onl
 | **Type** | Personal tool, built end to end (backend, LLM integration, PDF rendering, browser extension, scheduling) |
 | **Stack** | Python, Flask, SQLite, Claude (Claude Code CLI or Anthropic API, with web search), reportlab, Leaflet maps, Chrome extension (MV3), Playwright, macOS launchd/pmset · online dashboard on GitHub Pages + Supabase (Postgres, Auth, row-level security, realtime) |
 | **Size** | About 12,600 lines across the app, extension, website, and SQL · 102 automated tests |
-| **Platforms** | macOS (primary), Windows, Linux, plus a phone/tablet/TV dashboard · one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)) · one-click in-app updates |
+| **Platforms** | The app runs on a laptop or desktop: macOS (primary), Windows, Linux. A hosted online dashboard covers phone, tablet, and TV · one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)) · one-click in-app updates |
 | **Status** | In daily use since October 2026 |
 
 ---
@@ -70,8 +70,9 @@ ready for the best matches, and a **Needs you** inbox with only these items:
 - Answer a fact only you know (asked once, remembered forever)
 - Review and submit (the Chrome extension fills the form; you press Submit)
 
-The dashboard opens with today's numbers (**applied today**, ready to submit, waiting on your call) and **two
-maps**: one pins every job that's ready to submit, and the other pins submitted applications. The second map
+The dashboard opens with eight tiles in a 4 × 2 grid: new roles today, ready to submit, waiting on your call,
+**applied today**, **applied this week** (Sunday to Saturday), applied all time, interviewing, and assessments to
+finish. Below them are **two maps**: one pins every job that's ready to submit, and the other pins submitted applications. The second map
 switches between **Today** (applied, moved forward, or rejected today) and **All time**, and four toggle chips,
 **Applied**, **Interviewing / offer**, **Assessments**, and **Rejected**, show any mix, such as only rejections or
 only pending assessments. Jobs that can't be pinned (remote, country-wide) are listed under the map, never dropped. One
@@ -104,7 +105,9 @@ the company later invites the candidate to interview, makes an offer, or decline
 
 ### Away from the laptop
 
-An optional **online dashboard** works on a phone, tablet, or TV. It shows the same progress, jobs, email updates,
+The app itself lives on the laptop (`127.0.0.1`). Its layout adapts from a narrow split-screen window to a 32-inch
+monitor, but it isn't meant to be opened on a phone. For that there's an optional **online dashboard** that works
+on a phone, tablet, or TV. It shows the same progress, jobs, email updates,
 and assessments. It can also start a run or an email check on the candidate's computer. Behind it:
 
 - **Free hosting:** GitHub Pages and Supabase.
