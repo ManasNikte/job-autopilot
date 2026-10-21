@@ -10,8 +10,8 @@ BASE = {"today": 0, "week": 0, "prev_week": 0, "total": 0, "streak": 0, "past_be
 def test_time_of_day_and_progress():
     early = greeting.line(datetime(2026, 10, 20, 5, 0), dict(BASE, today=3, week=9, past_best=10), "Sam")
     assert early.startswith("Up early, Sam") and "3 applications" in early
-    g = greeting.greet(datetime(2026, 10, 20, 9, 0), dict(BASE, assessment={"company": "Roblox"}), "Manas")
-    assert g["title"] == "Good morning, Manas ☀️" and g["text"].startswith("📝 Roblox sent an assessment")
+    g = greeting.greet(datetime(2026, 10, 20, 9, 0), dict(BASE, assessment={"company": "Acme Games"}), "Manas")
+    assert g["title"] == "Good morning, Manas ☀️" and g["text"].startswith("📝 Acme Games sent an assessment")
     late = greeting.line(datetime(2026, 10, 20, 2, 0), dict(BASE, today=1, week=5, past_best=10), "Sam")
     assert late.startswith("Still up, Sam?") and "1 application " in late and "sleep" in late
     best = greeting.line(datetime(2026, 10, 20, 15, 0), dict(BASE, today=12, past_best=9), "Sam")

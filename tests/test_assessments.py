@@ -8,9 +8,9 @@ from app import assessments, db
 
 def test_parse_due_reads_time_and_zone_from_the_email():
     # the two real formats: "by 6:00am PT on October 26, 2026" and "due October 25, 2026 at 8:41 PM EDT"
-    assert assessments.parse_due("2026-11-02", "finish four online assessments by 6:00am PT on October 26, 2026.") == "2026-11-02T13:00+00:00"
-    assert assessments.parse_due("2026-10-25", "due October 25, 2026 at 8:41 PM EDT.") == "2026-11-02T00:41+00:00"
-    assert assessments.parse_due("2026-10-25T20:41:00-04:00") == "2026-11-02T00:41+00:00"        # Claude's ISO answer
+    assert assessments.parse_due("2026-10-26", "finish four online assessments by 6:00am PT on October 26, 2026.") == "2026-10-26T13:00+00:00"
+    assert assessments.parse_due("2026-10-25", "due October 25, 2026 at 8:41 PM EDT.") == "2026-10-26T00:41+00:00"
+    assert assessments.parse_due("2026-10-25T20:41:00-04:00") == "2026-10-26T00:41+00:00"        # Claude's ISO answer
     assert assessments.parse_due(None, "Please complete it by Nov 3 at 11:59 pm ET", received_at="2026-10-20T10:00:00+00:00") == "2026-11-04T04:59+00:00"
     assert assessments.parse_due(None, "no date here") is None
     no_time = assessments.parse_due("2026-10-30", "complete it soon")                              # end of that local day
@@ -37,7 +37,7 @@ def test_pending_includes_unmatched_soonest_first_and_marks_done(data):
     now, add = data
     r = add("m1", "Acme Games", "assessment", now + timedelta(days=6), job_id="j:acme", state="applied")
     o = add("m2", "Globex Analytics", "assessment", now + timedelta(days=5), state="unmatched")   # applied outside the app
-    db.add_intervention("j:acme", "assessment", "Online assessment from Acme Games · due 2026-11-02")
+    db.add_intervention("j:acme", "assessment", "Online assessment from Acme Games · due 2026-10-26")
     p = assessments.pending()
     assert [a["shown_company"] for a in p] == ["Globex Analytics", "Acme Games"]
     assessments.sync_todos()

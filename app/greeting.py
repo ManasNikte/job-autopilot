@@ -109,7 +109,7 @@ def _when(hour: int) -> tuple[str, str, str]:
 
 
 def greet(now: datetime | None = None, s: dict | None = None, name: str | None = None) -> dict:
-    """{'title': 'Good morning, Manas ☀️', 'text': '📝 Roblox sent an assessment. …'}.
+    """{'title': 'Good morning, Manas ☀️', 'text': '📝 Acme Games sent an assessment. …'}.
     Celebrates real progress, never invents any."""
     now = now or datetime.now()
     s = s if s is not None else stats(now.date())
