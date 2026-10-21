@@ -31,7 +31,12 @@
     show(["signup", "forgot"].includes(hash) ? hash : "signin");
   }
   window.addEventListener("hashchange", route);
-  sb.auth.onAuthStateChange((evt) => { if (evt === "SIGNED_OUT" || evt === "SIGNED_IN") route(); });
+  let resetting = false;                                      // a password reset signs in before the new password is saved
+  sb.auth.onAuthStateChange((evt) => {
+    if (evt === "SIGNED_OUT" && started) { location.hash = "#signin"; location.reload(); return; }   // drop the last account's data
+    if (resetting) return;
+    if (evt === "SIGNED_OUT" || evt === "SIGNED_IN") route();
+  });
 
   // ------------------------------------------------------------------ sign in
   $("#form-signin").addEventListener("submit", async (e) => {
@@ -67,7 +72,7 @@
   });
 
   // ------------------------------------------------------------------ forgot password: email OTP
-  let resetEmail = "";
+  let resetEmail = "", resetVerified = false;
   $("#form-forgot").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; say(f, ""); busy(f, true);
     resetEmail = f.email.value.trim();
@@ -79,17 +84,21 @@
     e.preventDefault(); const f = e.target; say(f, "");
     if (!strong(f.password.value)) return say(f, "Use at least 10 characters, with a lowercase letter, an uppercase letter, and a number.");
     if (f.password.value !== f.password2.value) return say(f, "The passwords don't match.");
-    busy(f, true);
-    const v = await sb.auth.verifyOtp({ email: resetEmail, token: f.code.value.trim(), type: "recovery" });
-    if (v.error) { busy(f, false); return say(f, "That code didn't work or has expired. Request a new one."); }
-    const u = await sb.auth.updateUser({ password: f.password.value });
-    busy(f, false);
-    if (u.error) return say(f, u.error.message);
-    await sb.auth.signOut({ scope: "others" });               // sign out every other device after a reset
-    location.hash = "";
+    busy(f, true); resetting = true;
+    try {
+      if (!resetVerified) {                                   // a code works once; on a retry, just set the password
+        const v = await sb.auth.verifyOtp({ email: resetEmail, token: f.code.value.trim(), type: "recovery" });
+        if (v.error) return say(f, "That code didn't work or has expired. Request a new one.");
+        resetVerified = true; f.code.disabled = true;
+      }
+      const u = await sb.auth.updateUser({ password: f.password.value });
+      if (u.error) return say(f, /different|same/i.test(u.error.message) ? "Choose a password you haven't used here before." : u.error.message);
+      await sb.auth.signOut({ scope: "others" });             // sign out every other device after a reset
+      resetVerified = false; location.hash = ""; resetting = false; route();
+    } finally { busy(f, false); resetting = false; }
   });
 
-  $("#signout").addEventListener("click", async () => { await sb.auth.signOut(); location.hash = "#signin"; });
+  $("#signout").addEventListener("click", async () => { location.hash = "#signin"; await sb.auth.signOut(); location.reload(); });
 
   // ------------------------------------------------------------------ dashboard
   let me = null, machines = [], machineId = null, timer = null, channel = null, jobTab = "applied", jobLimit = 25, started = false;

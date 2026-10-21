@@ -91,6 +91,18 @@
   </form>
 </div>
 
+<div class="card" id="updates">
+  <h2>App updates</h2>
+  <p style="margin-top:0">You're on <b>v{{ app_version }}</b>{% if upd_state.checked_at %} · checked {{ upd_state.checked_at|ago }}{% endif %}.
+    {% if upd_state.behind %}<span class="badge apply">Update available{% if upd_state.remote_version %}: v{{ upd_state.remote_version }}{% endif %}</span>{% elif upd_state.checked_at and not upd_state.error %}<span class="sub">Up to date.</span>{% endif %}</p>
+  {% if upd_state.error %}<p class="sub small" style="color:var(--critical)">{{ upd_state.error }}</p>{% endif %}
+  <p class="sub small">Checks GitHub every 6 hours. Updating keeps your profile, data, and settings, and only runs when nothing is in progress.</p>
+  <div class="row">
+    <form method="post" action="{{ url_for('update_check') }}" data-busy="Checking…"><button class="btn small" type="submit">Check now</button></form>
+    {% if upd_state.behind %}<form method="post" action="{{ url_for('update_apply') }}" data-busy="Updating…"><button class="btn primary small" type="submit">Update now</button></form>{% endif %}
+  </div>
+</div>
+
 <div class="card" id="cloud">
   <h2>Online dashboard: check progress from your phone</h2>
   {% if not cloud_cfg %}

@@ -27,7 +27,7 @@ import requests
 from . import db
 from .config import CONFIG_DIR, DATA_DIR
 
-APP_VERSION = "3.0"
+from .version import VERSION as APP_VERSION
 ALLOWED = {"run", "process", "mail", "resume"}
 STATE_FILE = DATA_DIR / "cloud.json"
 KEY = "cloud:refresh"
@@ -145,6 +145,7 @@ def connect(email: str, password: str, machine_name: str, city_name: str | None 
                                                "platform": platform.system().lower()[:20], "app_version": APP_VERSION},
                      prefer="return=representation")
         mid = rows[0]["id"]
+        _reset_cursors()                               # a new machine row starts empty online: send everything
     _save_state({"user_id": user_id, "email": email.strip(), "machine_id": mid, "machine_name": machine_name[:80],
                  "city": place,
                  "connected_at": db.now()})
@@ -162,6 +163,7 @@ def disconnect() -> None:
         pass
     delete_secret(KEY)
     _token.update(access="", exp=0)
+    _reset_cursors()
     try:
         STATE_FILE.unlink()
     except OSError:
@@ -237,11 +239,17 @@ def snapshot() -> dict:
 
 
 def _changed_jobs(since: str) -> list[dict]:
-    rows = db.fetchall(
-        f"SELECT id, company, title, location, status, match_score, salary, posted_at, applied_at, url, updated_at FROM jobs "
-        f"WHERE updated_at > ? AND status IN ({','.join('?' * len(SYNC_STATUSES))}) ORDER BY updated_at LIMIT 1000",
-        (since, *SYNC_STATUSES))
-    return rows
+    """Every job changed at or after the cursor (timestamps have 1-second resolution, so ">=" re-sends the
+    boundary second instead of risking a skip; upserts make that harmless). All statuses: the ones that
+    aren't shared are deleted online, so a job you skip doesn't stay "Ready" on your phone."""
+    return db.fetchall(
+        "SELECT id, company, title, location, status, match_score, salary, posted_at, applied_at, url, updated_at FROM jobs "
+        "WHERE updated_at >= ? ORDER BY updated_at, id LIMIT 1000", (since,))
+
+
+def _reset_cursors() -> None:
+    for k in ("cloud_jobs_since", "cloud_email_since"):
+        db.execute("DELETE FROM kv WHERE k=?", (k,))
 
 
 # ----------------------------------------------------------------------------- one sync cycle
@@ -257,7 +265,14 @@ def sync_once(log=print, full: bool = True) -> dict:
         _rest("POST", "snapshots", params={"on_conflict": "machine_id"}, prefer="resolution=merge-duplicates",
               json={"machine_id": mid, "user_id": uid, "data": snapshot(), "updated_at": now})
         since = (db.kv_get("cloud_jobs_since") or {}).get("v") or (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-        jobs = _changed_jobs(since)
+        changed = _changed_jobs(since)
+        jobs = [j for j in changed if j["status"] in SYNC_STATUSES]
+        gone = [j["id"] for j in changed if j["status"] not in SYNC_STATUSES]
+        for i in range(0, len(gone), 100):
+            ids = ",".join('"' + g.replace('"', '') + '"' for g in gone[i:i + 100])
+            _rest("DELETE", "jobs", params={"machine_id": f"eq.{mid}", "job_id": f"in.({ids})"})
+        if changed and not jobs:
+            db.kv_set("cloud_jobs_since", changed[-1]["updated_at"])
         if jobs:
             payload = [{"machine_id": mid, "user_id": uid, "job_id": j["id"], "company": j["company"], "title": j["title"],
                         "location": j["location"], "status": j["status"], "match_score": j["match_score"], "salary": j["salary"],
@@ -266,7 +281,7 @@ def sync_once(log=print, full: bool = True) -> dict:
             for i in range(0, len(payload), 500):
                 _rest("POST", "jobs", params={"on_conflict": "machine_id,job_id"}, prefer="resolution=merge-duplicates",
                       json=payload[i:i + 500])
-            db.kv_set("cloud_jobs_since", jobs[-1]["updated_at"])
+            db.kv_set("cloud_jobs_since", changed[-1]["updated_at"])
         last_ev = int((db.kv_get("cloud_email_since") or {}).get("v") or 0)
         evs = db.fetchall("SELECT id, received_at, company, role, event, summary, deadline, job_id, new_status, state "
                           "FROM email_events WHERE id > ? AND state != 'ignored' ORDER BY id LIMIT 500", (last_ev,))
@@ -322,7 +337,7 @@ def _join_email(ev: dict) -> tuple[str, str] | None:
         lines.append(f"New account{'s' if len(accts) > 1 else ''}:")
         lines += [f"  - {who(a)}{' (opted in to updates)' if a.get('opt_in') else ''}" for a in accts]
     if comps:
-        lines.append(f"Set up on a new computer:")
+        lines.append("Set up on a new computer:")
         lines += [f"  - {who(c)}: {c.get('computer')}" for c in comps]
     parts = ([f"{len(accts)} new account{'s' if len(accts) > 1 else ''}"] if accts else []) + \
             ([f"{len(comps)} new computer{'s' if len(comps) > 1 else ''}"] if comps else [])
@@ -366,19 +381,20 @@ def _run_requests(mid: str, log) -> int:
         if not claimed:
             continue                      # another sync took it
         kind = cmd["kind"]
-        if kind not in ALLOWED:
-            result, status = "not allowed", "failed"
-        elif age > timedelta(hours=6):
-            result, status = "expired: the computer was offline too long", "expired"
-        else:
-            if kind == "resume":
-                worker.resume()
+        try:
+            if kind not in ALLOWED:
+                result, status = "not allowed", "failed"
+            elif age > timedelta(hours=6):
+                result, status = "expired: the computer was offline too long", "expired"
             else:
                 worker.resume()
-                worker.submit(kind, "phone" if kind in ("run", "process") else None)
-            result, status = "started on " + (state().get("machine_name") or "your computer"), "done"
-            n += 1
-            log(f"📱 request from the online dashboard: {kind}")
+                if kind != "resume":
+                    worker.submit(kind, "phone" if kind in ("run", "process") else None)
+                result, status = "started on " + (state().get("machine_name") or "your computer"), "done"
+                n += 1
+                log(f"📱 request from the online dashboard: {kind}")
+        except Exception as e:                       # never leave a request stuck as "claimed"
+            result, status = f"failed: {e}"[:200], "failed"
         _rest("PATCH", "commands", params={"id": f"eq.{cmd['id']}"},
               json={"status": status, "result": result, "finished_at": db.now()})
     STATUS["queued_from_phone"] = STATUS.get("queued_from_phone", 0) + n

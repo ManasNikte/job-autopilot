@@ -39,7 +39,7 @@
         <button class="btn danger" name="action" value="closed">Rejected / closed</button>
       </form>
     {% endif %}
-    {% if job.status in ('ready','error','to_tailor') or job.tailor_json %}
+    {% if job.status in ('ready','error','to_tailor') or (job.tailor_json and job.status not in ('applied','interviewing','offer','closed','tailoring')) %}
       <form class="inline" method="post" action="{{ url_for('job_action', job_id=job.id) }}"><button class="btn" name="action" value="regenerate">Regenerate documents</button></form>
     {% endif %}
     {% if job.status in ('error',) %}

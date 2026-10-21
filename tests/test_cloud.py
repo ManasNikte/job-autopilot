@@ -38,7 +38,9 @@ class FakeSupabase:
         rows = self.tables[table]
         params = dict(params or {})
         filt = {k: v.split(".", 1)[1] for k, v in params.items() if isinstance(v, str) and v.startswith("eq.")}
-        match = lambda r: all(str(r.get(k)) == v for k, v in filt.items())
+        infilt = {k: [x.strip('"') for x in v[4:-1].split(",")] for k, v in params.items()
+                  if isinstance(v, str) and v.startswith("in.(")}
+        match = lambda r: all(str(r.get(k)) == v for k, v in filt.items()) and all(str(r.get(k)) in vs for k, vs in infilt.items())
         if method == "POST":
             items = json if isinstance(json, list) else [json]
             keys = (params.get("on_conflict") or "").split(",") if params.get("on_conflict") else None
@@ -216,3 +218,18 @@ def test_city_defaults_to_form_presets_and_can_be_cleared(fake, tmp_path, monkey
     assert cloud.set_city("  ") == "" and fake.tables["machines"][0]["city"] == ""
     f.write_text(json.dumps({"location": "City, ST"}))
     assert cloud.default_city() == ""
+
+
+def test_job_leaving_shared_statuses_is_removed_online_and_reconnect_resends(fake):
+    cloud.connect("me@example.com", "correct horse 1", "Laptop")
+    cloud.sync_once(log=lambda *_: None)
+    assert [j["job_id"] for j in fake.tables["jobs"]] == ["g:1"]
+    db.update_job("g:1", status="rejected")                                  # you skipped it
+    cloud.sync_once(log=lambda *_: None)
+    assert fake.tables["jobs"] == []
+    db.update_job("g:1", status="applied")
+    cloud.disconnect()
+    assert db.kv_get("cloud_jobs_since") is None
+    cloud.connect("me@example.com", "correct horse 1", "Laptop")
+    cloud.sync_once(log=lambda *_: None)
+    assert [j["job_id"] for j in fake.tables["jobs"]] == ["g:1"]

@@ -121,6 +121,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.1** | One-click in-app updates with release notes; sign in to the online dashboard with more than one email; operator-only user counts and Users page; reliability fixes (cloud sync, phone requests, password reset, follow-up reminders) |
 | **v3.0** | Responsive UI for phones, tablets, and big screens; free hosted online dashboard (GitHub Pages + Supabase) with email/password sign-in, emailed-code confirmation and password reset; remote Run now / Check email from your phone; scheduled Mac wake to pick up requests; operator email when someone joins |
 | **v2.1** | Personal greeting above the KPIs (time of day + streaks, personal bests, interviews, ready-to-send); asks your name on first launch, editable in Settings; live email-check status in Background work; author credit in the header and footer |
 | **v2.0** | Application emails read from Gmail, Outlook / Microsoft 365, or Apple Mail; automatic status updates with undo; Email page; assessment, interview, and offer items in Needs you |
@@ -396,6 +397,7 @@ app/
   h1b.py        USCIS import, learned sponsors, cached online sponsor lookup
   geo.py        location → place splitting and cached geocoding for the maps
   cloud.py      online-dashboard connector: pushes summaries, picks up requests from your phone
+  updater.py    in-app updates: check GitHub, show what's new, pull and restart
   greeting.py   the dashboard greeting: your name, the time of day, and your progress
   mailsync.py   inbox readers (Gmail, Microsoft Graph, Apple Mail), rule filter, Claude classification, job matching, undo
   prefilter.py  rule gate before any Claude call
@@ -415,6 +417,17 @@ supabase/       database schema, optional join notifications, and the hosting gu
 CLAUDE_SETUP.md one-command setup instructions for Claude Code (macOS, Windows, Linux)
 tests/          pytest suite (fixture uses a fictional candidate)
 ```
+
+## Updates
+
+The dashboard checks GitHub every 6 hours (or **Settings → App updates → Check now**). When there's a newer
+version it shows **Update available**; **What's new** lists the release notes, and **Update now** pulls the
+code, installs new packages if needed, and restarts itself. Your profile, data, and settings are kept. It only
+updates when nothing is running. Updating by hand is in [CLAUDE_SETUP.md](CLAUDE_SETUP.md#updating-an-existing-install).
+
+**Publishing an update (maintainers):** bump `VERSION` in `app/version.py`, add a section at the top of
+[CHANGELOG.md](CHANGELOG.md) (`## 3.2 (YYYY-MM-DD)` plus short bullets written for users), commit, and push.
+Without a version bump, people still see the update, with your commit messages as the notes.
 
 ## Tests
 

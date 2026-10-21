@@ -1,0 +1,41 @@
+{# Update-available banner and the "What's new" dialog. Included on the dashboard. #}
+{% if app_update %}
+<div class="update-banner" role="status">
+  <span class="update-dot" aria-hidden="true"></span>
+  <span class="grow"><b>Update available{% if app_update.remote_version %}: v{{ app_update.remote_version }}{% endif %}.</b>
+    <span class="sub">You're on v{{ app_version }}.</span></span>
+  <span class="update-actions">
+    <button class="btn small" type="button" data-open="update-dialog">What's new</button>
+    <button class="btn primary small" type="button" data-open="update-dialog">Update</button>
+  </span>
+</div>
+<dialog id="update-dialog" class="modal" aria-labelledby="update-title">
+  <div class="modal-head">
+    <h2 id="update-title">What's new{% if app_update.remote_version %} in v{{ app_update.remote_version }}{% endif %}</h2>
+    <button class="btn small icon" type="button" data-close aria-label="Close">✕</button>
+  </div>
+  <div class="modal-body">
+    {% if app_update.notes %}
+      {% for sec in app_update.notes %}
+        <h3>v{{ sec.version }}{% if sec.date %} <span class="sub small">· {{ sec.date }}</span>{% endif %}</h3>
+        <ul>{% for item in sec["items"] %}<li>{{ item|mdinline }}</li>{% endfor %}</ul>
+      {% endfor %}
+    {% elif app_update.commits %}
+      <ul>{% for c in app_update.commits %}<li>{{ c }}</li>{% endfor %}</ul>
+    {% else %}<p>Improvements and fixes.</p>{% endif %}
+    <p class="sub small">Your profile, resumes, job data, and settings stay as they are. The dashboard restarts by itself, which takes a few seconds.</p>
+  </div>
+  <form class="modal-foot" method="post" action="{{ url_for('update_apply') }}" data-busy="Updating…">
+    <button class="btn" type="button" data-close>Later</button>
+    <button class="btn primary" type="submit">Update now</button>
+  </form>
+</dialog>
+{% endif %}
+{% if just_updated %}
+<div class="update-banner done" role="status">
+  <span class="grow"><b>🎉 You're on v{{ just_updated.version }}.</b>
+    {% if just_updated["items"] %}<details class="update-notes"><summary>See what's new</summary>
+      <ul>{% for item in just_updated["items"] %}<li>{{ item|mdinline }}</li>{% endfor %}</ul></details>{% endif %}</span>
+  <a class="btn small" href="{{ url_for('dashboard') }}">Dismiss</a>
+</div>
+{% endif %}

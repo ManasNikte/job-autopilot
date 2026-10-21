@@ -38,6 +38,14 @@ your work authorization, or a password-protected step. Plan on 15–30 minutes, 
 4. Optional: download the USCIS H-1B data in your browser and upload it on the Sources page. The government
    site blocks automated downloads.
 
+**Updating later.** When a new version is on GitHub, the dashboard shows **Update available**. Click it, read
+what's new, and click **Update now**. It keeps your profile, data, and settings, and restarts itself. To update
+by hand instead, ask Claude Code:
+
+```bash
+claude "Update Job Autopilot on this computer. Read https://raw.githubusercontent.com/ManasNikte/job-autopilot/main/CLAUDE_SETUP.md and follow the 'Updating an existing install' section."
+```
+
 ---
 
 ## Instructions for Claude Code
@@ -106,7 +114,8 @@ git clone https://github.com/ManasNikte/job-autopilot.git ~/job-autopilot && cd 
 git clone https://github.com/ManasNikte/job-autopilot.git "$HOME\job-autopilot"; Set-Location "$HOME\job-autopilot"
 ```
 
-If the folder already exists and is a clone of this repo, run `git pull` instead.
+If the folder already exists and is a clone of this repo, don't clone again: follow **Updating an existing
+install** (below) instead, then continue from Step 4 only for anything that's missing.
 
 ### Step 4: Create the virtual environment and install dependencies
 
@@ -363,6 +372,38 @@ Give the user a short summary, addressed to them by name:
 - The online dashboard address, if they connected one, so they can bookmark it on their phone
 - Anything left for them to do: the extension, the USCIS import, and any `PENDING` facts in their prompt
 - How to start their first run: **Run now** on the dashboard, then work through the **Needs you** page
+
+### Updating an existing install
+
+Use this when the user asks to update, or when Step 3 finds the repo already there. Their profile, data, and
+settings are gitignored or kept, so nothing personal is lost.
+
+1. Make sure nothing is running: open http://127.0.0.1:5055/background (or ask the user). If a run or document
+   builds are in progress, wait for them to finish.
+2. Pull the new code. `--autostash` sets aside the user's own edits to tracked settings files (such as
+   `config/schedule.json`) and puts them back afterwards:
+
+   ```bash
+   # macOS / Linux
+   cd ~/job-autopilot && git pull --ff-only --autostash
+   ```
+
+   ```powershell
+   # Windows
+   Set-Location "$HOME\job-autopilot"; git pull --ff-only --autostash
+   ```
+
+   If git reports a conflict in a settings file, keep the user's version: `git checkout --theirs -- <file>`,
+   then `git reset -q -- <file>` and `git stash drop`. Never discard the user's profile or data.
+3. Install any new dependencies:
+   `.venv/bin/pip install -r requirements.txt` (Windows: `.venv\Scripts\pip.exe install -r requirements.txt`).
+4. Restart the dashboard so the new code loads:
+   - **macOS:** `launchctl kickstart -k gui/$(id -u)/com.jobautopilot.dashboard`
+   - **Linux:** `systemctl --user restart job-autopilot`
+   - **Windows:** `Stop-ScheduledTask -TaskName "JobAutopilot Dashboard"; Start-ScheduledTask -TaskName "JobAutopilot Dashboard"`
+   - Not running as a service: stop `python -m app.cli serve` (Ctrl+C) and start it again.
+5. Check http://127.0.0.1:5055/healthz shows the new version (it matches `VERSION` in `app/version.py`), and
+   tell the user what changed (the newest section of `CHANGELOG.md`).
 
 ### Troubleshooting
 

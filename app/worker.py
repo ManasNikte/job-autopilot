@@ -194,7 +194,7 @@ def start() -> None:
 def submit(kind: str, arg: str | None = None) -> bool:
     with _pending_lock:
         busy_run = kind in ("run", "process") and (
-            any(k == kind for k, _ in _pending) or any(v.split(" ")[0] == kind for v in state["active"].values()))
+            any(k == kind for k, _ in _pending) or any(v.split(" ")[0] == kind for v in list(state["active"].values())))
         if (kind, arg) in _pending or busy_run:
             _log(f"already queued: {kind} {arg or ''}")
             return False

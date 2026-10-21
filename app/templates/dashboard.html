@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_pager.html" import pager %}
 {% block content %}
+{% include "_update.html" %}
 <div class="spread hello-row">
   {% if hello %}<div class="hello"><h1>{{ hello.title }}</h1><p>{{ hello.text }}</p></div>{% else %}<h1>Dashboard</h1>{% endif %}
   <span class="muted">{% if last_run %}Last run {{ last_run.started_at|ago }} · {{ last_run.status }}{% else %}No runs yet. Click "Run now".{% endif %}</span></div>

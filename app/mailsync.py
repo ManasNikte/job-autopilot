@@ -463,9 +463,9 @@ def match_job(company: str, role: str, sender: str) -> dict | None:
     return cands[0]
 
 
-def apply_event(ev: dict) -> dict:
-    """Update the matched job for one classified email (auto mode). Returns what changed."""
-    job = match_job(ev.get("company", ""), ev.get("role", ""), ev.get("sender", ""))
+def apply_event(ev: dict, job: dict | None = None) -> dict:
+    """Update the matched job for one classified email (auto mode, or `job` when you picked it by hand)."""
+    job = job or match_job(ev.get("company", ""), ev.get("role", ""), ev.get("sender", ""))
     row = {k: ev.get(k, "") for k in ("account", "msg_id", "received_at", "sender", "subject", "company", "role",
                                      "event", "link", "deadline", "summary")}
     row["snippet"] = (ev.get("body") or "")[:600]
@@ -534,7 +534,7 @@ def assign(event_id: int, job_id: str) -> bool:
     if not ev or not job:
         return False
     db.execute("DELETE FROM email_events WHERE id=?", (event_id,))
-    apply_event({**ev, "company": job["company"], "role": job["title"], "body": ev["snippet"]})
+    apply_event({**ev, "company": job["company"], "role": job["title"], "body": ev["snippet"]}, job=job)
     return True
 
 

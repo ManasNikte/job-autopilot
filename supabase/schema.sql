@@ -123,7 +123,8 @@ language sql stable security definer set search_path = public as $$
   select auth.uid()
   union
   select a.owner_id from public.account_emails a
-  where a.email = lower(auth.jwt() ->> 'email') and a.owner_id <> auth.uid()
+  join auth.users u on u.id = auth.uid() and u.email_confirmed_at is not null   -- only a confirmed address
+  where a.email = lower(u.email) and a.owner_id <> auth.uid()
 $$;
 revoke all on function public.viewable_owner_ids() from public, anon;
 grant execute on function public.viewable_owner_ids() to authenticated;
@@ -190,6 +191,26 @@ end $$;
 drop trigger if exists commands_machine_check on public.commands;
 create trigger commands_machine_check before insert on public.commands
   for each row execute function public.command_machine_is_mine();
+
+-- Progress rows (snapshot, jobs, email updates) must belong to one of the writer's own machines, so nobody
+-- can claim another computer's rows by guessing its id.
+create or replace function public.row_machine_is_mine() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.machines m where m.id = new.machine_id and m.user_id = new.user_id) then
+    raise exception 'unknown machine';
+  end if;
+  return new;
+end $$;
+do $$
+declare t text;
+begin
+  foreach t in array array['snapshots', 'jobs', 'email_updates'] loop
+    execute format('drop trigger if exists row_machine_check on public.%I', t);
+    execute format('create trigger row_machine_check before insert or update on public.%I
+                    for each row execute function public.row_machine_is_mine()', t);
+  end loop;
+end $$;
 
 -- At most 30 commands per user per hour (stops a stolen session or a stuck button from spamming a laptop).
 create or replace function public.command_rate_limit() returns trigger

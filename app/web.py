@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import threading
 import sys
 import json
 from datetime import date, datetime, timedelta, timezone
@@ -54,12 +55,25 @@ def firsturl(text: str | None) -> str:
     return m.group(0) if m else ""
 
 
+def _parse_dt(iso: str | None) -> datetime | None:
+    """ISO text → aware datetime (naive values are treated as UTC); None for empty or unparseable input."""
+    if not iso:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 @app.template_filter("ago")
 def ago(iso: str | None) -> str:
-    if not iso:
+    dt = _parse_dt(iso)
+    if not dt:
         return "—"
-    dt = datetime.fromisoformat(iso)
-    s = (datetime.now(timezone.utc) - dt).total_seconds()
+    s = max(0, (datetime.now(timezone.utc) - dt).total_seconds())   # clocks drift; never "-3m ago"
+    if s < 60:
+        return "just now"
     if s < 3600:
         return f"{int(s // 60)}m ago"
     if s < 86400:
@@ -67,9 +81,20 @@ def ago(iso: str | None) -> str:
     return f"{int(s // 86400)}d ago"
 
 
+@app.template_filter("mdinline")
+def mdinline(text: str | None):
+    """Escape, then allow **bold** and `code` (release notes)."""
+    from markupsafe import Markup, escape
+    t = str(escape(text or ""))
+    t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
+    t = re.sub(r"`([^`]+)`", r"<code>\1</code>", t)
+    return Markup(t)
+
+
 @app.template_filter("local")
 def local(iso: str | None) -> str:
-    return datetime.fromisoformat(iso).astimezone().strftime("%b %d, %I:%M %p") if iso else "—"
+    dt = _parse_dt(iso)
+    return dt.astimezone().strftime("%b %d, %I:%M %p") if dt else "—"
 
 
 @app.context_processor
@@ -83,27 +108,41 @@ def inject():
         unmatched_mail = db.count("email_events", "state='unmatched'")
     except Exception:
         unmatched_mail = 0
-    from . import cloud
+    from . import cloud, updater
+    from .version import VERSION
     op = cloud.STATUS.get("operator") if request.endpoint == "dashboard" else None
-    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
+    upd = updater.STATE if updater.update_available() else None
+    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "app_update": upd, "app_version": VERSION, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
 
 
 def _followups() -> None:
     """Turn outreach timing rules (Section XI) into reminders: day 3-5 share work, day 7-10 one ask."""
     for o in db.fetchall("SELECT o.*, j.company FROM outreach o JOIN jobs j ON j.id=o.job_id WHERE o.status IN ('sent','accepted') AND o.sent_at IS NOT NULL"):
-        days = (datetime.now(timezone.utc) - datetime.fromisoformat(o["sent_at"])).days
+        sent = _parse_dt(o["sent_at"])
+        if not sent:
+            continue
+        days = (datetime.now(timezone.utc) - sent).days
         who = o["person_name"] or o["target"].replace("_", " ")
         if 3 <= days <= 5:
-            db.add_intervention(o["job_id"], "outreach", f"Day {days}: share one piece of real work with {who} at {o['company']}",
+            db.add_intervention(o["job_id"], "outreach", f"Follow up: share one piece of real work with {who} at {o['company']}",
                                 "Section XI: a short note with one artifact (e.g. a project README result). No pitch.")
         elif 7 <= days <= 10:
-            db.add_intervention(o["job_id"], "outreach", f"Day {days}: one specific low-effort ask to {who} at {o['company']}",
+            db.add_intervention(o["job_id"], "outreach", f"Follow up: one specific low-effort ask to {who} at {o['company']}",
                                 "One follow-up max. A 15-minute coffee chat or one question about the team.")
 
 
 @app.route("/")
 def dashboard():
     _followups()
+    just_updated = None
+    if request.args.get("updated"):
+        from . import updater
+        from .version import VERSION
+        try:
+            notes = updater.parse_changelog((updater.ROOT / "CHANGELOG.md").read_text(), "0")
+            just_updated = next((n for n in notes if n["version"] == VERSION), {"version": VERSION, "items": []})
+        except OSError:
+            just_updated = {"version": VERSION, "items": []}
     today = datetime.now().astimezone().date()
     start_utc = datetime.combine(today, datetime.min.time()).astimezone().astimezone(timezone.utc).isoformat()
     counts = {r["status"]: r["n"] for r in db.fetchall("SELECT status, count(*) AS n FROM jobs GROUP BY status")}
@@ -148,7 +187,7 @@ def dashboard():
     from . import greeting
     user_name = greeting.user_name()
     hello = greeting.greet(name=user_name) if user_name else None
-    return render_template("dashboard.html", hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
+    return render_template("dashboard.html", just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
                            today_jobs=today_jobs, by_family=by_family, by_company=by_company, last_run=last_run, counts=counts,
                            today_page=today_page, family_page=family_page, company_page=company_page,
                            applied_total=sum(r["n"] for r in fam_rows))
@@ -341,6 +380,9 @@ def job_action(job_id):
         worker.resume()
         worker.submit("refit", job_id)
         flash("Fixing the documents in the background: tighter spacing within your rules first, then a small Claude trim only if needed.")
+    elif act == "regenerate" and job["status"] in ("applied", "interviewing", "offer", "closed", "tailoring"):
+        flash("This job is already " + STATUS_LABELS.get(job["status"], job["status"]).lower()
+              + ", so its documents stay as they are (rebuilding would reset its status).")
     elif act == "regenerate":
         from .llm import prompt_version
         db.update_job(job_id, status="to_tailor")
@@ -385,7 +427,6 @@ def inbox():
         "WHERE i.status='open' ORDER BY CASE i.kind WHEN 'offer' THEN -3 WHEN 'interview' THEN -2 WHEN 'assessment' THEN -1 "
         "WHEN 'error' THEN 0 WHEN 'referral' THEN 1 WHEN 'decision' THEN 2 WHEN 'missing_info' THEN 3 "
         "WHEN 'quality' THEN 4 WHEN 'submit' THEN 5 WHEN 'outreach' THEN 6 ELSE 7 END, i.id DESC")
-    from . import contacts as _c
     for i in ivs:
         if i["kind"] == "referral":
             ask = db.fetchone("SELECT a.*, c.name, c.phone, c.linkedin, c.email FROM referral_asks a JOIN contacts c ON c.id=a.contact_id "
@@ -1003,7 +1044,7 @@ def settings_page():
     ms_id = request.args.get("ms", "")
     from . import cloud, greeting
     return render_template("settings.html", user_name=greeting.user_name(), cloud_cfg=cloud.config(), cloud_state=cloud.state(),
-                           cloud_status=cloud.STATUS, cloud_connected=cloud.connected(), cloud_default_name=cloud.default_machine_name(), cloud_city=cloud.city() if cloud.connected() else cloud.default_city(),
+                           cloud_status=cloud.STATUS, cloud_connected=cloud.connected(), upd_state=__import__('app.updater', fromlist=['STATE']).STATE, cloud_default_name=cloud.default_machine_name(), cloud_city=cloud.city() if cloud.connected() else cloud.default_city(),
                            remote_wake=schedule.remote_wake(), mail_accounts=mailsync.accounts(), ms_client=ms_id, is_mac=sys.platform == "darwin",
                            ms_state=mailsync.ms_signin_state(ms_id) if ms_id else None, sched=schedule.status(), tunables=TUNABLES, current=current,
                            feeds=feeds_config(), ampm=_ampm)
@@ -1054,7 +1095,8 @@ def cloud_connect():
 def cloud_wake():
     from . import schedule
     minutes = request.form.get("minutes", "0")
-    schedule.set_remote_wake(int(minutes) if minutes.isdigit() else 0)
+    minutes = minutes if minutes in ("0", "15", "30", "60") else "0"
+    schedule.set_remote_wake(int(minutes))
     flash("Saved. " + ("Your Mac will check for phone requests every " + minutes + " minutes while plugged in."
                        if minutes not in ("", "0") else "Phone requests run when your Mac is awake."))
     return redirect(url_for("settings_page") + "#cloud")
@@ -1103,6 +1145,41 @@ def set_user_name():
         greeting.set_name(name)
         flash(f"Nice to meet you, {name.split()[0]}!")
     return redirect(request.referrer or url_for("dashboard"))
+
+
+# ----------------------------------------------------------------------------- app updates
+
+@app.get("/healthz")
+def healthz():
+    from .version import VERSION
+    return jsonify({"ok": True, "version": VERSION})
+
+
+@app.post("/update/check")
+def update_check():
+    from . import updater
+    st = updater.check(force=True)
+    if st.get("error"):
+        flash("Couldn't check for updates: " + st["error"])
+    elif st.get("behind"):
+        flash(f"An update is available ({'v' + st['remote_version'] if st.get('remote_version') else str(st['behind']) + ' new change(s)'}).")
+    else:
+        flash("You're on the latest version.")
+    return redirect(request.referrer or url_for("settings_page"))
+
+
+@app.post("/update")
+def update_apply():
+    from . import updater
+    res = updater.apply()
+    if not res.get("ok"):
+        flash("Update didn't run: " + res["message"])
+        return redirect(request.referrer or url_for("dashboard"))
+    if not res.get("restart"):
+        flash(res["message"])
+        return redirect(url_for("dashboard"))
+    updater.restart_soon()
+    return render_template("updating.html", version=res.get("version"))
 
 
 @app.post("/settings/restart")
@@ -1219,6 +1296,8 @@ def serve() -> None:
     db.recover_interrupted()
     progress.reset()
     worker.start()
+    from . import updater
+    threading.Thread(target=updater.loop, name="updater", daemon=True).start()
     n = worker.resume_queue()
     if n:
         print(f"Resumed {n} job(s) waiting for documents.")

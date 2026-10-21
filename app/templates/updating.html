@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Updating · Job Autopilot{% endblock %}
+{% block content %}
+<div class="card updating" role="status" aria-live="polite">
+  <div class="spinner" aria-hidden="true"></div>
+  <h1>Updating{% if version %} to v{{ version }}{% endif %}…</h1>
+  <p class="sub" id="upd-msg">The new version is installed. The dashboard is restarting; this page reloads by itself.</p>
+</div>
+<script>
+  (function () {
+    const want = {{ (version or "")|tojson }}; let tries = 0;
+    async function ping() {
+      tries++;
+      try {
+        const r = await fetch("{{ url_for('healthz') }}", { cache: "no-store" });
+        const d = await r.json();
+        if (!want || d.version === want) { location.href = "{{ url_for('dashboard') }}?updated=1"; return; }
+      } catch (e) { /* restarting */ }
+      if (tries > 60) document.getElementById("upd-msg").textContent = "This is taking longer than usual. If the page doesn't come back, restart the dashboard (see CLAUDE_SETUP.md, 'Updating').";
+      setTimeout(ping, 1500);
+    }
+    setTimeout(ping, 2500);
+  })();
+</script>
+{% endblock %}

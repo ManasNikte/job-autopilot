@@ -44,7 +44,7 @@
 <div class="grid g2">
   <div class="card" id="recent-runs">
     <h2>Recent runs</h2>
-    <table>
+    <div class="table-scroll"><table>
       <tr><th>Started</th><th>Trigger</th><th>Status</th><th class="num">Fetched</th><th class="num">New</th><th class="num">Screened</th><th class="num">Docs</th><th>Took</th></tr>
       {% for r in runs %}
       <tr>
@@ -59,7 +59,7 @@
         <td class="sub">{{ r.duration or ('running' if r.status == 'running' else '—') }}</td>
       </tr>
       {% else %}<tr><td colspan="8" class="muted">No runs yet.</td></tr>{% endfor %}
-    </table>
+    </table></div>
     {{ pager(runs_page, "runs") }}
   </div>
   <div class="card">
