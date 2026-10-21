@@ -28,7 +28,31 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 
 ## 🆕 What's new
 
-**v3.5: never miss an online assessment.** Assessment emails are read for their exact due time ("by 6:00am PT",
+**v3.6–v3.10: a reorganized app that runs itself.**
+
+- **Sidebar navigation with search.**
+  - Every page and sub-page sits in one compact list: job filters, email filters, profile files, and six separate
+    Settings pages.
+  - **Search the app** (⌘K) to jump to a page or a single setting, such as "minimum pay", "Claude usage", or "Gmail".
+  - The arrows above Overview slide the sidebar to an icon rail. In a narrow window it becomes a drawer.
+- **A weekly view of your progress.**
+  - Applications for each day, Sunday to Saturday, with the number on top of every day. Pick any past week.
+  - A **Time saved** estimate: the author's own install shows about **280 hours** saved in ten days.
+  - A role-family donut and a shaded pipeline.
+- **Screening never waits for a click.** New jobs are screened in batches of 60 that chain until none are left.
+  Before background Claude work, the app reads your plan usage from Claude Code (`/usage`). At **95%** of the 5-hour
+  or weekly limit, it pauses and resumes after the reset, so you always have room for your own Claude sessions.
+- **Online account set up from your computer.** During setup, one form in **Settings → Online dashboard** creates the
+  account (with the emailed code) and connects the computer. On the site you just sign in.
+- **Assessments page** and **Applied this week** tile, plus a dozen fixes (see the [changelog](CHANGELOG.md)).
+
+| This week, day by day, and time saved | Search the app from the sidebar (⌘K) |
+|---|---|
+| ![Weekly chart and time saved](docs/screenshots/charts-week.png) | ![Sidebar search](docs/screenshots/sidebar-search.png) |
+
+### v3.5: never miss an online assessment
+
+Assessment emails are read for their exact due time ("by 6:00am PT",
 "at 8:41 PM EDT"). Every pending assessment then shows up across the app, including ones from companies you
 applied to outside the app:
 
@@ -43,7 +67,7 @@ when the company later invites you to interview, makes an offer, or declines.
 
 ![Assessments to finish](docs/screenshots/assessments.png)
 
-**Also new since v3.0:**
+**Also in v3.1–v3.4:**
 
 | One-click updates with release notes (v3.1) | A guided tour for new users (v3.3) |
 |---|---|

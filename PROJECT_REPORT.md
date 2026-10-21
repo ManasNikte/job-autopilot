@@ -7,7 +7,7 @@ including overnight with the laptop lid closed, so the candidate's time goes onl
 |---|---|
 | **Type** | Personal tool, built end to end (backend, LLM integration, PDF rendering, browser extension, scheduling) |
 | **Stack** | Python, Flask, SQLite, Claude (Claude Code CLI or Anthropic API, with web search), reportlab, Leaflet maps, Chrome extension (MV3), Playwright, macOS launchd/pmset · online dashboard on GitHub Pages + Supabase (Postgres, Auth, row-level security, realtime) |
-| **Size** | About 12,600 lines across the app, extension, website, and SQL · 102 automated tests |
+| **Size** | About 13,700 lines across the app, extension, website, and SQL · 124 automated tests |
 | **Platforms** | The app runs on a laptop or desktop: macOS (primary), Windows, Linux. A hosted online dashboard covers phone, tablet, and TV · one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)) · one-click in-app updates |
 | **Status** | In daily use since October 2026 |
 
@@ -107,6 +107,19 @@ the company later invites the candidate to interview, makes an offer, or decline
 
 ![Assessments to finish](docs/screenshots/assessments.png)
 
+### A dashboard that's easy to move around
+
+- **Sidebar:** every page and sub-page is in one sidebar. It has job filters, email filters, the profile files, and six
+  separate Settings pages. It slides to an icon rail on a laptop and becomes a drawer in a narrow window.
+- **Search (⌘K):** it finds pages and single settings, and opens the right page with the setting highlighted.
+- **The week at a glance:**
+  - a chart of applications per day from Sunday to Saturday, with any past week available
+  - a running estimate of time saved
+  - a role-family donut and a shaded pipeline
+  - eight tiles, including **applied this week** and **assessments to finish**
+
+![Dashboard charts](docs/screenshots/charts-week.png)
+
 ### Away from the laptop
 
 The app itself lives on the laptop (`127.0.0.1`). Its layout adapts from a narrow split-screen window to a 32-inch
@@ -145,6 +158,7 @@ These figures come from the app's own database and timing logs over its first fi
 timing table (screen 21.8 s; document draft 252 s plus 40 s per revision round; PDF render 2.1 s; sponsor lookup about 17 s).*
 
 **Estimated savings in the first five days: over 100 hours of screening and drafting.**
+By day ten, the dashboard's own **Time saved** card, using the same per-step estimates, showed about **283 hours**.
 
 The bigger gain is **mental energy**. About two out of three screened jobs are rejected, and the candidate never
 reads them. Every rejection still has its reason on record ("requires 5+ years", "JD says it will not sponsor",
@@ -253,19 +267,21 @@ applied to within hours of going live, while applicant counts are still low.
 
 ## 6. Results so far (first ten days, October 11–21, 2026)
 
-- **2,429** postings tracked: **1,462** removed by rules with no AI cost, and **967** screened in depth by Claude
-- **149** tailored resume and cover-letter packages, and **149** applications submitted
+- **2,795** postings tracked: **1,619** removed by rules with no AI cost, and **1,176** screened in depth by Claude
+- **211** tailored resume and cover-letter packages, and **149** applications submitted
+- **About 283 hours saved**, by the dashboard's own estimate: screening, documents, forms, and email sorting
 - The first application **moved forward to an interview**. **2** online assessments are tracked, each with its
   exact deadline and daily reminders.
-- **66** application emails read from two inboxes, and **57** matched to their job automatically
+- **67** application emails read from two inboxes, and **58** matched to their job automatically
   (rejections, confirmations, assessments, interview invites)
-- **~4,100** company boards and **~160,000** postings swept per run in about 4 minutes
+- **~4,100** company boards and **~160,000** postings swept per run in about 4 minutes, across **44** runs
 - **42,984** USCIS sponsor records loaded, plus sponsors learned from feeds and verified online
-- **97** job locations geocoded and pinned on the dashboard maps
-- **102** automated tests, including:
+- **109** job locations geocoded and pinned on the dashboard maps
+- **124** automated tests, including:
   - Chromium-driven form-fill tests
   - row-level security checked against a real Postgres
   - the updater checked against real git repositories
+  - the usage guard and batch chaining
   - regression tests for real failures: sponsorship-refusal wording, pay parsing, PDF word-spacing leaks,
     same-second sync cursors, an Email-search crash, and due times in PT and EDT
 - Runs on **macOS, Windows, and Linux**, with a phone dashboard. Anyone with a Claude seat can set it up with
