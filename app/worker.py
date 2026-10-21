@@ -186,6 +186,29 @@ def _clock() -> None:
         time.sleep(30)
 
 
+def backlog_tick() -> bool:
+    """Jobs waiting to be screened while nothing is running or paused? Start a batch (it chains until done).
+    Returns True when a batch was queued."""
+    from . import db
+    if not env_int("AUTO_CONTINUE_SCREENING", 1) or state["paused_until"] or state["active"] or _q.qsize():
+        return False
+    if db.count("jobs", "status='to_screen'"):
+        return submit("process", "auto")
+    return False
+
+
+def _backlog_clock() -> None:
+    """Every few minutes: pick up a screening backlog (after a restart, an update, or an earlier pause)."""
+    time.sleep(45)
+    while True:
+        try:
+            if backlog_tick():
+                _log("↻ jobs are waiting to be screened: starting a batch")
+        except Exception as e:  # never let this thread die
+            _log(f"backlog check error: {e}")
+        time.sleep(180)
+
+
 def _assessment_clock() -> None:
     """Daily reminder (from 9 AM) and a heads-up 3 hours before an assessment is due."""
     from . import assessments
@@ -208,6 +231,7 @@ def start() -> None:
         threading.Thread(target=_loop, daemon=True, name=f"worker-{i + 1}").start()
     threading.Thread(target=_mail_clock, daemon=True, name="mail-clock").start()
     threading.Thread(target=_assessment_clock, daemon=True, name="assessment-reminders").start()
+    threading.Thread(target=_backlog_clock, daemon=True, name="screening-backlog").start()
     from . import cloud
     threading.Thread(target=cloud.loop, args=(_log,), daemon=True, name="cloud-sync").start()
     from .schedule import mode

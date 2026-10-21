@@ -3,6 +3,10 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.7.1 (2026-10-21)
+- Fixed: jobs already waiting to be screened (after a restart, an update, or a pause) now start screening on their own within a few minutes. The Background panel no longer asks you to click "Screen them now".
+- Fixed: a screening backlog no longer blocks in-app updates.
+
 ## 3.7 (2026-10-21)
 - **Screening runs to the end on its own.** No more clicking "Screen them now": after each batch (60 by default), the next batch starts by itself until every new job is screened.
 - **It respects your Claude limit.** Before Claude work in the background, the app reads your real plan usage from Claude Code. At 95% of your 5-hour session or weekly limit (adjustable in Settings), it pauses and resumes on its own after the reset, so your seat always has room left for you. Form autofill is never paused.

@@ -45,12 +45,17 @@
       else {
         // Screening only happens inside a run, so jobs waiting for a screen sit here until one starts.
         const line = el("div", "row");
-        line.appendChild(el("span", "muted", d.auto_continue
-          ? `${d.queued_total} job(s) waiting to be screened. Runs screen them in batches of ${d.screen_cap}, one batch after another, until none are left or Claude usage reaches ${d.usage_pause_at}%.`
-          : `Not started: ${d.queued_total} job(s) are waiting for Claude to screen them. The next run picks them up (up to ${d.screen_cap} per run), or start now.`));
-        const f = el("form"); f.method = "post"; f.action = "{{ url_for('run_now') }}"; f.className = "inline";
-        const b = el("button", "btn small primary", "Screen them now"); b.name = "kind"; b.value = "process";
-        f.appendChild(b); line.appendChild(f); box.appendChild(line);
+        if (d.auto_continue) {               // batches start on their own; nothing to click
+          line.appendChild(el("span", "muted", d.paused_until
+            ? `${d.queued_total} job(s) waiting to be screened. Paused for the Claude limit; screening resumes on its own at ${d.paused_until}.`
+            : `${d.queued_total} job(s) waiting to be screened. The next batch of ${d.screen_cap} starts on its own within a few minutes, and batches continue until none are left (pausing at ${d.usage_pause_at}% Claude usage).`));
+          box.appendChild(line);
+        } else {
+          line.appendChild(el("span", "muted", `Not started: ${d.queued_total} job(s) are waiting for Claude to screen them. The next run picks them up (up to ${d.screen_cap} per run), or start now.`));
+          const f = el("form"); f.method = "post"; f.action = "{{ url_for('run_now') }}"; f.className = "inline";
+          const b = el("button", "btn small primary", "Screen them now"); b.name = "kind"; b.value = "process";
+          f.appendChild(b); line.appendChild(f); box.appendChild(line);
+        }
       }
     }
     if (d.usage) {                        // the seat's plan usage, from Claude Code's own /usage report

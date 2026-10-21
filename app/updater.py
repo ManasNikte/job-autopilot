@@ -100,7 +100,8 @@ def _busy() -> str:
     snap = progress.snapshot()
     if snap.get("run"):
         return "A run is in progress. Update when it finishes."
-    if snap.get("active") or snap.get("queued"):
+    building = [q for q in snap.get("queued") or [] if q.get("status") != "to_screen"]   # a screening backlog can wait
+    if snap.get("active") or building:
         return "Jobs are still being worked on. Update when the Background page shows nothing running."
     try:
         from . import mailsync
