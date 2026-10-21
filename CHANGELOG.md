@@ -3,6 +3,10 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.5.2 (2026-10-21)
+- Maps: amber (assessment) and red (rejected) pins are drawn on top, so a big city pin can't hide them.
+- README and project report refreshed with new screenshots.
+
 ## 3.5.1 (2026-10-21)
 - Fixed: searching the Email page showed "Internal Server Error".
 - "See the email" (Needs you and the Assessments card) now opens that exact email, with the text saved from it.

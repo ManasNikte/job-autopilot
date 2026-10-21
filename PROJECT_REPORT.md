@@ -6,9 +6,9 @@ including overnight with the laptop lid closed, so the candidate's time goes onl
 | | |
 |---|---|
 | **Type** | Personal tool, built end to end (backend, LLM integration, PDF rendering, browser extension, scheduling) |
-| **Stack** | Python, Flask, SQLite, Claude (Claude Code CLI or Anthropic API, with web search), reportlab, Leaflet maps, Chrome extension (MV3), Playwright, macOS launchd/pmset |
-| **Size** | About 8,000 lines across the app, extension, and templates · 61 automated tests |
-| **Platforms** | macOS (primary), Windows, Linux · one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)) |
+| **Stack** | Python, Flask, SQLite, Claude (Claude Code CLI or Anthropic API, with web search), reportlab, Leaflet maps, Chrome extension (MV3), Playwright, macOS launchd/pmset · online dashboard on GitHub Pages + Supabase (Postgres, Auth, row-level security, realtime) |
+| **Size** | About 12,600 lines across the app, extension, website, and SQL · 102 automated tests |
+| **Platforms** | macOS (primary), Windows, Linux, plus a phone/tablet/TV dashboard · one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)) · one-click in-app updates |
 | **Status** | In daily use since October 2026 |
 
 ---
@@ -72,12 +72,49 @@ ready for the best matches, and a **Needs you** inbox with only these items:
 
 The dashboard opens with today's numbers (**applied today**, ready to submit, waiting on your call) and **two
 maps**: one pins every job that's ready to submit, and the other pins submitted applications. The second map
-switches between **Today** (applied, moved forward, or rejected today) and **All time**, and three toggle chips,
-**Applied**, **Interviewing / offer**, and **Rejected**, show any mix, such as only rejections or only active
-applications. Jobs that can't be pinned (remote, country-wide) are listed under the map, never dropped. One
+switches between **Today** (applied, moved forward, or rejected today) and **All time**, and four toggle chips,
+**Applied**, **Interviewing / offer**, **Assessments**, and **Rejected**, show any mix, such as only rejections or
+only pending assessments. Jobs that can't be pinned (remote, country-wide) are listed under the map, never dropped. One
 glance shows where the search is concentrated, where it's working, and where the open opportunities are.
 
 ![Application maps](docs/screenshots/maps.png)
+
+### Replies and deadlines, handled
+
+Employers answer by email, so the app reads the candidate's inboxes (Gmail, Outlook / Microsoft 365, or Apple
+Mail), **read-only**. A rule filter drops alerts and newsletters, so only application emails reach Claude. Claude
+sorts each one into received, rejected, assessment, interview, or offer. The matching job then updates itself, with
+an undo for every change.
+
+**Online assessments get special care, because they have deadlines.** The due time is read from the email
+("by 6:00am PT on October 26", "at 8:41 PM EDT") and converted to the candidate's time zone. Each pending
+assessment then shows up:
+
+- as a dashboard tile and an **Assessments to finish** card
+- in the welcome line ("2 assessments to finish: …, soonest first")
+- on **Needs you**
+- as an amber pin on the map
+- on the phone dashboard
+
+This includes assessments from companies the candidate applied to outside the app, which have no job to match.
+A desktop reminder fires every morning, and again 3 hours before each deadline. An assessment closes itself when
+the company later invites the candidate to interview, makes an offer, or declines.
+
+![Assessments to finish](docs/screenshots/assessments.png)
+
+### Away from the laptop
+
+An optional **online dashboard** works on a phone, tablet, or TV. It shows the same progress, jobs, email updates,
+and assessments. It can also start a run or an email check on the candidate's computer. Behind it:
+
+- **Free hosting:** GitHub Pages and Supabase.
+- **Sign-in:** email and password, confirmed with emailed 6-digit codes.
+- **Isolation:** row-level security, so each account sees only its own rows.
+- **Outbound-only computer:** it fetches requests every 30 seconds; nothing on the internet can reach in.
+- **Sleeping Mac:** it can wake every 30 minutes to pick up requests from the phone.
+
+New users get a **guided tour** of the dashboard on first launch. When the maintainer pushes a release, every
+install shows **Update available** with the release notes and updates itself in one click.
 
 ## 3. Time and mental energy saved
 
@@ -139,6 +176,10 @@ applied to within hours of going live, while applicant counts are still low.
 | `app/worker.py` | A thread pool with an atomic job claim, de-duplication, and a pause/resume across usage limits |
 | `app/web.py` + templates | Dashboard (KPIs, maps, charts), Jobs, Needs you, People, Background, Settings, and a profile/prompt editor with version history |
 | `extension/` | Chrome MV3 side panel: matches the open page to a job, uploads the tailored PDFs, answers questions from the profile, learns from edits, never submits |
+| `app/mailsync.py` | Read-only inbox readers (Gmail IMAP, Microsoft Graph, Apple Mail), the application-email filter, Claude classification, job matching, and undo |
+| `app/assessments.py` | Due times parsed from assessment emails (time and zone), one pending list (matched or not), Needs you items, and daily and 3-hours-before reminders |
+| `app/cloud.py`, `docs/`, `supabase/` | The online dashboard: an outbound-only connector that pushes summaries and runs whitelisted requests; a static site (strict CSP, PKCE sessions); and the Postgres schema with row-level security, rate limits, and operator-only stats |
+| `app/updater.py` | In-app updates: checks GitHub every 6 hours, shows CHANGELOG notes, and pulls with `--ff-only --autostash`, keeping the user's settings on conflicts, then restarts in place |
 | `scripts/` | launchd schedule installer and pmset wake helper (macOS), and a demo-data seeder |
 | `CLAUDE_SETUP.md` | Setup instructions written for Claude Code: OS detection, per-OS prerequisites, profile interview, verification, autostart, wake timers, troubleshooting |
 
@@ -176,22 +217,45 @@ applied to within hours of going live, while applicant counts are still low.
 - **Self-healing documents.** A bullet up to 3% too long stays on its line with about 0.03pt tighter letter
   spacing. Pages use the smaller sizes the prompt allows (down to 10pt) before overflowing. A **Fix it** button
   re-fits flagged documents with no model call. In practice that alone fixed every flagged resume so far.
+- **Security for the online dashboard:**
+  - **Login:** confirmed with emailed codes, and errors never reveal whether an email has an account.
+  - **Database:** row-level security on every table, a 30-requests-an-hour limit, and triggers so nobody can
+    write rows for a computer they don't own.
+  - **Each computer:** connects only outward, keeps a refresh token in the OS keychain (never the password),
+    and acts on four whitelisted requests only.
+  - **Verification:** the rules were tested in a real Postgres with a second, hostile account before going live.
+- **Privacy by default for the operator view.** The site owner sees people's application **counts** and the city
+  each person chose to share. Which companies people apply to never leaves their computer. The privacy note
+  says exactly what's visible.
+- **Sync that can't skip.** Changes sync by last-modified time, with a ">=" cursor plus idempotent upserts.
+  Deletes leave tombstones (SQLite triggers), so an undo, ignore, or reassignment on the computer reaches the
+  phone, not only new rows.
+- **Updates tested against real git repos.** The updater's tests build a throwaway remote and clone. One case
+  has the release and the user's settings change the same file. That test caught git reporting success while
+  leaving conflict markers in a settings file; the updater now always resolves in the user's favor.
 - **Clear boundaries.** Submitting applications and sending LinkedIn invites stay manual. Forms carry legal
   attestations and CAPTCHAs, and LinkedIn prohibits automation. Sites behind a login or bot protection
   (Indeed, Handshake, LinkedIn) are not scraped. Only public APIs and public data are used.
 
-## 6. Results so far (first five days)
+## 6. Results so far (first ten days, October 11–21, 2026)
 
-- **1,102** relevant postings tracked, **457** screened by Claude, **92** tailored document packages, **75**
-  applications submitted, and the first application already **moved forward to interviews**
+- **2,429** postings tracked: **1,462** removed by rules with no AI cost, and **967** screened in depth by Claude
+- **149** tailored resume and cover-letter packages, and **149** applications submitted
+- The first application **moved forward to an interview**. **2** online assessments are tracked, each with its
+  exact deadline and daily reminders.
+- **66** application emails read from two inboxes, and **57** matched to their job automatically
+  (rejections, confirmations, assessments, interview invites)
 - **~4,100** company boards and **~160,000** postings swept per run in about 4 minutes
-- **42,984** USCIS sponsor records loaded, **183** sponsors learned from feeds and screens, and **47** companies
-  verified online
-- **55** job locations geocoded and pinned on the dashboard maps
-- **61** automated tests, including Chromium-driven form-fill tests and regression tests for real failures:
-  sponsorship-refusal wording, pay parsing, PDF word-spacing leaks, near-miss line squeezing, the
-  Windows/Linux scheduling clock, and portable date formatting
-- Runs on **macOS, Windows, and Linux**. Anyone with a Claude seat can set it up with **one command**.
+- **42,984** USCIS sponsor records loaded, plus sponsors learned from feeds and verified online
+- **97** job locations geocoded and pinned on the dashboard maps
+- **102** automated tests, including:
+  - Chromium-driven form-fill tests
+  - row-level security checked against a real Postgres
+  - the updater checked against real git repositories
+  - regression tests for real failures: sponsorship-refusal wording, pay parsing, PDF word-spacing leaks,
+    same-second sync cursors, an Email-search crash, and due times in PT and EDT
+- Runs on **macOS, Windows, and Linux**, with a phone dashboard. Anyone with a Claude seat can set it up with
+  **one command**.
 
 ## 7. Lessons learned
 
@@ -211,6 +275,13 @@ applied to within hours of going live, while applicant counts are still low.
   employer names without spaces ("JPMorganChase" vs "JPMORGAN CHASE & CO") recovered more. Web lookups covered
   the rest.
 
+- **Read the deadline, not just the label.** "You have an assessment" was useful; "due Sunday 8:41 PM" is
+  actionable. Keeping the time and time zone from the email turned a status into a reminder system.
+- **Count what the user actually has, not what the database happened to match.** An assessment from a company
+  applied to outside the app was invisible until the list was built from the emails themselves.
+- **Shipping updates is a feature too.** Once other people run the app, a safe, one-click update path (and a test
+  for the conflict case) matters as much as any new screen.
+
 ## 8. Possible next steps
 
 - Track applicant counts and reply rates per source, and use them to rank boards
@@ -218,6 +289,8 @@ applied to within hours of going live, while applicant counts are still low.
 - Color map pins by match score, and add a heat layer for the cities with the most open roles
 - An email follow-up draft (Outlook) with the tailored PDFs attached, for contacts the candidate already has
 - A weekly digest of rejection reasons, to show which profile gaps cost the most roles
+- Push notifications on the phone for assessment deadlines (today they're desktop notifications and a phone card)
+- Add assessment links to a calendar with one click
 
 ---
 

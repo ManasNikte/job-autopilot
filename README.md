@@ -24,7 +24,45 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 
 ## 🆕 What's new
 
-**v3.0: check on your job search from your phone, and start a run from anywhere.**
+**v3.5: never miss an online assessment.** Assessment emails are read for their exact due time ("by 6:00am PT",
+"at 8:41 PM EDT"). Every pending assessment then shows up across the app, including ones from companies you
+applied to outside the app:
+
+- a dashboard tile (red when one is due within 36 hours)
+- an **Assessments to finish** card with Open assessment, See the email, Done, and Not doing it
+- the welcome line and Needs you
+- amber pins on the map
+- the phone dashboard
+
+You get a desktop reminder every morning, and another 3 hours before each deadline. An assessment closes itself
+when the company later invites you to interview, makes an offer, or declines.
+
+![Assessments to finish](docs/screenshots/assessments.png)
+
+**Also new since v3.0:**
+
+| One-click updates with release notes (v3.1) | A guided tour for new users (v3.3) |
+|---|---|
+| ![What's new dialog](docs/screenshots/update-dialog.png) | ![Guided tour](docs/screenshots/tour.png) |
+
+- **One-click updates (v3.1).** When a new version is on GitHub, the dashboard shows **Update available**.
+  **What's new** lists the changes. **Update now** pulls the code, keeps your settings, installs new packages,
+  and restarts itself.
+- **Guided first-run tour (v3.3).** It walks new users through Run now, the numbers, Needs you, Jobs, the Chrome
+  extension, Applied, Email, Profile, and Settings. Skip it anytime, or replay it from Settings.
+- **Online dashboard (v3.1, v3.2).** Sign in with more than one email, for example personal and university.
+  Undoing, ignoring, or matching an email on your computer now syncs to your phone.
+- **For the site operator (v3.1).** Your dashboard footer shows total and active users (active means they applied
+  in the last 14 days). The **Users** page lists each person's application counts and the city they chose to
+  share. It never shows which companies people apply to. Your own Gmail emails you when someone new joins.
+- **Reliability (v3.1):**
+  - Cloud sync never skips a change.
+  - Phone requests can't get stuck.
+  - Regenerating documents can't reset an applied job.
+  - Follow-up reminders don't multiply.
+  - The Email page search works again (v3.5.1).
+
+### v3.0: check on your job search from your phone, and start a run from anywhere
 
 - **Responsive everywhere.** The dashboard now fits a phone, a tablet, a laptop, or a 32-inch monitor or TV:
   - On phones: a menu button, stacked tables, and swipeable tabs.
@@ -78,7 +116,7 @@ greets you with one line above the KPIs, written from your computer's clock and 
 >
 > **Still up, Jordan? 🌙**<br>🦉 4 applications in today. The night shift counts, now get some sleep.
 >
-> **Good morning, Jordan ☀️**<br>📝 Roblox sent an assessment. Knock it out while you're sharp.
+> **Good morning, Jordan ☀️**<br>📝 Notion sent an assessment. Knock it out while you're sharp.
 
 Offers, interviews, and assessments from your email come first; then personal bests, streaks, and
 ready-to-send applications. The line never invents progress. Email checks now show live in the
@@ -187,10 +225,15 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 - **Dashboard.** A personal greeting written from the time of day and your real progress, KPIs (including **applied today**), **maps of where you're applying**, a 14-day
   applications chart, a pipeline funnel, live per-job progress bars with an honest "not started / running /
   paused" status, server-side pagination and search everywhere, and dark, light, and system themes.
+- **Online assessments with deadlines (v3.4–v3.5).** Due times are read from the email. Pending assessments get
+  a KPI, a card, Needs you items, map pins, and daily and 3-hours-before reminders.
+- **Phone dashboard and remote runs (v3.0).** Hosted for free on GitHub Pages and Supabase. Secure sign-in with
+  emailed codes, and row-level security so each person sees only their own data.
+- **Updates and onboarding (v3.1, v3.3).** In-app updates with release notes and a guided tour for new users.
 - **Application maps.** One map pins every job ready to submit. A second map pins submitted applications,
-  with a **Today / All time** switch (today = applied, moved forward, or rejected today) and three toggle chips,
+  with a **Today / All time** switch (today = applied, moved forward, or rejected today) and four toggle chips,
   **Applied**, **Interviewing / offer**, and **Rejected**, to show any mix (double-click a chip for only that
-  status). Locations are geocoded once through OpenStreetMap and cached. Building or street names fall back to
+  status), plus **Assessments** (amber pins with due times). Locations are geocoded once through OpenStreetMap and cached. Building or street names fall back to
   the company's location, and remote or country-wide jobs are listed under the map. Clicking a pin lists its jobs.
 
 ## How it works
@@ -220,8 +263,8 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 ## Screenshots
 
-**Maps**: jobs ready to submit, and submitted applications (here: all time, with Applied, Interviewing / offer,
-and Rejected all switched on; rejected pins are red).
+**Maps**: jobs ready to submit, and submitted applications (here: all time, with every status switched on;
+rejected pins are red and pending assessments amber).
 
 ![Application maps](docs/screenshots/maps.png)
 
@@ -254,6 +297,14 @@ for this role.
 | Profile and master-prompt editor | Light theme |
 |---|---|
 | ![Profile](docs/screenshots/profile.png) | ![Light theme](docs/screenshots/dashboard-light.png) |
+
+| Email updates (read-only inbox tracking) | Users page (site operator only; counts, never companies) |
+|---|---|
+| ![Email](docs/screenshots/email.png) | ![Users](docs/screenshots/users.png) |
+
+| Phone | Tablet |
+|---|---|
+| ![Phone](docs/screenshots/dashboard-phone.png) | ![Tablet](docs/screenshots/dashboard-tablet.png) |
 
 ---
 

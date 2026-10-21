@@ -259,8 +259,11 @@ def main() -> None:
     applied = pick("applied")
     if applied:
         j = applied[0]
-        due = (NOW + timedelta(days=6)).strftime("%Y-%m-%d")
-        emails.append((j, "assessment", f"[Action Required] Your {j['company']} online assessment", f"{j['company']} sent a 90-minute coding assessment.", "https://www.hackerrank.com/test/example", due))
+        d = NOW + timedelta(days=2)
+        due = d.strftime("%Y-%m-%d")
+        emails.append((j, "assessment", f"[Action Required] Your {j['company']} online assessment",
+                       f"{j['company']} sent a 90-minute coding assessment, due {d:%B} {d.day}, {d.year} at 6:00 PM ET.",
+                       "https://www.hackerrank.com/test/example", due))
     for j in applied[1:7]:
         emails.append((j, "confirmation", f"Thank you for applying to {j['company']}", f"{j['company']} received the {j['title']} application.", "", ""))
     for n, (j, ev, subject, summary, link, due) in enumerate(emails):
@@ -275,13 +278,25 @@ def main() -> None:
         if ev in ("assessment", "interview"):
             title = ("Online assessment from " if ev == "assessment" else "Interview invite from ") + j["company"] + (f" · due {due}" if due else "")
             db.add_intervention(j["id"], ev, title, f"{summary}\n{link}\nEmail: {subject}")
+    d2 = NOW + timedelta(days=4)         # an assessment from a company applied to outside the app (no job to match)
+    s2 = f"Globex Analytics invited the candidate to a 30-minute analyst assessment, due {d2:%B} {d2.day}, {d2.year} at 8:41 PM EDT."
+    db.execute("INSERT INTO email_events (account, msg_id, received_at, sender, subject, snippet, company, role, event, link, deadline, summary, "
+               "state, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+               ("jordan.lee@example.com", "<demo-unmatched-oa@example.com>", iso(NOW - timedelta(hours=9)), "Globex Talent <noreply@vervoe.example.com>",
+                "Your next steps with Globex Analytics", s2, "Globex Analytics", "Data Analyst, New Grad", "assessment", "",
+                d2.strftime("%Y-%m-%d"), s2, "unmatched", db.now()))
     db.execute("INSERT INTO email_events (account, msg_id, received_at, sender, subject, snippet, company, role, event, link, deadline, summary, "
                "state, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                ("jlee@university.example.edu", "<demo-unmatched@example.com>", iso(NOW - timedelta(hours=40)), "Talent Team <careers@initech.example.com>",
                 "Update on your application", "Initech is not moving forward.", "Initech", "", "rejection", "", "",
                 "Initech is not moving forward with the application.", "unmatched", db.now()))
-    db.kv_set("mail_last_sync", json.dumps({"fetched": len(emails) + 1, "classified": len(emails) + 1, "applied": len(emails),
-                                            "unmatched": 1, "errors": []}))
+    db.kv_set("mail_last_sync", json.dumps({"fetched": len(emails) + 2, "classified": len(emails) + 2, "applied": len(emails),
+                                            "unmatched": 2, "errors": []}))
+    from app import assessments                 # exact due times, and Needs you items for every pending assessment
+    db.execute("DELETE FROM interventions WHERE kind='assessment'")
+    assessments.backfill()
+    assessments.sync_todos()
+    db.kv_set("tour", "existing")
 
     print(f"Demo data written to {DEMO}. Start it with:\n"
           f"  JOB_AUTOPILOT_DATA=demo/data JOB_AUTOPILOT_PROFILE=demo/profile python -m app.cli serve")

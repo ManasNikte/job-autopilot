@@ -127,6 +127,8 @@
     if (mine !== seq[key]) return;
     const m = maps[key]; m._layer.clearLayers();
     const pts = [];
+    const rank = pin => pin.jobs.some(j => j.status === "assessment") ? 2 : pin.jobs.every(j => j.status === "closed") ? 1 : 0;
+    d.pins.sort((a, b) => rank(a) - rank(b) || b.jobs.length - a.jobs.length);   // big pins first; amber and red on top
     for (const pin of d.pins) {
       const worst = pin.jobs.every(j => j.status === "closed") ? "closed"
                   : pin.jobs.some(j => j.status === "assessment") ? "assessment"
