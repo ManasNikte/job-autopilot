@@ -1,0 +1,22 @@
+{# Small stroke icons for the sidebar (24×24, currentColor). #}
+{% macro icon(name) -%}
+<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+{%- if name == 'home' %}<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/>
+{%- elif name == 'inbox' %}<path d="M4 4h16v16H4z"/><path d="M4 13h4l2 3h4l2-3h4"/>
+{%- elif name == 'activity' %}<path d="M3 12h4l3-8 4 16 3-8h4"/>
+{%- elif name == 'briefcase' %}<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/>
+{%- elif name == 'send' %}<path d="M21 3 10 14"/><path d="m21 3-7 18-4-7-7-4z"/>
+{%- elif name == 'clipboard' %}<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="m9 13 2 2 4-4"/>
+{%- elif name == 'mail' %}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6 8.5 7 8.5-7"/>
+{%- elif name == 'message' %}<path d="M4 5h16v11H9l-5 4z"/>
+{%- elif name == 'users' %}<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14a6 6 0 0 1 3.5 6"/>
+{%- elif name == 'user' %}<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>
+{%- elif name == 'rss' %}<path d="M5 11a8 8 0 0 1 8 8"/><path d="M5 5a14 14 0 0 1 14 14"/><circle cx="6" cy="18" r="1.3"/>
+{%- elif name == 'settings' %}<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>
+{%- elif name == 'chart' %}<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+{%- elif name == 'chevron' %}<path d="m9 6 6 6-6 6"/>
+{%- elif name == 'panel' %}<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>
+{%- elif name == 'menu' %}<path d="M4 7h16M4 12h16M4 17h16"/>
+{%- elif name == 'close' %}<path d="M6 6l12 12M18 6 6 18"/>
+{%- endif %}</svg>
+{%- endmacro %}

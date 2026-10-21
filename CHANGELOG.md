@@ -3,6 +3,11 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.8 (2026-10-21)
+- **A sidebar instead of the top menu.** Every page and its sub-pages are in one compact list: job filters (Ready to submit, In progress, …), email filters (Assessments, Interviews, Not matched, …), your profile files, and each Settings section. The group you're in opens on its own, and the arrows fold the others.
+- Collapse it to an icon rail with the menu button or **Collapse**; it remembers your choice. In a narrow window it slides in as a drawer (Esc or a tap outside closes it).
+- The top bar keeps search, status, Run now, and the theme switch.
+
 ## 3.7.1 (2026-10-21)
 - Fixed: jobs already waiting to be screened (after a restart, an update, or a pause) now start screening on their own within a few minutes. The Background panel no longer asks you to click "Screen them now".
 - Fixed: a screening backlog no longer blocks in-app updates.

@@ -33,10 +33,10 @@
   function findTarget(sel) {
     if (!sel) return null;
     let el = document.querySelector(sel);
-    if (el && !visible(el) && el.closest("#primary-nav")) {      // phones: the menu is collapsed; open it
-      const header = document.querySelector("header.top");
-      if (header && !header.classList.contains("open")) {
-        header.classList.add("open"); openedNav = true;
+    if (el && el.closest("#sidebar") && !document.body.classList.contains("sb-open")) {
+      const r = el.getBoundingClientRect();
+      if (r.right <= 0 || !visible(el)) {                       // narrow window: the sidebar is a closed drawer; open it
+        document.body.classList.add("sb-open"); openedNav = true;
       }
     }
     return el && visible(el) ? el : null;
@@ -74,7 +74,7 @@
     $(".tour-back").hidden = i === 0;
     $(".tour-next").textContent = i === steps.length - 1 ? (st.cta || "Done") : "Next";
     root.querySelectorAll(".tour-dots i").forEach((d, k) => d.classList.toggle("on", k === i));
-    setTimeout(place, reduce ? 0 : 320);                          // after the smooth scroll settles
+    setTimeout(place, reduce ? 0 : 320);                          // after the smooth scroll / drawer slide settles
     place();
     $(".tour-next").focus({ preventScroll: true });
   }
@@ -84,7 +84,7 @@
     document.removeEventListener("keydown", onKey);
     window.removeEventListener("resize", place);
     window.removeEventListener("scroll", place, true);
-    if (openedNav) document.querySelector("header.top")?.classList.remove("open");
+    if (openedNav) document.body.classList.remove("sb-open");
     document.body.classList.remove("touring");
     try { fetch(finishUrl.replace("__how__", how), { method: "POST", headers: { "X-Requested-With": "tour" } }); } catch (e) { /* offline */ }
     const st = steps[i];

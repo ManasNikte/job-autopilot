@@ -1,0 +1,87 @@
+{# Left navigation: every page and its sub-pages. Docked on laptops and desktops (collapses to an icon rail),
+   a slide-in drawer in narrow windows. Groups open on their own when you're inside them. #}
+{% from "_icons.html" import icon %}
+{% set ep = request.endpoint %}
+{% set st = request.args.get('status', '') %}
+{% set ev = request.args.get('event', '') %}
+{% macro item(href, label, ic, on=False, badge=None, tour=None, title=None) -%}
+  <a href="{{ href }}" class="sb-link{{ ' on' if on }}"{% if tour %} data-tour="{{ tour }}"{% endif %} title="{{ title or label }}"{% if on %} aria-current="page"{% endif %}>
+    {{ icon(ic) }}<span class="sb-label">{{ label }}</span>{% if badge %}<span class="sb-badge">{{ badge }}</span>{% endif %}
+  </a>
+{%- endmacro %}
+{% macro sub(href, label, on=False) -%}
+  <a href="{{ href }}" class="sb-sub{{ ' on' if on }}"{% if on %} aria-current="page"{% endif %}>{{ label }}</a>
+{%- endmacro %}
+{% macro group(key, href, label, ic, on, open, badge=None, tour=None) -%}
+  <div class="sb-group{{ ' open' if open }}" data-group="{{ key }}">
+    <div class="sb-row">
+      {{ item(href, label, ic, on, badge, tour) }}
+      <button type="button" class="sb-caret" aria-label="Show {{ label }} pages" aria-expanded="{{ 'true' if open else 'false' }}">{{ icon('chevron') }}</button>
+    </div>
+    <div class="sb-subs">{{ caller() }}</div>
+  </div>
+{%- endmacro %}
+
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="sb-brand">
+    <a class="brand-home" href="{{ url_for('dashboard') }}" aria-label="Job Autopilot home"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8def"/><stop offset="1" stop-color="#2f5fd0"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#lg)"/><path d="M7.5 15.6 24.2 8.4c.6-.3 1.2.3.9.9l-7.2 16.7c-.3.7-1.3.6-1.4-.1l-1.3-5.8-5.8-1.3c-.7-.2-.8-1.2-.1-1.4Z" fill="#fff"/><path d="m14.9 19.9 3.6-3.6" stroke="#2f5fd0" stroke-width="1.6" stroke-linecap="round"/></svg></a>
+    <div class="brand-text sb-label">
+      <a class="brand-name" href="{{ url_for('dashboard') }}">Job Autopilot</a>
+      {% if credits.author %}<span class="brand-tag">Built by <a href="{{ credits.linkedin }}" target="_blank" rel="noopener noreferrer" title="{{ credits.author }} on LinkedIn">{{ credits.author }}</a></span>{% endif %}
+    </div>
+    <button type="button" class="sb-close" id="sb-close" aria-label="Close menu">{{ icon('close') }}</button>
+  </div>
+
+  <nav class="sb-nav" id="primary-nav">
+    <div class="sb-section">Overview</div>
+    {{ item(url_for('dashboard'), 'Dashboard', 'home', ep == 'dashboard') }}
+    {{ item(url_for('inbox'), 'Needs you', 'inbox', ep == 'inbox', open_interventions or None, 'inbox') }}
+    {{ item(url_for('background'), 'Background', 'activity', ep == 'background') }}
+
+    <div class="sb-section">Jobs</div>
+    {% set in_jobs = ep in ('jobs', 'job_detail') and st != 'applied_all' %}
+    {% call group('jobs', url_for('jobs'), 'All jobs', 'briefcase', in_jobs and not st, in_jobs, None, 'jobs') %}
+      {{ sub(url_for('jobs', status='ready'), 'Ready to submit', ep == 'jobs' and st == 'ready') }}
+      {{ sub(url_for('jobs', status='queued'), 'In progress', ep == 'jobs' and st == 'queued') }}
+      {{ sub(url_for('jobs', status='below_threshold'), 'Below threshold', ep == 'jobs' and st == 'below_threshold') }}
+      {{ sub(url_for('jobs', status='rejected'), "Don't apply", ep == 'jobs' and st == 'rejected') }}
+      {{ sub(url_for('jobs', status='filtered_out'), 'Filtered out', ep == 'jobs' and st == 'filtered_out') }}
+    {% endcall %}
+    {{ item(url_for('jobs', status='applied_all'), 'Applied', 'send', ep == 'jobs' and st == 'applied_all', None, 'applied') }}
+    {{ item(url_for('dashboard') ~ '#assessments', 'Assessments', 'clipboard') }}
+
+    <div class="sb-section">Inbox &amp; network</div>
+    {% call group('email', url_for('email_page'), 'Email', 'mail', ep == 'email_page' and not ev and not request.args.get('state'), ep == 'email_page', unmatched_mail or None, 'email') %}
+      {{ sub(url_for('email_page', event='assessment'), 'Assessments', ep == 'email_page' and ev == 'assessment') }}
+      {{ sub(url_for('email_page', event='interview'), 'Interviews', ep == 'email_page' and ev == 'interview') }}
+      {{ sub(url_for('email_page', event='offer'), 'Offers', ep == 'email_page' and ev == 'offer') }}
+      {{ sub(url_for('email_page', event='rejection'), 'Rejections', ep == 'email_page' and ev == 'rejection') }}
+      {{ sub(url_for('email_page', state='unmatched'), 'Not matched', ep == 'email_page' and request.args.get('state') == 'unmatched') }}
+    {% endcall %}
+    {{ item(url_for('outreach'), 'Outreach', 'message', ep == 'outreach') }}
+    {{ item(url_for('people'), 'People', 'users', ep in ('people', 'person_form')) }}
+
+    <div class="sb-section">Setup</div>
+    {% set pf = request.args.get('f', 'system_prompt') %}
+    {% call group('profile', url_for('profile_page'), 'Profile', 'user', ep == 'profile_page' and pf == 'system_prompt', ep == 'profile_page', None, 'profile') %}
+      {{ sub(url_for('profile_page', f='answers'), 'Confirmed facts', ep == 'profile_page' and pf == 'answers') }}
+      {{ sub(url_for('profile_page', f='applicant'), 'Form presets', ep == 'profile_page' and pf == 'applicant') }}
+    {% endcall %}
+    {{ item(url_for('sources_page'), 'Sources', 'rss', ep == 'sources_page') }}
+    {% call group('settings', url_for('settings_page'), 'Settings', 'settings', ep == 'settings_page', ep == 'settings_page', None, 'settings') %}
+      {{ sub(url_for('settings_page') ~ '#schedule', 'Schedule') }}
+      {{ sub(url_for('settings_page') ~ '#pipeline', 'Pipeline and limits') }}
+      {{ sub(url_for('settings_page') ~ '#email', 'Email inboxes') }}
+      {{ sub(url_for('settings_page') ~ '#cloud', 'Online dashboard') }}
+      {{ sub(url_for('settings_page') ~ '#updates', 'App updates') }}
+      {{ sub(url_for('settings_page') ~ '#tour', 'Getting started') }}
+    {% endcall %}
+    {% if operator_nav %}
+    <div class="sb-section">Site</div>
+    {{ item(url_for('users_page'), 'Users', 'chart', ep == 'users_page') }}
+    {% endif %}
+  </nav>
+
+  <button type="button" class="sb-collapse" id="sb-collapse" title="Collapse the sidebar">{{ icon('panel') }}<span class="sb-label">Collapse</span></button>
+</aside>
+<div class="sb-backdrop" id="sb-backdrop" hidden></div>

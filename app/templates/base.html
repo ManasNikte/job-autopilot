@@ -14,38 +14,22 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='lg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235b8def'/%3E%3Cstop offset='1' stop-color='%232f5fd0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23lg)'/%3E%3Cpath d='M7.5 15.6 24.2 8.4c.6-.3 1.2.3.9.9l-7.2 16.7c-.3.7-1.3.6-1.4-.1l-1.3-5.8-5.8-1.3c-.7-.2-.8-1.2-.1-1.4Z' fill='%23fff'/%3E%3Cpath d='m14.9 19.9 3.6-3.6' stroke='%232f5fd0' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E">
 </head>
 <body>
-<header class="top">
-  {% set ep = request.endpoint %}
-  <div class="brand">
-    <a class="brand-home" href="{{ url_for('dashboard') }}" aria-label="Job Autopilot home"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8def"/><stop offset="1" stop-color="#2f5fd0"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#lg)"/><path d="M7.5 15.6 24.2 8.4c.6-.3 1.2.3.9.9l-7.2 16.7c-.3.7-1.3.6-1.4-.1l-1.3-5.8-5.8-1.3c-.7-.2-.8-1.2-.1-1.4Z" fill="#fff"/><path d="m14.9 19.9 3.6-3.6" stroke="#2f5fd0" stroke-width="1.6" stroke-linecap="round"/></svg></a>
-    <div class="brand-text">
-      <a class="brand-name" href="{{ url_for('dashboard') }}">Job Autopilot</a>
-      {% if credits.author %}<span class="brand-tag">Built by <a href="{{ credits.linkedin }}" target="_blank" rel="noopener noreferrer" title="{{ credits.author }} on LinkedIn">{{ credits.author }}</a></span>{% endif %}
-    </div>
-  </div>
-  <nav class="primary" id="primary-nav">
-    <a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep=='dashboard' }}">Dashboard</a>
-    <a data-tour="inbox" href="{{ url_for('inbox') }}" class="{{ 'on' if ep=='inbox' }}">Needs you{% if open_interventions %}<span class="pill">{{ open_interventions }}</span>{% endif %}</a>
-    <a data-tour="jobs" href="{{ url_for('jobs') }}" class="{{ 'on' if ep in ('jobs','job_detail') and request.args.get('status') != 'applied_all' }}">Jobs</a>
-    <a data-tour="applied" href="{{ url_for('jobs', status='applied_all') }}" class="{{ 'on' if ep=='jobs' and request.args.get('status') == 'applied_all' }}">Applied</a>
-    <a data-tour="email" href="{{ url_for('email_page') }}" class="{{ 'on' if ep=='email_page' }}">Email{% if unmatched_mail %}<span class="pill" title="Application emails that need matching to a job">{{ unmatched_mail }}</span>{% endif %}</a>
-    <a data-tour="outreach" href="{{ url_for('outreach') }}" class="{{ 'on' if ep=='outreach' }}">Outreach</a>
-    <a href="{{ url_for('people') }}" class="{{ 'on' if ep in ('people','person_form') }}">People</a>
-    <a href="{{ url_for('background') }}" class="{{ 'on' if ep=='background' }}">Background<span id="bg-dot" class="dot" hidden></span></a>
-  </nav>
+<script>
+  // Sidebar state before paint: collapsed to icons on laptops/desktops if you chose that.
+  (function () { try { if (localStorage.getItem("sidebar") === "rail") document.documentElement.classList.add("sb-rail"); } catch (e) {} })();
+</script>
+{% include "_sidebar.html" %}
+<div class="page">
+<header class="topbar">
+  <button type="button" class="btn small icon sb-toggle" id="sb-toggle" aria-label="Menu" aria-controls="sidebar" aria-expanded="false" title="Menu">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   <form class="global-search" action="{{ url_for('jobs') }}" method="get" role="search">
     <input type="search" name="q" id="global-q" placeholder="Search jobs  ( / )" value="{{ request.args.get('q', '') if ep == 'jobs' else '' }}" aria-label="Search jobs">
   </form>
   <div class="right">
-    <span id="worker-state" class="sub">{% if worker.active %}Working on {{ worker.active|length }} job(s){% else %}Idle{% endif %}</span>
+    <span id="worker-state" class="sub">{% if worker.active %}Working on {{ worker.active|length }} job(s){% else %}Idle{% endif %}<span id="bg-dot" class="dot" hidden></span></span>
     <form class="inline" method="post" action="{{ url_for('run_now') }}"><button class="btn primary small" type="submit" data-tour="run">Run now</button></form>
     <button type="button" class="btn small theme-toggle" id="theme-toggle" aria-label="Theme" title="Theme"></button>
-    <button type="button" class="btn small nav-toggle" id="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="primary-nav">☰</button>
-    <nav class="secondary">
-      <a href="{{ url_for('sources_page') }}" class="{{ 'on' if ep=='sources_page' }}" title="Job sources">Sources</a>
-      <a data-tour="profile" href="{{ url_for('profile_page') }}" class="{{ 'on' if ep=='profile_page' }}" title="Your profile and prompt">Profile</a>
-      <a data-tour="settings" href="{{ url_for('settings_page') }}" class="{{ 'on' if ep=='settings_page' }}" title="Schedule and pipeline settings">Settings</a>
-    </nav>
   </div>
 </header>
 <main>
@@ -63,6 +47,7 @@
   {% if operator_stats %}<a class="op-stats" href="{{ url_for('users_page') }}" title="Only you see this (site operator). Active: applied at least once in the last 14 days. Click for the list.">👥 {{ operator_stats.users }} user{{ '' if operator_stats.users == 1 else 's' }} · 🟢 {{ operator_stats.active }} active</a>{% endif %}
 </footer>
 {% endif %}
+</div>
 <script>
   // Dialogs (data-open / data-close) and forms that show a busy label while submitting.
   document.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => document.getElementById(b.dataset.open).showModal()));
@@ -86,14 +71,30 @@
     } catch (e) {}
   }
   setInterval(poll, 4000); poll();
-  // Phone / small tablet: the menu button folds the navigation, search, and settings links away
+  // Sidebar: on laptops/desktops the button collapses it to an icon rail (remembered); in narrow windows it
+  // slides in as a drawer over the page. Groups (Jobs, Email, Profile, Settings) fold open with their arrow.
   (() => {
-    const btn = document.getElementById("nav-toggle"), top = document.querySelector("header.top");
-    if (!btn || !top) return;
-    btn.addEventListener("click", () => {
-      const open = top.classList.toggle("open");
-      btn.setAttribute("aria-expanded", String(open)); btn.textContent = open ? "✕" : "☰";
+    const root = document.documentElement, body = document.body, bd = document.getElementById("sb-backdrop");
+    const toggle = document.getElementById("sb-toggle"), narrow = () => matchMedia("(max-width: 1000px)").matches;
+    const setDrawer = (open) => { body.classList.toggle("sb-open", open); bd.hidden = !open; toggle.setAttribute("aria-expanded", String(open)); };
+    const setRail = (rail) => { root.classList.toggle("sb-rail", rail); try { localStorage.setItem("sidebar", rail ? "rail" : "full"); } catch (e) {} };
+    toggle.addEventListener("click", () => narrow() ? setDrawer(!body.classList.contains("sb-open")) : setRail(!root.classList.contains("sb-rail")));
+    document.getElementById("sb-collapse").addEventListener("click", () => setRail(!root.classList.contains("sb-rail")));
+    document.getElementById("sb-close").addEventListener("click", () => setDrawer(false));
+    bd.addEventListener("click", () => setDrawer(false));
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && body.classList.contains("sb-open")) setDrawer(false); });
+    document.querySelectorAll("#sidebar a").forEach((a) => a.addEventListener("click", () => { if (narrow()) setDrawer(false); }));
+    let open = {}; try { open = JSON.parse(localStorage.getItem("sidebarGroups") || "{}"); } catch (e) {}
+    document.querySelectorAll(".sb-group").forEach((g) => {
+      const k = g.dataset.group, btn = g.querySelector(".sb-caret");
+      if (open[k] && !g.classList.contains("open")) { g.classList.add("open"); btn.setAttribute("aria-expanded", "true"); }
+      btn.addEventListener("click", () => {
+        const on = g.classList.toggle("open"); btn.setAttribute("aria-expanded", String(on));
+        if (root.classList.contains("sb-rail") && !narrow()) setRail(false);        // opening a group from the rail expands it
+        open[k] = on; try { localStorage.setItem("sidebarGroups", JSON.stringify(open)); } catch (e) {}
+      });
     });
+    matchMedia("(max-width: 1000px)").addEventListener("change", () => setDrawer(false));
   })();
   // Theme toggle: Dark -> Light -> System (follows macOS)
   (() => {

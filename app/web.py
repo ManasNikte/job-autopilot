@@ -112,7 +112,7 @@ def inject():
     from .version import VERSION
     op = cloud.STATUS.get("operator") if request.endpoint == "dashboard" else None
     upd = updater.STATE if updater.update_available() else None
-    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "app_update": upd, "app_version": VERSION, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
+    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "operator_nav": bool(cloud.STATUS.get("operator")), "app_update": upd, "app_version": VERSION, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
 
 
 def _followups() -> None:

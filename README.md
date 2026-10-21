@@ -167,6 +167,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.8** | Sidebar navigation with every page and sub-page; collapses to an icon rail (remembered), a drawer in narrow windows |
 | **v3.7** | Screening batches chain automatically; background work pauses at 95% of your Claude plan limit (read from Claude Code's `/usage`) and resumes after the reset |
 | **v3.6** | Online-dashboard account created and connected from the local app during setup; site linked from the repo page |
 | **v3.5.3** | New **Applied this week** tile (Sunday to Saturday); 8 tiles in a 4 × 2 grid on both dashboards |
@@ -237,6 +238,8 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 - **Self-healing documents.** Bullets that are a hair too long stay on one line with slightly tighter letter
   spacing, and pages use the smaller sizes the prompt allows before overflowing. **Fix it** re-fits flagged
   documents without a Claude call, and asks for a small trim only if that isn't enough.
+- **Sidebar navigation (v3.8).** One compact list of every page and sub-page (job filters, email filters, profile
+  files, Settings sections). It collapses to an icon rail and becomes a drawer in narrow windows.
 - **Dashboard.** A personal greeting written from the time of day and your real progress, eight KPI tiles in a 4 × 2 grid (including **applied today**, **applied this week** (Sunday to Saturday), and **assessments to finish**), **maps of where you're applying**, a 14-day
   applications chart, a pipeline funnel, live per-job progress bars with an honest "not started / running /
   paused" status, server-side pagination and search everywhere, and dark, light, and system themes.
@@ -312,6 +315,10 @@ for this role.
 | Profile and master-prompt editor | Light theme |
 |---|---|
 | ![Profile](docs/screenshots/profile.png) | ![Light theme](docs/screenshots/dashboard-light.png) |
+
+| Sidebar collapsed to an icon rail | Sidebar as a drawer in a narrow window |
+|---|---|
+| ![Icon rail](docs/screenshots/sidebar-rail.png) | ![Drawer](docs/screenshots/sidebar-drawer.png) |
 
 | Email updates (read-only inbox tracking) | Users page (site operator only; counts, never companies) |
 |---|---|
