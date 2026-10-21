@@ -3,6 +3,10 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.5.1 (2026-10-21)
+- Fixed: searching the Email page showed "Internal Server Error".
+- "See the email" (Needs you and the Assessments card) now opens that exact email, with the text saved from it.
+
 ## 3.5 (2026-10-21)
 - **Assessments on the map.** The Submitted map has a new Assessments filter: pending assessments show as amber pins, and the pin's popup says when each is due. Assessments from companies you applied to outside the app are placed at the company's location.
 

@@ -32,6 +32,7 @@
 </form>
 
 {% if jobs_for_assign %}<datalist id="assign-jobs">{% for j in jobs_for_assign %}<option value="{{ j.company }} · {{ j.title }}" data-id="{{ j.id }}"></option>{% endfor %}</datalist>{% endif %}
+{% if focus %}<div class="flash">Showing one email. <a href="{{ url_for('email_page') }}">See all email updates →</a></div>{% endif %}
 <div class="card flush">
 <table class="jobs-table">
   <thead><tr><th>Received</th><th>Email</th><th>Update</th><th>Job</th><th class="num"></th></tr></thead>
@@ -41,6 +42,8 @@
     <td class="sub small nowrap">{{ e.received_at|ago }}<div>{{ e.account }}</div></td>
     <td class="role"><b>{{ e.subject|truncate(90) }}</b><div class="meta">{{ e.sender|truncate(70) }}</div>
       {% if e.summary %}<div class="reason">{{ e.summary }}</div>{% endif %}
+      {% if focus and e.snippet %}<div class="email-text">{{ e.snippet }}{% if e.snippet|length >= 600 %}…{% endif %}</div>
+        <div class="sub small">The first part of the email, as saved. The full message is in {{ e.account or 'your inbox' }}.</div>{% endif %}
       {% if e.link %}<div class="small"><a href="{{ e.link }}" target="_blank" rel="noopener noreferrer">Open link ↗</a>{% if e.deadline %} · due {{ e.deadline }}{% endif %}</div>{% endif %}</td>
     <td class="nowrap"><span class="badge {{ 'no' if e.event == 'rejection' else 'apply' if e.event in ('interview', 'offer') else 'risk' if e.event == 'assessment' else '' }}">{{ events.get(e.event, e.event) }}</span>
       {% if e.state == 'applied' and e.prev_status != e.new_status %}<div class="sub small">{{ status_labels.get(e.prev_status, e.prev_status) }} → {{ status_labels.get(e.new_status, e.new_status) }}</div>{% endif %}

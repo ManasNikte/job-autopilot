@@ -37,6 +37,7 @@
       </div>
       <div class="assess-actions">
         {% if a.link %}<a class="btn primary small" href="{{ a.link }}" target="_blank" rel="noopener noreferrer">Open assessment</a>{% endif %}
+        <a class="btn small" href="{{ url_for('email_page', id=a.ids[-1]) }}">See the email</a>
         <form method="post" action="{{ url_for('assessment_mark', event_id=a.id, how='done') }}"><button class="btn small">✓ Done</button></form>
         <form method="post" action="{{ url_for('assessment_mark', event_id=a.id, how='skip') }}"><button class="btn small ghost" title="Stop reminding me" onclick="return confirm('Stop reminders for this assessment?')">Not doing it</button></form>
       </div>

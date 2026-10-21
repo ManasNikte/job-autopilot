@@ -55,3 +55,23 @@ def test_apply_undo_and_assign(jobs_db):
     assert db.get_job("g:3")["status"] == "applied"                        # ready -> applied on assessment
     iv = db.fetchone("SELECT * FROM interventions WHERE job_id='g:3' AND kind='assessment'")
     assert iv and "due 2026-10-25" in iv["title"]
+
+
+def test_email_page_search_and_single_email_view(tmp_path, monkeypatch):
+    """Searching used to crash: the query joins jobs, whose company/title columns made bare names ambiguous."""
+    from app import db
+    from app.web import app
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    db.upsert_job({"id": "j:1", "company": "Roblox", "title": "Software Engineer", "status": "applied"})
+    db.execute("INSERT INTO email_events (msg_id, received_at, sender, subject, snippet, company, role, event, state, job_id, created_at) "
+               "VALUES ('m1', ?, 'noreply@roblox.com', 'Your Roblox Assessments', 'Hi, please finish four tasks.', 'Roblox', "
+               "'Software Engineer', 'assessment', 'applied', 'j:1', ?)", (db.now(), db.now()))
+    eid = db.fetchone("SELECT id FROM email_events")["id"]
+    db.add_intervention("j:1", "assessment", "Online assessment from Roblox · due Mon Oct 26, 9:00 AM")
+    c = app.test_client()
+    for q in ("Roblox", "Software", "%'\"", ""):
+        assert c.get("/email", query_string={"q": q}).status_code == 200
+    one = c.get(f"/email?id={eid}").get_data(as_text=True)
+    assert "Showing one email" in one and "please finish four tasks" in one
+    assert f'href="/email?id={eid}">See the email' in c.get("/inbox").get_data(as_text=True)

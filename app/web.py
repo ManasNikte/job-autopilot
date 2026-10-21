@@ -438,10 +438,27 @@ def inbox():
             ask = db.fetchone("SELECT a.*, c.name, c.phone, c.linkedin, c.email FROM referral_asks a JOIN contacts c ON c.id=a.contact_id "
                               "WHERE a.job_id=? AND ? LIKE 'Ask ' || c.name || ' (%'", (i["job_id"], i["title"]))
             i["ask"] = ask
+        if i["kind"] in ("assessment", "interview", "offer"):
+            i["email_id"] = _email_for(i)
     groups: dict[str, list] = {}
     for i in ivs:
         groups.setdefault(i["kind"], []).append(i)
     return render_template("inbox.html", groups=groups)
+
+
+def _email_for(iv: dict) -> int | None:
+    """The email behind a Needs-you item: the job's latest email of that kind, else (no job) the company named in it."""
+    if iv.get("job_id"):
+        r = db.fetchone("SELECT id FROM email_events WHERE job_id=? AND event=? AND state != 'ignored' ORDER BY received_at DESC LIMIT 1",
+                        (iv["job_id"], iv["kind"]))
+        if r:
+            return r["id"]
+    m = re.match(r"^(?:Online assessment|Interview invite|Offer) from (.+?)(?: · .*)?$", iv.get("title") or "")
+    if m:
+        r = db.fetchone("SELECT id FROM email_events WHERE company=? AND event=? AND state != 'ignored' ORDER BY received_at DESC LIMIT 1",
+                        (m.group(1), iv["kind"]))
+        return r["id"] if r else None
+    return None
 
 
 @app.post("/inbox/<int:iid>")
@@ -491,27 +508,32 @@ def email_page():
     from . import mailsync
     mailsync.init()
     ev, state, q = request.args.get("event", ""), request.args.get("state", ""), request.args.get("q", "").strip()
-    where, params = ["state != 'ignored'"], []
+    focus = request.args.get("id", type=int)
+    # every column is qualified: the query joins jobs, which has company/title/status columns too
+    where, params = ["e.state != 'ignored'"], []
+    if focus:
+        where.append("e.id=?")
+        params.append(focus)
     if ev:
-        where.append("event=?")
+        where.append("e.event=?")
         params.append(ev)
     if state:
-        where.append("state=?")
+        where.append("e.state=?")
         params.append(state)
     if q:
-        where.append("(company LIKE ? OR role LIKE ? OR subject LIKE ? OR sender LIKE ?)")
-        params += [f"%{q}%"] * 4
+        where.append("(e.company LIKE ? OR e.role LIKE ? OR e.subject LIKE ? OR e.sender LIKE ? OR j.company LIKE ? OR j.title LIKE ?)")
+        params += [f"%{q}%"] * 6
     cond = " AND ".join(where)
-    page = Page(db.count("email_events", cond, tuple(params)))
+    page = Page(db.fetchone(f"SELECT count(*) AS n FROM email_events e LEFT JOIN jobs j ON j.id=e.job_id WHERE {cond}", tuple(params))["n"])
     rows = db.fetchall(f"SELECT e.*, j.company AS job_company, j.title AS job_title, j.status AS job_status FROM email_events e "
-                       f"LEFT JOIN jobs j ON j.id=e.job_id WHERE {cond} ORDER BY received_at DESC LIMIT ? OFFSET ?",
+                       f"LEFT JOIN jobs j ON j.id=e.job_id WHERE {cond} ORDER BY e.received_at DESC LIMIT ? OFFSET ?",
                        (*params, page.per_page, page.offset))
     counts = {r["event"]: r["n"] for r in db.fetchall("SELECT event, count(*) AS n FROM email_events WHERE state != 'ignored' GROUP BY event")}
     unmatched = db.count("email_events", "state='unmatched'")
     jobs_for_assign = db.fetchall("SELECT id, company, title FROM jobs WHERE status IN ('ready','applied','interviewing','offer','closed') "
                                   "ORDER BY coalesce(applied_at, updated_at) DESC LIMIT 400") if unmatched else []
     last = db.kv_get("mail_last_sync")
-    return render_template("email.html", rows=rows, page=page, counts=counts, unmatched=unmatched, ev=ev, state=state, q=q,
+    return render_template("email.html", focus=focus, rows=rows, page=page, counts=counts, unmatched=unmatched, ev=ev, state=state, q=q,
                            events=EMAIL_EVENTS, accounts=mailsync.accounts(), jobs_for_assign=jobs_for_assign,
                            last=json.loads(last["v"]) if last else None, last_at=last["at"] if last else None)
 

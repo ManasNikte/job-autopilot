@@ -58,7 +58,7 @@
     {% set link = i.detail|firsturl %}
     <form method="post" action="{{ url_for('inbox_action', iid=i.id) }}" class="row">
       {% if link %}<a class="btn primary small" href="{{ link }}" target="_blank" rel="noopener noreferrer">Open link ↗</a>{% endif %}
-      <a class="btn small" href="{{ url_for('email_page', q=i.company) }}">See the email</a>
+      <a class="btn small" href="{{ url_for('email_page', id=i.email_id) if i.email_id else url_for('email_page', event=kind, q=i.company or None) }}">See the email</a>
       <button class="btn small" name="action" value="resolve">Done</button><button class="btn small" name="action" value="dismiss">Dismiss</button>
     </form>
     {% elif kind == 'submit' %}
