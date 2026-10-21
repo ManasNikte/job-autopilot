@@ -247,6 +247,33 @@ def _changed_jobs(since: str) -> list[dict]:
         "WHERE updated_at >= ? ORDER BY updated_at, id LIMIT 1000", (since,))
 
 
+EMAIL_FIELDS = ("received_at", "company", "role", "event", "summary", "deadline", "job_id", "new_status", "state")
+
+
+def _sync_email_updates(mid: str, uid: str) -> None:
+    """New AND changed email events (undo, reassign), by last-changed time; ignored or deleted ones are removed
+    online. The cursor is a timestamp, and ">=" re-sends the boundary second instead of risking a skip."""
+    since = (db.kv_get("cloud_email_since") or {}).get("v") or ""
+    if since.isdigit():                              # older versions stored the last event id
+        since = ""
+    rows = db.fetchall(f"SELECT id, updated_at, {', '.join(EMAIL_FIELDS)} FROM email_events "
+                       "WHERE coalesce(updated_at, '') >= ? ORDER BY updated_at, id LIMIT 500", (since,))
+    keep = [r for r in rows if r["state"] != "ignored"]
+    drop = [r["id"] for r in rows if r["state"] == "ignored"]
+    tomb = db.fetchall("SELECT id FROM email_events_deleted ORDER BY id LIMIT 500")
+    drop += [t["id"] for t in tomb]
+    if keep:
+        _rest("POST", "email_updates", params={"on_conflict": "machine_id,event_id"}, prefer="resolution=merge-duplicates",
+              json=[{"machine_id": mid, "user_id": uid, "event_id": r["id"], **{k: r[k] for k in EMAIL_FIELDS}} for r in keep])
+    for i in range(0, len(drop), 100):
+        _rest("DELETE", "email_updates", params={"machine_id": f"eq.{mid}",
+                                                 "event_id": "in.(" + ",".join(str(int(x)) for x in drop[i:i + 100]) + ")"})
+    if tomb:
+        db.execute(f"DELETE FROM email_events_deleted WHERE id IN ({','.join('?' * len(tomb))})", [t["id"] for t in tomb])
+    if rows:
+        db.kv_set("cloud_email_since", rows[-1]["updated_at"] or since)
+
+
 def _reset_cursors() -> None:
     for k in ("cloud_jobs_since", "cloud_email_since"):
         db.execute("DELETE FROM kv WHERE k=?", (k,))
@@ -282,13 +309,7 @@ def sync_once(log=print, full: bool = True) -> dict:
                 _rest("POST", "jobs", params={"on_conflict": "machine_id,job_id"}, prefer="resolution=merge-duplicates",
                       json=payload[i:i + 500])
             db.kv_set("cloud_jobs_since", changed[-1]["updated_at"])
-        last_ev = int((db.kv_get("cloud_email_since") or {}).get("v") or 0)
-        evs = db.fetchall("SELECT id, received_at, company, role, event, summary, deadline, job_id, new_status, state "
-                          "FROM email_events WHERE id > ? AND state != 'ignored' ORDER BY id LIMIT 500", (last_ev,))
-        if evs:
-            _rest("POST", "email_updates", params={"on_conflict": "machine_id,event_id"}, prefer="resolution=merge-duplicates",
-                  json=[{"machine_id": mid, "user_id": uid, "event_id": e["id"], **{k: e[k] for k in e if k != "id"}} for e in evs])
-            db.kv_set("cloud_email_since", str(evs[-1]["id"]))
+        _sync_email_updates(mid, uid)
         _rest("PATCH", "machines", params={"id": f"eq.{mid}"}, json={"last_seen": now, "app_version": APP_VERSION, "city": city()})
         STATUS["operator"] = operator_stats()
         if STATUS["operator"]:

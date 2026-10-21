@@ -208,7 +208,8 @@
     if (!(data || []).length) box.appendChild(el("p", "sub", "No email updates yet. Connect an inbox on your computer (Settings → Email)."));
     (data || []).forEach((e) => {
       const r = el("div", "job");
-      const left = el("div"); left.append(el("div", "job-title", `${e.company || "Unknown"}${e.role ? " · " + e.role : ""}`), el("div", "sub small", e.summary || ""));
+      const left = el("div"); left.append(el("div", "job-title", `${e.company || "Unknown"}${e.role ? " · " + e.role : ""}`),
+        el("div", "sub small", (e.summary || "") + (e.state === "undone" ? " (you undid the status change)" : e.state === "unmatched" ? " (not matched to a job yet)" : "")));
       const right = el("div", "job-right"); right.append(el("span", "badge " + e.event, { rejection: "Rejected", interview: "Interview", assessment: "Assessment", offer: "Offer 🎉", confirmation: "Received" }[e.event] || e.event), el("span", "sub small", ago(e.received_at)));
       if (e.deadline) right.appendChild(el("span", "sub small", "due " + e.deadline));
       r.append(left, right); box.appendChild(r);

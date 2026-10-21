@@ -126,6 +126,7 @@ MIGRATIONS = {   # columns added after the first release; applied idempotently o
     "jobs": {"source": "TEXT", "h1b_signal": "TEXT", "h1b_level": "TEXT", "startup": "INTEGER DEFAULT 0", "company_stage": "TEXT",
              "salary": "TEXT", "salary_max": "INTEGER", "prompt_version": "TEXT", "status_changed_at": "TEXT"},
     "runs": {"source": "TEXT"},
+    "email_events": {"updated_at": "TEXT"},
 }
 
 EXTRA_SCHEMA = """
@@ -177,6 +178,22 @@ def init() -> None:
             for col, typ in cols.items():
                 if col not in have:
                     c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+        # Email events remember when they last changed, and leave a tombstone when deleted, so the online
+        # dashboard gets undo / ignore / reassign too (app/cloud.py), not only brand-new emails.
+        c.executescript("""
+            CREATE TABLE IF NOT EXISTS email_events_deleted (id INTEGER PRIMARY KEY, deleted_at TEXT);
+            CREATE INDEX IF NOT EXISTS email_events_updated ON email_events(updated_at);
+            CREATE TRIGGER IF NOT EXISTS email_events_touch_ins AFTER INSERT ON email_events
+              WHEN NEW.updated_at IS NULL
+              BEGIN UPDATE email_events SET updated_at=strftime('%Y-%m-%dT%H:%M:%S+00:00','now') WHERE id=NEW.id; END;
+            CREATE TRIGGER IF NOT EXISTS email_events_touch_upd AFTER UPDATE ON email_events
+              WHEN NEW.updated_at IS OLD.updated_at
+              BEGIN UPDATE email_events SET updated_at=strftime('%Y-%m-%dT%H:%M:%S+00:00','now') WHERE id=NEW.id; END;
+            CREATE TRIGGER IF NOT EXISTS email_events_tombstone AFTER DELETE ON email_events
+              BEGIN INSERT OR REPLACE INTO email_events_deleted (id, deleted_at)
+                    VALUES (OLD.id, strftime('%Y-%m-%dT%H:%M:%S+00:00','now')); END;
+        """)
+        c.execute("UPDATE email_events SET updated_at=coalesce(created_at, received_at) WHERE updated_at IS NULL")
         c.execute("UPDATE jobs SET source=ats WHERE source IS NULL")
         c.execute("UPDATE jobs SET status_changed_at=coalesce(CASE WHEN status='applied' THEN applied_at END, updated_at) "
                   "WHERE status_changed_at IS NULL AND status IN ('applied','interviewing','offer','closed')")

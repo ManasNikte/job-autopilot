@@ -233,3 +233,30 @@ def test_job_leaving_shared_statuses_is_removed_online_and_reconnect_resends(fak
     cloud.connect("me@example.com", "correct horse 1", "Laptop")
     cloud.sync_once(log=lambda *_: None)
     assert [j["job_id"] for j in fake.tables["jobs"]] == ["g:1"]
+
+
+def test_email_updates_follow_undo_ignore_and_reassign(fake, monkeypatch):
+    import app.mailsync as ms
+    cloud.connect("me@example.com", "correct horse 1", "Laptop")
+
+    def add(msg, company, event, state, job_id=None):
+        db.execute("INSERT INTO email_events (msg_id, received_at, company, role, event, summary, state, job_id, created_at) "
+                   "VALUES (?,?,?,?,?,?,?,?,?)", (msg, db.now(), company, "Engineer", event, f"{company} {event}", state, job_id, db.now()))
+        return db.fetchone("SELECT id FROM email_events WHERE msg_id=?", (msg,))["id"]
+
+    a = add("m1", "Acme", "rejection", "applied", "g:1")
+    b = add("m2", "Initech", "interview", "unmatched")
+    c = add("m3", "Spam Co", "confirmation", "applied")
+    cloud.sync_once(log=lambda *_: None)
+    online = lambda: {r["event_id"]: r["state"] for r in fake.tables["email_updates"]}
+    assert online() == {a: "applied", b: "unmatched", c: "applied"}
+
+    monkeypatch.setattr(db, "now", lambda: "2099-01-01T00:00:00+00:00")       # later changes sort after the cursor
+    db.execute("UPDATE email_events SET state='undone', updated_at=? WHERE id=?", ("2099-01-01T00:00:00+00:00", a))
+    db.execute("UPDATE email_events SET state='ignored', updated_at=? WHERE id=?", ("2099-01-01T00:00:00+00:00", c))
+    ms.assign(b, "g:2")                                                        # deletes the event, inserts a matched one
+    cloud.sync_once(log=lambda *_: None)
+    now_online = online()
+    assert now_online[a] == "undone" and c not in now_online and b not in now_online
+    assert len(now_online) == 2                                                # the re-matched Initech email
+    assert db.fetchall("SELECT id FROM email_events_deleted") == []            # tombstones cleared once sent
