@@ -359,3 +359,27 @@ dialog.modal[open] { display: flex; flex-direction: column; }
 .grid > * { min-width: 0; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .table-scroll table { min-width: 520px; }
+
+/* ---------- First-run tour (app/static/tour.js) ---------- */
+.tour { position: fixed; inset: 0; z-index: 1000; }
+.tour-block { position: fixed; inset: 0; }
+.tour-spot { position: fixed; border-radius: 12px; pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(5, 8, 14, .62), 0 0 0 2px var(--accent), 0 0 24px 4px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: left .28s ease, top .28s ease, width .28s ease, height .28s ease; }
+.tour-card { position: fixed; width: min(380px, calc(100vw - 24px)); padding: 16px 18px 14px; border-radius: 14px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: 0 18px 50px rgba(0,0,0,.35);
+  transition: left .28s ease, top .28s ease; }
+.tour-card.center { left: 50% !important; top: 50% !important; transform: translate(-50%, -50%); width: min(440px, calc(100vw - 24px)); }
+.tour-card.sheet { left: 12px !important; right: 12px; bottom: 12px; top: auto !important; width: auto; }
+.tour-card h2 { margin: 6px 0 6px; font-size: 18px; letter-spacing: -.01em; }
+.tour-card p { margin: 0 0 14px; color: var(--text-2); line-height: 1.5; font-size: 14.5px; }
+.tour-top { display: flex; justify-content: space-between; align-items: center; }
+.tour-count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tour-skip { background: none; border: 0; padding: 4px 2px; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.tour-skip:hover, .tour-skip:focus-visible { color: var(--text); text-decoration: underline; }
+.tour-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.tour-btns { display: flex; gap: 8px; }
+.tour-dots { display: flex; gap: 5px; flex-wrap: wrap; }
+.tour-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background .2s, width .2s; }
+.tour-dots i.on { width: 16px; border-radius: 3px; background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .tour-spot, .tour-card, .tour-dots i { transition: none; } }

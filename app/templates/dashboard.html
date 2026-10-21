@@ -13,7 +13,7 @@
   <button class="btn primary small">Save</button>
 </form>
 {% endif %}
-<div class="grid kpis">
+<div class="grid kpis" data-tour="kpis">
   <a class="tile" href="{{ url_for('jobs') }}"><div class="v">{{ kpis.posted_today }}</div><div class="k">Relevant roles posted today</div></a>
   <a class="tile" href="{{ url_for('jobs', status='ready') }}"><div class="v">{{ kpis.ready }}</div><div class="k">Ready to submit</div></a>
   <a class="tile" href="{{ url_for('jobs', status='needs_decision') }}"><div class="v">{{ kpis.decide }}</div><div class="k">Waiting on your call</div></a>
@@ -22,7 +22,7 @@
   <a class="tile" href="{{ url_for('jobs', status='interviewing') }}"><div class="v">{{ kpis.interviewing }}</div><div class="k">Interviewing / offers</div></a>
 </div>
 
-<div style="margin-top:16px">{% include "_progress.html" %}</div>
+<div style="margin-top:16px" data-tour="background">{% include "_progress.html" %}</div>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <div class="grid g2" id="maps">
@@ -215,4 +215,8 @@
     {{ pager(company_page, "companies") }}{% else %}<p class="muted">No applications yet.</p>{% endif %}</div>
   <div class="card"><h2>Activity</h2><pre class="log" id="activity-log">Loading…</pre></div>
 </div>
+{% if tour %}
+<script type="application/json" id="tour-steps" data-finish="{{ url_for('tour_finish', how='__how__') }}">{{ tour|tojson }}</script>
+<script src="{{ url_for('static', filename='tour.js') }}" defer></script>
+{% endif %}
 {% endblock %}

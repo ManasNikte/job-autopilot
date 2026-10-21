@@ -25,11 +25,11 @@
   </div>
   <nav class="primary" id="primary-nav">
     <a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep=='dashboard' }}">Dashboard</a>
-    <a href="{{ url_for('inbox') }}" class="{{ 'on' if ep=='inbox' }}">Needs you{% if open_interventions %}<span class="pill">{{ open_interventions }}</span>{% endif %}</a>
-    <a href="{{ url_for('jobs') }}" class="{{ 'on' if ep in ('jobs','job_detail') and request.args.get('status') != 'applied_all' }}">Jobs</a>
-    <a href="{{ url_for('jobs', status='applied_all') }}" class="{{ 'on' if ep=='jobs' and request.args.get('status') == 'applied_all' }}">Applied</a>
-    <a href="{{ url_for('email_page') }}" class="{{ 'on' if ep=='email_page' }}">Email{% if unmatched_mail %}<span class="pill" title="Application emails that need matching to a job">{{ unmatched_mail }}</span>{% endif %}</a>
-    <a href="{{ url_for('outreach') }}" class="{{ 'on' if ep=='outreach' }}">Outreach</a>
+    <a data-tour="inbox" href="{{ url_for('inbox') }}" class="{{ 'on' if ep=='inbox' }}">Needs you{% if open_interventions %}<span class="pill">{{ open_interventions }}</span>{% endif %}</a>
+    <a data-tour="jobs" href="{{ url_for('jobs') }}" class="{{ 'on' if ep in ('jobs','job_detail') and request.args.get('status') != 'applied_all' }}">Jobs</a>
+    <a data-tour="applied" href="{{ url_for('jobs', status='applied_all') }}" class="{{ 'on' if ep=='jobs' and request.args.get('status') == 'applied_all' }}">Applied</a>
+    <a data-tour="email" href="{{ url_for('email_page') }}" class="{{ 'on' if ep=='email_page' }}">Email{% if unmatched_mail %}<span class="pill" title="Application emails that need matching to a job">{{ unmatched_mail }}</span>{% endif %}</a>
+    <a data-tour="outreach" href="{{ url_for('outreach') }}" class="{{ 'on' if ep=='outreach' }}">Outreach</a>
     <a href="{{ url_for('people') }}" class="{{ 'on' if ep in ('people','person_form') }}">People</a>
     <a href="{{ url_for('background') }}" class="{{ 'on' if ep=='background' }}">Background<span id="bg-dot" class="dot" hidden></span></a>
   </nav>
@@ -38,13 +38,13 @@
   </form>
   <div class="right">
     <span id="worker-state" class="sub">{% if worker.active %}Working on {{ worker.active|length }} job(s){% else %}Idle{% endif %}</span>
-    <form class="inline" method="post" action="{{ url_for('run_now') }}"><button class="btn primary small" type="submit">Run now</button></form>
+    <form class="inline" method="post" action="{{ url_for('run_now') }}"><button class="btn primary small" type="submit" data-tour="run">Run now</button></form>
     <button type="button" class="btn small theme-toggle" id="theme-toggle" aria-label="Theme" title="Theme"></button>
     <button type="button" class="btn small nav-toggle" id="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="primary-nav">☰</button>
     <nav class="secondary">
       <a href="{{ url_for('sources_page') }}" class="{{ 'on' if ep=='sources_page' }}" title="Job sources">Sources</a>
-      <a href="{{ url_for('profile_page') }}" class="{{ 'on' if ep=='profile_page' }}" title="Your profile and prompt">Profile</a>
-      <a href="{{ url_for('settings_page') }}" class="{{ 'on' if ep=='settings_page' }}" title="Schedule and pipeline settings">Settings</a>
+      <a data-tour="profile" href="{{ url_for('profile_page') }}" class="{{ 'on' if ep=='profile_page' }}" title="Your profile and prompt">Profile</a>
+      <a data-tour="settings" href="{{ url_for('settings_page') }}" class="{{ 'on' if ep=='settings_page' }}" title="Schedule and pipeline settings">Settings</a>
     </nav>
   </div>
 </header>

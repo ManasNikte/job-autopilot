@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.3 (2026-10-21)
+- **A guided tour for new users.** The first time you open the dashboard, a short walkthrough highlights each part (Run now, your numbers, Needs you, Jobs, the Chrome extension, Applied, Email, Profile, Settings) and explains what it does. Skip it anytime, or replay it from Settings → Getting started.
+
 ## 3.2 (2026-10-21)
 - **Email updates stay in sync on your phone.** Undoing a status change, ignoring an email, or matching it to a job by hand now shows up on the online dashboard too, not only brand-new emails.
 - The online dashboard marks emails whose status change you undid, and ones not matched to a job yet.

@@ -367,6 +367,8 @@ Give the user a short summary, addressed to them by name:
 
 - The dashboard address: http://127.0.0.1:5055. It greets them by name, with a line about their progress
   that changes with the time of day.
+- The first time they open it, a short guided tour walks them through the dashboard (they can skip it, and
+  replay it from Settings → Getting started).
 - When the next scheduled run is (shown on the Settings page)
 - How runs start on their OS, and whether wake-from-sleep was set up
 - The online dashboard address, if they connected one, so they can bookmark it on their phone

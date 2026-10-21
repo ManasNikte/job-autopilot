@@ -187,7 +187,8 @@ def dashboard():
     from . import greeting
     user_name = greeting.user_name()
     hello = greeting.greet(name=user_name) if user_name else None
-    return render_template("dashboard.html", just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
+    show_tour = bool(request.args.get("tour")) or (bool(user_name) and not db.kv_get("tour"))   # after the name box
+    return render_template("dashboard.html", tour=tour_steps(user_name) if show_tour else None, just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, series=series, peak=peak, funnel=funnel, fmax=fmax,
                            today_jobs=today_jobs, by_family=by_family, by_company=by_company, last_run=last_run, counts=counts,
                            today_page=today_page, family_page=family_page, company_page=company_page,
                            applied_total=sum(r["n"] for r in fam_rows))
@@ -1147,6 +1148,51 @@ def set_user_name():
     return redirect(request.referrer or url_for("dashboard"))
 
 
+# ----------------------------------------------------------------------------- first-run tour
+
+def tour_steps(name: str | None) -> list[dict]:
+    """The walkthrough shown once to new users (app/static/tour.js). `target` is a [data-tour] element."""
+    hi = f", {name.split()[0]}" if name else ""
+    return [
+        {"title": f"Welcome to Job Autopilot{hi} 👋",
+         "text": "A one-minute tour of how it finds jobs, writes your documents, and keeps track of everything. "
+                 "Skip it anytime; you can replay it from Settings."},
+        {"target": '[data-tour="run"]', "title": "Run now",
+         "text": "Finds new postings that match your search, has Claude screen each one against your profile, and writes "
+                 "a tailored one-page resume and cover letter for the good matches. Scheduled runs do this on their own, even while you sleep."},
+        {"target": '[data-tour="kpis"]', "title": "Your numbers at a glance",
+         "text": "New roles today, documents ready to send, jobs waiting for your call, and what you've applied to. Click a tile to see those jobs."},
+        {"target": '[data-tour="background"]', "title": "Watch the work happen",
+         "text": "Live progress while jobs are screened and documents are written, with a time estimate. Nothing to do here."},
+        {"target": '[data-tour="inbox"]', "title": "Needs you: your to-do list",
+         "text": "The few things only you can do: decide on a borderline match, answer a missing fact, or review documents before you submit."},
+        {"target": '[data-tour="jobs"]', "title": "Every job it found",
+         "text": "Filter by status, see match scores, and open a job for its resume, cover letter, and why Claude rated it the way it did."},
+        {"title": "Apply with the Chrome extension",
+         "text": "Open a job's application page and click the Job Autopilot extension: it fills the form from your profile and attaches "
+                 "your documents. You review everything and click Submit yourself. Nothing is ever sent without you."},
+        {"target": '[data-tour="applied"]', "title": "Track what you sent",
+         "text": "Everything you've applied to, filterable by date (today, yesterday, this week), with one click to copy all the links."},
+        {"target": '[data-tour="email"]', "title": "Replies, sorted for you",
+         "text": "Connect your inbox (read-only) and rejections, interviews, assessments, and offers update your jobs automatically."},
+        {"target": '[data-tour="profile"]', "title": "Your profile drives everything",
+         "text": "Your master prompt and form answers. Claude never invents experience, so the more accurate this is, the better your documents."},
+        {"target": '[data-tour="settings"]', "title": "Make it yours",
+         "text": "Run times, minimum pay, how many documents to build at once, email, the phone dashboard, and app updates."},
+        {"title": "You're all set 🚀", "cta": "Let's go",
+         "text": "Click Run now to start your first search. It takes a few minutes and you can watch it on this page. "
+                 "Replay this tour anytime from Settings."},
+    ]
+
+
+@app.post("/tour/<how>")
+def tour_finish(how):
+    if how not in ("done", "skipped"):
+        abort(404)
+    db.kv_set("tour", how)
+    return ("", 204)
+
+
 # ----------------------------------------------------------------------------- app updates
 
 @app.get("/healthz")
@@ -1298,6 +1344,8 @@ def serve() -> None:
     worker.start()
     from . import updater
     threading.Thread(target=updater.loop, name="updater", daemon=True).start()
+    if not db.kv_get("tour") and db.count("runs"):               # existing installs skip the first-run tour
+        db.kv_set("tour", "existing")
     n = worker.resume_queue()
     if n:
         print(f"Resumed {n} job(s) waiting for documents.")

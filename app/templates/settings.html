@@ -91,6 +91,12 @@
   </form>
 </div>
 
+<div class="card" id="tour">
+  <div class="spread"><div><h2 style="margin:0">Getting started</h2>
+    <p class="sub" style="margin:4px 0 0">A one-minute walkthrough of the dashboard: running searches, Needs you, applying with the extension, and tracking replies.</p></div>
+    <a class="btn small" href="{{ url_for('dashboard', tour=1) }}">Replay the tour</a></div>
+</div>
+
 <div class="card" id="updates">
   <h2>App updates</h2>
   <p style="margin-top:0">You're on <b>v{{ app_version }}</b>{% if upd_state.checked_at %} · checked {{ upd_state.checked_at|ago }}{% endif %}.
