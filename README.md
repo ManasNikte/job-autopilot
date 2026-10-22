@@ -212,6 +212,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.11.3** | Emails you forward from your own address are read (e.g. from a school inbox); assessment-game invitations recognized; more accurate due dates |
 | **v3.11.2** | An expired Claude sign-in pauses the work and asks you to sign in again, instead of marking every job as an error |
 | **v3.11.1** | The first-run intro became a complete walkthrough of every page (25 steps); the site operator's Users page shows every detail the privacy note allows |
 | **v3.11** | Four ATS-friendly resume templates with previews; empty sections left off and long rows wrapped (no overlaps); an optional, reversible resume-rules upgrade for the master prompt; a How it works page; new charts and pagination on the online dashboard |
@@ -527,6 +528,8 @@ dashboard's built-in clock at the times on the Settings page.
   Internet Accounts → Microsoft Exchange), then pick it under **Apple Mail**.
 
 Then click **Check email now** on the Email page.
+
+**An inbox the app can't read** (say, a locked-down school account)? Forward job emails from it to the connected inbox, and the app reads the original message inside each forward.
 
 **Import the USCIS H-1B data (recommended).** Download the yearly CSVs from the
 [USCIS H-1B Employer Data Hub](https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub) in your

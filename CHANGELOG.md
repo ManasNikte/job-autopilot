@@ -3,6 +3,11 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.11.3 (2026-10-22)
+- **Forward job emails to your connected inbox.** An email you forward ("Fwd:") from your own address is now read, for example an assessment that landed in a school or work inbox the app can't reach. Claude reads the original message inside it.
+- **Assessment game invitations are recognized,** such as "invitation to complete" or game-based tests.
+- **More accurate due dates.** Claude now reads more of each email, because long tracking links no longer use up the space. A forwarded email's "Date:" line is no longer mistaken for a deadline.
+
 ## 3.11.2 (2026-10-22)
 - **An expired Claude sign-in no longer fails your jobs.** When Claude Code's sign-in expires ("OAuth session expired"), the app now pauses, keeps the jobs waiting, and puts one item in Needs you that says how to sign in again. Before, every job screened during that time was marked as an error. Sign in again with `claude` → `/login`, then click Run now.
 

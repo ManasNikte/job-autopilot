@@ -75,3 +75,34 @@ def test_email_page_search_and_single_email_view(tmp_path, monkeypatch):
     one = c.get(f"/email?id={eid}").get_data(as_text=True)
     assert "Showing one email" in one and "please finish four tasks" in one
     assert f'href="/email?id={eid}">See the email' in c.get("/inbox").get_data(as_text=True)
+
+
+def test_forwarded_emails_from_your_own_address_are_read():
+    from app.mailsync import likely_application_email as likely
+    own = {"me@example.com"}
+    subj = "Fwd: Acme & Company - Invitation to Solve, the Acme Game"
+    assert likely("Ava Lee <me@example.com>", subj, own)                         # you forwarded it on purpose
+    assert likely("Ava Lee <me@example.com>", "FW: hello", own)                  # Claude decides what it is
+    assert not likely("Someone <other@example.com>", "Fwd: lunch on Friday", own)
+    assert not likely("Ava Lee <me@example.com>", "Fwd: Job alert: 30 new jobs for you", own)
+    assert likely("Acme Recruiting <noreply@example.com>", "Invitation to Solve, the Acme Game", own)
+
+
+def test_forwarded_header_date_is_not_a_deadline():
+    from app.assessments import parse_due
+    body = ("---------- Forwarded message ---------\nFrom: Acme Recruiting <jobs@example.com>\n"
+            "Date: Thu, 22 Oct 2026 at 10:50 AM\nSubject: Invitation to Solve\n\nYour testing period begins on "
+            "Thursday, October 22, 2026 and ends on Wednesday, October 28, 2026.")
+    due = parse_due("2026-10-28", "Acme invited you to its assessment game.", body, received_at="2026-10-22T14:56:03+00:00")
+    from datetime import datetime
+    local = datetime.fromisoformat(due).astimezone()
+    assert (local.month, local.day, local.hour) == (10, 28, 23)              # end of the last day, not 10:50 AM on the 22nd
+
+
+def test_long_tracking_links_dont_push_the_deadline_out_of_view():
+    from app.mailsync import _for_claude
+    body = "Dear Ava,\n" + ("<https://track.example.com/" + "x" * 900 + ">\n") * 6 + "Complete it by October 28, 2026."
+    text = _for_claude(body)
+    assert "October 28" in text and "[link]" in text
+    short = "https://solve.example.com/launcher/?token=abc123"
+    assert short in _for_claude(f"Your link: {short}")

@@ -29,6 +29,7 @@ _MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun",
 _DATE = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?", re.I)
 
 
+_HEADER_LINE = re.compile(r"^[ \t>*]*(date|sent|from|to|cc|subject)\s*:.*$", re.I | re.M)
 _FIXED = {"PST": -8, "PDT": -7, "MST": -7, "MDT": -6, "CST": -6, "CDT": -5, "EST": -5, "EDT": -4, "UTC": 0, "GMT": 0}
 _STD = {"PT": -8, "MT": -7, "CT": -6, "ET": -5}
 
@@ -61,7 +62,8 @@ def parse_due(deadline: str | None, *texts: str, received_at: str | None = None)
             d = dt.date()
         except ValueError:
             d = None
-    blob = " ".join(t for t in texts if t)
+    # Header lines of a forwarded message ("Date: Thu, 22 Oct 2026 at 10:50 AM") are when it was sent, not a deadline.
+    blob = _HEADER_LINE.sub(" ", "\n".join(t for t in texts if t))
     if d is None:
         m = _DATE.search(blob)
         if m:
