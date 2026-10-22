@@ -199,21 +199,21 @@ def test_marking_an_assessment_rejected_keeps_the_assessment(jobs_db):
 
 
 def test_matching_from_the_whole_email(jobs_db, monkeypatch):
-    db.upsert_job({"id": "workday:peak6:R-110635", "company": "PEAK6", "title": "Software Engineer I", "status": "rejected"})
-    db.upsert_job({"id": "g:9", "company": "Chime", "title": "Software Engineer, Trust & Safety", "status": "applied"})
-    db.upsert_job({"id": "g:10", "company": "Chime", "title": "Data Analyst", "status": "applied"})
+    db.upsert_job({"id": "workday:northwind:R-110635", "company": "Northwind", "title": "Software Engineer I", "status": "rejected"})
+    db.upsert_job({"id": "g:9", "company": "Fabrikam", "title": "Software Engineer, Trust & Safety", "status": "applied"})
+    db.upsert_job({"id": "g:10", "company": "Fabrikam", "title": "Data Analyst", "status": "applied"})
     asked = []
     monkeypatch.setattr(mailsync, "ask_claude_to_match", lambda ev, text, cands: asked.append([c["id"] for c in cands]) or
                         next(c for c in cands if c["id"] == "g:9"))
     # requisition number in the text + company in the sender: clear, no Claude; a held job moves to Applied
-    ev = {"account": "a", "msg_id": "<p@x>", "received_at": "2026-10-20T12:00:00+00:00", "sender": "peak6group@myworkday.com",
+    ev = {"account": "a", "msg_id": "<p@x>", "received_at": "2026-10-20T12:00:00+00:00", "sender": "northwindgroup@myworkday.com",
           "subject": "Thank You For Applying!", "company": "", "role": "", "link": "", "deadline": "", "event": "confirmation",
           "summary": "", "body": "Thanks for applying to Software Engineer I (R-110635)."}
     assert mailsync.apply_event(ev)["state"] == "applied" and not asked
-    j = db.get_job("workday:peak6:R-110635")
+    j = db.get_job("workday:northwind:R-110635")
     assert j["status"] == "applied" and j["applied_at"].startswith("2026-10-20")
     # two jobs at the company, no title in the email: Claude picks from just those
-    ev2 = {**ev, "msg_id": "<c@x>", "sender": "no-reply@chime.com", "subject": "Your Application to Chime", "event": "rejection",
+    ev2 = {**ev, "msg_id": "<c@x>", "sender": "no-reply@fabrikam.com", "subject": "Your Application to Fabrikam", "event": "rejection",
            "body": "We won't be moving forward with your application for the Trust & Safety team."}
     assert mailsync.apply_event(ev2)["job_id"] == "g:9" and set(asked[0]) == {"g:9", "g:10"}
     # nothing plausible: stays unmatched, no Claude call
