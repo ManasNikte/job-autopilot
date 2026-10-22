@@ -260,11 +260,17 @@ def time_saved() -> dict:
     return {"hours": round(total_h), "days": round(total_h / 8, 1), "rows": rows}
 
 
-def donut_slices(rows: list[dict], top: int = 6) -> dict:
-    """SVG donut arcs for applications by role family: the six largest families plus Other (colors in fixed order)."""
+def donut_slices(rows: list[dict], top: int = 6, slots: dict | None = None) -> dict:
+    """SVG donut arcs by role family: the six largest families plus Other (colors in fixed order). With `slots`
+    (family -> color slot, from the Applied donut), every donut colors a family the same way and folds families
+    that aren't among them into Other, so the three donuts can be read side by side."""
     import math
     rows = [dict(r) for r in rows if r["n"]]
-    main, rest = rows[:top], rows[top:]
+    if slots is not None:
+        main = [r for r in rows if r["fam"] in slots and slots[r["fam"]] != "other"]
+        rest = [r for r in rows if r not in main]
+    else:
+        main, rest = rows[:top], rows[top:]
     other = sum(r["n"] for r in rest) + sum(r["n"] for r in main if r["fam"] == "Other")
     main = [r for r in main if r["fam"] != "Other"]
     if other:
@@ -284,8 +290,8 @@ def donut_slices(rows: list[dict], top: int = 6) -> dict:
         (x0, y0), (x1, y1), (x2, y2), (x3, y3) = pt(R, a0), pt(R, a1), pt(r_in, a1), pt(r_in, a0)
         d = (f"M{x0:.2f},{y0:.2f} A{R},{R} 0 {large} 1 {x1:.2f},{y1:.2f} L{x2:.2f},{y2:.2f} "
              f"A{r_in},{r_in} 0 {large} 0 {x3:.2f},{y3:.2f} Z")
-        out.append({"fam": row["fam"], "n": row["n"], "pct": round(row["n"] / total * 100), "d": d,
-                    "slot": "other" if row["fam"] == "Other" else str(i + 1)})
+        slot = "other" if row["fam"] == "Other" else (slots or {}).get(row["fam"], str(i + 1))
+        out.append({"fam": row["fam"], "n": row["n"], "pct": round(row["n"] / total * 100), "d": d, "slot": slot})
         a += sweep
     return {"total": total, "slices": out}
 
@@ -356,6 +362,22 @@ def dashboard():
     family_page = Page(len(fam_rows), per_page=6, param="family_page", anchor="by-family")
     by_family = fam_rows[family_page.offset:family_page.offset + family_page.per_page]
     donut = donut_slices(fam_rows)
+    slots = {sl["fam"]: sl["slot"] for sl in donut["slices"]}
+    rej_rows = db.fetchall("SELECT coalesce(role_family,'Other') AS fam, count(*) AS n FROM jobs WHERE status='closed' "
+                           "GROUP BY fam ORDER BY n DESC, fam")
+    oa_rows = db.fetchall("SELECT coalesce(j.role_family,'Other') AS fam, count(DISTINCT j.id) AS n FROM email_events e "
+                          "JOIN jobs j ON j.id = e.job_id WHERE e.event='assessment' AND e.state NOT IN ('ignored','undone') "
+                          "GROUP BY fam ORDER BY n DESC, fam")
+    oa_outside = db.fetchone("SELECT count(DISTINCT lower(coalesce(company,''))) AS n FROM email_events WHERE event='assessment' "
+                             "AND job_id IS NULL AND state NOT IN ('ignored','undone')")["n"]
+    donuts = [
+        {"id": "by-family", "title": "Applied by role family", "word": "applied", **donut, "link": url_for("jobs", status="applied_all")},
+        {"id": "rejected-family", "title": "Rejected by role family", "word": "rejected", **donut_slices(rej_rows, slots=slots),
+         "empty": "No rejections yet.", "link": url_for("email_page", event="rejection")},
+        {"id": "assess-family", "title": "Assessments by role family", "word": "assessments", **donut_slices(oa_rows, slots=slots),
+         "empty": "No assessments yet.", "link": url_for("assessments_page"),
+         "note": f"Plus {oa_outside} from companies you applied to outside the app." if oa_outside else ""},
+    ]
     n_companies = db.fetchone(f"SELECT count(DISTINCT company) AS n FROM jobs WHERE {applied}")["n"]
     company_page = Page(n_companies, per_page=6, param="company_page", anchor="by-company")
     by_company = db.fetchall(f"SELECT company, count(*) AS n FROM jobs WHERE {applied} GROUP BY company "
@@ -368,7 +390,7 @@ def dashboard():
     from . import cloud
     cloud_prompt = (bool(cloud.config()) and not cloud.connected() and not db.kv_get("cloud_prompt") and bool(user_name)
                     and not show_tour)
-    return render_template("dashboard.html", cloud_prompt=cloud_prompt, assess=assess, tour=tour_steps(user_name) if show_tour else None, just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, week=week, weeks=weeks, saved=saved, donut=donut, funnel=funnel, fmax=fmax, ftotal=ftotal,
+    return render_template("dashboard.html", cloud_prompt=cloud_prompt, assess=assess, tour=tour_steps(user_name) if show_tour else None, just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, week=week, weeks=weeks, saved=saved, donut=donut, donuts=donuts, funnel=funnel, fmax=fmax, ftotal=ftotal,
                            today_jobs=today_jobs, by_family=by_family, by_company=by_company, last_run=last_run, counts=counts,
                            today_page=today_page, family_page=family_page, company_page=company_page,
                            applied_total=sum(r["n"] for r in fam_rows))
@@ -742,7 +764,24 @@ def email_assign(eid):
 
 @app.post("/email/<int:eid>/ignore")
 def email_ignore(eid):
-    db.execute("UPDATE email_events SET state='ignored' WHERE id=?", (eid,))
+    from . import mailsync
+    mailsync.reclassify(eid, "not_application")
+    return redirect(request.referrer or url_for("email_page"))
+
+
+@app.post("/email/<int:eid>/type")
+def email_reclassify(eid):
+    """Fix type: what this email really is. The job's status and Needs you follow."""
+    from . import mailsync
+    kind = request.form.get("event", "")
+    row = mailsync.reclassify(eid, kind)
+    if not row:
+        flash("Pick what the email is from the list.")
+    elif kind == "not_application":
+        flash("Hidden: not about a job. Any change it made to the job was reversed.")
+    else:
+        label = EMAIL_EVENTS.get(kind, kind)
+        flash(f"Now marked as {label.lower()}" + (f"; {row.get('company') or 'the job'} is updated." if row.get("state") == "applied" else "."))
     return redirect(request.referrer or url_for("email_page"))
 
 

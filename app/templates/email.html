@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-head spread">
   <div><h1 style="margin-bottom:2px">Email updates</h1>
-    <span class="sub">Application emails read from your inboxes (read-only). Rejections, interviews, and offers update the job automatically; every change can be undone.</span></div>
+    <span class="sub">Application emails read from your inboxes (read-only). Rejections, interviews, assessments, and offers update the job automatically. Wrong type? Fix it and the job follows.</span></div>
   <form method="post" action="{{ url_for('email_check') }}"><button class="btn primary">Check email now</button></form>
 </div>
 
@@ -54,8 +54,17 @@
         <input type="hidden" name="job_id"><input list="assign-jobs" placeholder="Match to a job…" style="min-width:220px;font-size:12px">
         <button class="btn small">Match</button></form>{% endif %}</td>
     <td class="num nowrap">
-      {% if e.state == 'applied' %}<form class="inline" method="post" action="{{ url_for('email_undo', eid=e.id) }}"><button class="btn small" title="Put the job back to its previous status">Undo</button></form>{% endif %}
-      {% if e.state == 'unmatched' %}<form class="inline" method="post" action="{{ url_for('email_ignore', eid=e.id) }}"><button class="btn small ghost">Ignore</button></form>{% endif %}
+      {% if e.event == 'assessment' and e.state != 'ignored' %}
+        {% if e.done_at %}<div class="sub small">✓ {{ 'done' if e.done_how == 'done' else 'dismissed' }} {{ e.done_at|ago }}</div>
+        {% else %}<form class="inline" method="post" action="{{ url_for('assessment_mark', event_id=e.id, how='done') }}"><button class="btn small" title="You finished it: stop the reminders">Done</button></form>{% endif %}
+      {% endif %}
+      <form class="inline fix-type" method="post" action="{{ url_for('email_reclassify', eid=e.id) }}">
+        <select name="event" class="small" aria-label="Fix what this email is" title="Claude got it wrong? Pick what this email really is; the job's status follows.">
+          <option value="" selected disabled>Fix type…</option>
+          {% for k, label in [('confirmation', 'Received'), ('rejection', 'Rejected'), ('assessment', 'Assessment'), ('interview', 'Interview'), ('offer', 'Offer'), ('not_application', 'Not about a job')] %}
+          {% if k != e.event %}<option value="{{ k }}">{{ label }}</option>{% endif %}{% endfor %}
+        </select>
+      </form>
     </td>
   </tr>
   {% else %}
@@ -66,6 +75,7 @@
 </div>
 {{ pager(page, "emails") }}
 <script>
+document.querySelectorAll("form.fix-type select").forEach((s) => s.addEventListener("change", () => s.form.submit()));
 document.querySelectorAll("form.assign").forEach((f) => {
   const shown = f.querySelector("input[list]"), hidden = f.querySelector("input[name=job_id]");
   shown.addEventListener("input", () => {

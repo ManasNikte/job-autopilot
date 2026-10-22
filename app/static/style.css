@@ -687,3 +687,10 @@ html.sb-rail .sb-slide .ic { transform: scaleX(-1); }
   .ud-dl dd { margin-bottom: 6px; }
   .ud-bar { grid-template-columns: 110px 1fr 30px; }
 }
+.fix-type select { font-size: 12px; padding: 3px 6px; max-width: 130px; }
+/* Dashboard: three role-family donuts in one row; Posted today beside the pipeline */
+.donut-row .donut-wrap { flex-direction: column; align-items: stretch; gap: 14px; }
+.donut-row .donut { width: 150px; height: 150px; align-self: center; }
+.donut-row .legend { min-width: 0; }
+.today-row { align-items: start; }
+.today-row #today .jobs-table td.role .meta { white-space: normal; }

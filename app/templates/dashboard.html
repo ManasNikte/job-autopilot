@@ -227,33 +227,25 @@
   </div>
 </div>
 
-<div class="grid g2 charts">
-  <div class="card" id="by-family">
-    <h2 style="margin:0 0 10px">Applied by role family <span class="muted">({{ donut.total }})</span></h2>
-    {% if donut.slices %}
+<div class="grid g3 charts donut-row">
+  {% for dn in donuts %}
+  <div class="card" id="{{ dn.id }}">
+    <h2 style="margin:0 0 10px">{{ dn.title }} <span class="muted">({{ dn.total }})</span></h2>
+    {% if dn.slices %}
     <div class="donut-wrap">
-      <svg class="donut" viewBox="0 0 180 180" role="img" aria-label="Applications by role family">
-        {% for sl in donut.slices %}<path class="slice s{{ sl.slot }}" d="{{ sl.d }}"><title>{{ sl.fam }}: {{ sl.n }} ({{ sl.pct }}%)</title></path>{% endfor %}
-        <text x="90" y="86" text-anchor="middle" class="donut-n">{{ donut.total }}</text>
-        <text x="90" y="104" text-anchor="middle" class="donut-k">applied</text>
+      <svg class="donut" viewBox="0 0 180 180" role="img" aria-label="{{ dn.title }}">
+        {% for sl in dn.slices %}<path class="slice s{{ sl.slot }}" d="{{ sl.d }}"><title>{{ sl.fam }}: {{ sl.n }} ({{ sl.pct }}%)</title></path>{% endfor %}
+        <text x="90" y="86" text-anchor="middle" class="donut-n">{{ dn.total }}</text>
+        <text x="90" y="104" text-anchor="middle" class="donut-k">{{ dn.word[:-1] if dn.total == 1 and dn.word.endswith("s") else dn.word }}</text>
       </svg>
       <ul class="legend">
-        {% for sl in donut.slices %}<li><i class="sw s{{ sl.slot }}"></i><a href="{{ url_for('jobs', status='applied_all') }}">{{ sl.fam }}</a><b>{{ sl.n }}</b><span class="sub">{{ sl.pct }}%</span></li>{% endfor %}
+        {% for sl in dn.slices %}<li><i class="sw s{{ sl.slot }}"></i><a href="{{ dn.link }}">{{ sl.fam }}</a><b>{{ sl.n }}</b><span class="sub">{{ sl.pct }}%</span></li>{% endfor %}
       </ul>
     </div>
-    {% else %}<p class="muted">No applications yet.</p>{% endif %}
+    {% else %}<p class="muted">{{ dn.empty or 'No applications yet.' }}</p>{% endif %}
+    {% if dn.note %}<p class="sub small" style="margin:10px 0 0">{{ dn.note }}</p>{% endif %}
   </div>
-  <div class="card">
-    <h2>Pipeline</h2>
-    {% for f in funnel %}
-    <a class="funnel-row" href="{{ url_for('jobs', status=f.status) }}" title="{{ f.label }}: {{ f.n }}">
-      <span class="lbl">{{ f.label }}</span>
-      <span class="funnel-track"><span class="funnel-fill t{{ f.tone }}" style="width: {{ (f.n / fmax * 100)|round(1) }}%"></span></span>
-      <span class="n">{{ f.n }}<span class="sub"> {{ (f.n / ftotal * 100)|round|int }}%</span></span>
-    </a>
-    {% endfor %}
-    <p class="muted" style="margin:10px 0 0">Filtered out by rules: {{ counts.get('filtered_out', 0) }} · Claude said don't apply: {{ counts.get('rejected', 0) }} · Errors: {{ counts.get('error', 0) }}</p>
-  </div>
+  {% endfor %}
 </div>
 
 <script>
@@ -296,6 +288,7 @@
 })();
 </script>
 
+<div class="grid g2 today-row">
 <div class="card flush" id="today">
   <div class="spread" style="padding:14px 16px 0"><h2 style="margin:0">Posted today <span class="muted">({{ today_page.total }})</span></h2><a href="{{ url_for('jobs', sort='posted') }}">All jobs →</a></div>
   {% if today_jobs %}
@@ -314,6 +307,18 @@
   </table>
   <div style="padding:6px 16px 0">{{ pager(today_page, "jobs") }}</div>
   {% else %}<p class="muted" style="padding:0 16px 16px">Nothing relevant posted today yet. Runs pick up new postings each time.</p>{% endif %}
+</div>
+  <div class="card" id="pipeline">
+    <h2>Pipeline</h2>
+    {% for f in funnel %}
+    <a class="funnel-row" href="{{ url_for('jobs', status=f.status) }}" title="{{ f.label }}: {{ f.n }}">
+      <span class="lbl">{{ f.label }}</span>
+      <span class="funnel-track"><span class="funnel-fill t{{ f.tone }}" style="width: {{ (f.n / fmax * 100)|round(1) }}%"></span></span>
+      <span class="n">{{ f.n }}<span class="sub"> {{ (f.n / ftotal * 100)|round|int }}%</span></span>
+    </a>
+    {% endfor %}
+    <p class="muted" style="margin:10px 0 0">Filtered out by rules: {{ counts.get('filtered_out', 0) }} · Claude said don't apply: {{ counts.get('rejected', 0) }} · Errors: {{ counts.get('error', 0) }}</p>
+  </div>
 </div>
 
 <div class="grid g2">

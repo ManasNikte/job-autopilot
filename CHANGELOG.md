@@ -3,6 +3,12 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.11.4 (2026-10-22)
+- **Fix type instead of Undo and Ignore.** On the Email page, each email has a Fix type menu. If Claude got it wrong (say, an online screening marked as an interview), pick what it really is: received, rejected, assessment, interview, offer, or not about a job. The job's status and Needs you follow. Assessments also get a Done button.
+- **Three role-family donuts in one row:** applied, rejected, and assessments, with each family in the same color on all three. Posted today now sits beside the pipeline.
+- **Apple Mail inboxes are read in full.** A busy university inbox gets more than 600 messages in two weeks, and the first read stopped there, missing older job emails. The limit is now 5,000, and one message Mail can't open no longer stops the rest.
+- **Screening questionnaires are recognized** ("You are invited to our screening process").
+
 ## 3.11.3 (2026-10-22)
 - **Forward job emails to your connected inbox.** An email you forward ("Fwd:") from your own address is now read, for example an assessment that landed in a school or work inbox the app can't reach. Claude reads the original message inside it.
 - **Assessment game invitations are recognized,** such as "invitation to complete" or game-based tests.

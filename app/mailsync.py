@@ -321,10 +321,11 @@ _FIND_INBOX = '''
     end try'''
 
 
-def fetch_applemail(account_name: str, since: datetime, batch: int = 50, cap: int = 600) -> list[dict]:
+def fetch_applemail(account_name: str, since: datetime, batch: int = 50, cap: int = 5000) -> list[dict]:
     """New messages in that account's inbox, newest first, read in batches of `batch` until older than `since`.
     (Mail's message 1 is the newest; asking Mail to search a 100K-message inbox by date times out.)
-    Full text is read only for likely application updates."""
+    The cap is high because a busy university inbox gets well over 600 messages in the first 14-day look-back.
+    Full text is read only for likely application updates; one message Mail can't open doesn't stop the rest."""
     acct = _as_str(account_name)
     out, start, now = [], 1, datetime.now(timezone.utc)
     while start <= cap:
@@ -358,7 +359,8 @@ end timeout''', timeout=330)
             oldest = min(oldest, when)
             if when < since or not likely_application_email(sender, subject):
                 continue
-            body = _osascript(f'''with timeout of 120 seconds
+            try:
+                body = _osascript(f'''with timeout of 120 seconds
   tell application "Mail"{_FIND_INBOX.format(acct=acct)}
     set m to message {idx.strip()} of mb
     if (message id of m) is not "{_as_str(mid.strip())}" then
@@ -367,6 +369,8 @@ end timeout''', timeout=330)
     return content of m
   end tell
 end timeout''', timeout=150)
+            except Exception:
+                body = ""                       # Mail moved or can't open it: Claude still sees sender and subject
             out.append({"account": account_name, "msg_id": f"<{mid.strip()}>", "received_at": when.isoformat(timespec="seconds"),
                         "sender": sender.strip(), "subject": subject.strip(), "body": body.strip()[:6000]})
         if oldest < since or len(recs) < batch:
@@ -384,7 +388,8 @@ ATS_SENDERS = re.compile(r"greenhouse|lever\.co|ashbyhq|myworkday|workday|icims|
 JOB_WORDS = re.compile(r"applica|applying|candidacy|candidate|interview|assessment|coding (challenge|test|exercise)|"
                        r"online test|hackerrank|codesignal|codility|next steps|unfortunately|not (be )?moving forward|"
                        r"regret|position|role\b|offer|thank you for (your )?(interest|applying)|your submission|"
-                       r"invitation to (solve|complete|take)|game[- ]based|pymetrics|recruiting game", re.I)
+                       r"invitation to (solve|complete|take)|game[- ]based|pymetrics|recruiting game|"
+                       r"screening (process|questions|questionnaire)|your screening|invited to (our|the|a) screening", re.I)
 # "Fwd: ..." from one of your own connected addresses: you forwarded it here on purpose (often from a school or
 # work inbox the app can't read), so Claude reads it and decides; job alerts and anything else are still dropped.
 FORWARDED = re.compile(r"^\s*(fwd?|fw)\s*:", re.I)
@@ -552,6 +557,27 @@ def undo(event_id: int) -> bool:
                (db.now(), ev["job_id"], ev["event"]))
     db.execute("UPDATE email_events SET state='undone' WHERE id=?", (event_id,))
     return True
+
+
+EVENT_KINDS = ("confirmation", "rejection", "assessment", "interview", "offer", "not_application")
+
+
+def reclassify(event_id: int, event: str) -> dict | None:
+    """You know better than Claude: set what this email really is. The job's earlier change from it is reversed,
+    then the email is applied again as the new kind (status, Needs you item, due time). "not_application" hides it."""
+    ev = db.fetchone("SELECT * FROM email_events WHERE id=?", (event_id,))
+    if not ev or event not in EVENT_KINDS:
+        return None
+    if ev["state"] == "applied":
+        undo(event_id)
+    if event == "not_application":
+        db.execute("UPDATE email_events SET event=?, state='ignored' WHERE id=?", (event, event_id))
+        return {**ev, "event": event, "state": "ignored"}
+    job = db.get_job(ev["job_id"]) if ev["job_id"] else None
+    db.execute("DELETE FROM email_events WHERE id=?", (event_id,))
+    keep = {k: ev[k] for k in ("account", "msg_id", "received_at", "sender", "subject", "company", "role", "link",
+                               "deadline", "summary")}
+    return apply_event({**keep, "event": event, "body": ev["snippet"] or ""}, job=job)
 
 
 def assign(event_id: int, job_id: str) -> bool:

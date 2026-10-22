@@ -68,3 +68,14 @@ def test_dashboard_renders_the_charts(client):
     html = client.get("/").get_data(as_text=True)
     for marker in ('id="applied-week"', 'id="wk-select"', 'id="time-saved"', 'class="donut"', "Data Engineer", "Time saved"):
         assert marker in html, marker
+
+
+def test_family_donuts_share_colors():
+    from app.web import donut_slices
+    applied = donut_slices([{"fam": "Software Engineer", "n": 13}, {"fam": "Data Analyst", "n": 6}, {"fam": "Data Engineer", "n": 6}])
+    slots = {s["fam"]: s["slot"] for s in applied["slices"]}
+    rejected = donut_slices([{"fam": "Data Engineer", "n": 3}, {"fam": "Quant", "n": 1}], slots=slots)
+    got = {s["fam"]: s["slot"] for s in rejected["slices"]}
+    assert got["Data Engineer"] == slots["Data Engineer"]                    # same family, same color
+    assert got["Other"] == "other" and "Quant" not in got                     # families not on the Applied donut fold into Other
+    assert donut_slices([], slots=slots) == {"total": 0, "slices": []}

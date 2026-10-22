@@ -212,6 +212,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.11.4** | Fix type on emails (replaces Undo/Ignore); applied, rejected, and assessment donuts by role family; Apple Mail inboxes read in full; screening questionnaires recognized |
 | **v3.11.3** | Emails you forward from your own address are read (e.g. from a school inbox); assessment-game invitations recognized; more accurate due dates |
 | **v3.11.2** | An expired Claude sign-in pauses the work and asks you to sign in again, instead of marking every job as an error |
 | **v3.11.1** | The first-run intro became a complete walkthrough of every page (25 steps); the site operator's Users page shows every detail the privacy note allows |

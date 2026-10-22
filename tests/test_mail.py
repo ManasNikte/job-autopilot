@@ -106,3 +106,47 @@ def test_long_tracking_links_dont_push_the_deadline_out_of_view():
     assert "October 28" in text and "[link]" in text
     short = "https://solve.example.com/launcher/?token=abc123"
     assert short in _for_claude(f"Your link: {short}")
+
+
+def test_screening_questionnaires_count_as_job_emails():
+    from app.mailsync import likely_application_email as likely
+    sender = "Acme University <recruiting@careeralerts.example.edu>"
+    assert likely(sender, "Congratulations! You are invited to our screening process", set())
+    assert likely(sender, "Your Screening for Research Analyst has been successfully submitted", set())
+    assert not likely("News <news@example.com>", "Cancer screening tips for the holidays", set())
+
+
+def test_fix_type_moves_the_job_with_it(jobs_db):
+    """Claude called a screening questionnaire an interview: fixing the type puts the job back and adds the assessment."""
+    ev = {"account": "me@school.edu", "msg_id": "<s@x>", "received_at": "2026-10-15T13:26:04+00:00",
+          "sender": "Stripe <recruiting@stripe.com>", "subject": "You are invited to our screening process",
+          "body": "Submit by Oct 22nd, 2026 (11:59 PM EDT). 5 questions.", "event": "interview", "company": "Stripe",
+          "role": "Software Engineer, New Grad", "link": "", "deadline": "", "summary": "Screening questions"}
+    mailsync.apply_event(ev)
+    assert db.get_job("g:1")["status"] == "interviewing"
+    eid = db.fetchone("SELECT id FROM email_events WHERE msg_id='<s@x>'")["id"]
+    row = mailsync.reclassify(eid, "assessment")
+    assert row["state"] == "applied" and db.get_job("g:1")["status"] == "applied"
+    assert not db.fetchone("SELECT 1 FROM interventions WHERE job_id='g:1' AND kind='interview' AND status='open'")
+    assert db.fetchone("SELECT 1 FROM interventions WHERE job_id='g:1' AND kind='assessment' AND status='open'")
+    new = db.fetchone("SELECT * FROM email_events WHERE msg_id='<s@x>'")
+    assert new["event"] == "assessment" and new["due_at"].startswith("2026-10-23")   # 11:59 PM EDT = 03:59 UTC next day
+
+    assert mailsync.reclassify(new["id"], "not_application")["state"] == "ignored"   # not about a job: hidden, change reversed
+    assert db.fetchone("SELECT state FROM email_events WHERE msg_id='<s@x>'")["state"] == "ignored"
+    assert mailsync.reclassify(new["id"], "bogus") is None
+
+
+def test_email_page_has_fix_type_not_undo(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    db.upsert_job({"id": "g:1", "company": "Stripe", "title": "Engineer", "status": "applied"})
+    mailsync.apply_event({"account": "a", "msg_id": "<r@x>", "received_at": "2026-10-18T15:00:00+00:00", "sender": "s",
+                          "subject": "Your application", "body": "", "event": "rejection", "company": "Stripe",
+                          "role": "Engineer", "link": "", "deadline": "", "summary": ""})
+    from app.web import app
+    html = app.test_client().get("/email").get_data(as_text=True)
+    assert "Fix type" in html and ">Undo<" not in html and ">Ignore<" not in html
+    eid = db.fetchone("SELECT id FROM email_events")["id"]
+    r = app.test_client().post(f"/email/{eid}/type", data={"event": "interview"})
+    assert r.status_code == 302 and db.get_job("g:1")["status"] == "interviewing"
