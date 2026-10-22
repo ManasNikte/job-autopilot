@@ -577,6 +577,8 @@ def reclassify(event_id: int, event: str) -> dict | None:
     ev = db.fetchone("SELECT * FROM email_events WHERE id=?", (event_id,))
     if not ev or event not in EVENT_KINDS:
         return None
+    if ev["event"] == "assessment" and event == "rejection":
+        return mark_rejected(event_id)
     if ev["state"] == "applied":
         undo(event_id)
     if event == "not_application":
@@ -587,6 +589,28 @@ def reclassify(event_id: int, event: str) -> dict | None:
     keep = {k: ev[k] for k in ("account", "msg_id", "received_at", "sender", "subject", "company", "role", "link",
                                "deadline", "summary")}
     return apply_event({**keep, "event": event, "body": ev["snippet"] or ""}, job=job)
+
+
+def mark_rejected(event_id: int) -> dict | None:
+    """An assessment and then a rejection: keep the assessment (with its due date and whether you finished it) and
+    record the rejection next to it, so the job closes and the assessment shows a Rejected flag."""
+    ev = db.fetchone("SELECT * FROM email_events WHERE id=?", (event_id,))
+    if not ev:
+        return None
+    mid = f"{ev['msg_id']}#rejected"
+    if not db.fetchone("SELECT 1 FROM email_events WHERE msg_id=?", (mid,)):
+        try:
+            when = (datetime.fromisoformat(ev["received_at"]) + timedelta(seconds=1)).isoformat(timespec="seconds")
+        except (TypeError, ValueError):
+            when = ev["received_at"]
+        job = db.get_job(ev["job_id"]) if ev["job_id"] else None
+        apply_event({"account": ev["account"], "msg_id": mid, "received_at": when, "sender": ev["sender"],
+                     "subject": ev["subject"], "company": ev["company"], "role": ev["role"], "link": "", "deadline": "",
+                     "event": "rejection", "summary": "You marked this application as rejected (from the assessment email).",
+                     "body": ""}, job=job)
+    db.execute("UPDATE interventions SET status='done', resolved_at=? WHERE kind='assessment' AND status='open' AND "
+               "(job_id=? OR (job_id IS NULL AND title LIKE ?))", (db.now(), ev["job_id"], f"Online assessment from {ev['company']} ·%"))
+    return {**ev, "rejected": True}
 
 
 def assign(event_id: int, job_id: str) -> bool:

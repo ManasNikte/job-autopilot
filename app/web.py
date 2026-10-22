@@ -786,7 +786,8 @@ def email_page():
         params += [f"%{q}%"] * 6
     cond = " AND ".join(where)
     page = Page(db.fetchone(f"SELECT count(*) AS n FROM email_events e LEFT JOIN jobs j ON j.id=e.job_id WHERE {cond}", tuple(params))["n"])
-    rows = db.fetchall(f"SELECT e.*, j.company AS job_company, j.title AS job_title, j.status AS job_status FROM email_events e "
+    rows = db.fetchall(f"SELECT e.*, j.company AS job_company, j.title AS job_title, j.status AS job_status, "
+                       "(SELECT 1 FROM email_events x WHERE x.msg_id = e.msg_id || '#rejected') AS marked_rejected FROM email_events e "
                        f"LEFT JOIN jobs j ON j.id=e.job_id WHERE {cond} ORDER BY e.received_at DESC LIMIT ? OFFSET ?",
                        (*params, page.per_page, page.offset))
     counts = {r["event"]: r["n"] for r in db.fetchall("SELECT event, count(*) AS n FROM email_events WHERE state != 'ignored' GROUP BY event")}
@@ -843,6 +844,8 @@ def email_reclassify(eid):
         flash("Pick what the email is from the list.")
     elif kind == "not_application":
         flash("Hidden: not about a job. Any change it made to the job was reversed.")
+    elif row.get("rejected"):
+        flash("Kept as an assessment and flagged Rejected; the job is marked rejected.")
     else:
         label = EMAIL_EVENTS.get(kind, kind)
         flash(f"Now marked as {label.lower()}" + (f"; {row.get('company') or 'the job'} is updated." if row.get("state") == "applied" else "."))

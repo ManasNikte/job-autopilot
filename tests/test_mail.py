@@ -174,3 +174,25 @@ def test_assessments_page_flags_ones_the_company_later_rejected(jobs_db):
     rest = html[i:]
     assert "Stripe" in rest and ">Done<" in rest and ">Rejected<" in rest
     assert ">undone<" not in app.test_client().get("/email").get_data(as_text=True)
+
+
+def test_marking_an_assessment_rejected_keeps_the_assessment(jobs_db):
+    from app.web import app
+    from app import assessments
+    mailsync.apply_event({"account": "a", "msg_id": "<oa2@x>", "received_at": "2026-10-15T18:34:00+00:00", "sender": "s",
+                          "subject": "You are invited to our screening process", "company": "Stripe",
+                          "role": "Software Engineer, New Grad", "link": "", "deadline": "2026-10-30",
+                          "event": "assessment", "summary": "Screening", "body": ""})
+    eid = db.fetchone("SELECT id FROM email_events WHERE msg_id='<oa2@x>'")["id"]
+    assert [a["shown_company"] for a in assessments.pending()] == ["Stripe"]
+    r = app.test_client().post(f"/email/{eid}/type", data={"event": "rejection"})
+    assert r.status_code == 302
+    assert db.fetchone("SELECT event FROM email_events WHERE id=?", (eid,))["event"] == "assessment"   # still an assessment
+    assert db.get_job("g:1")["status"] == "closed"                                                   # job rejected
+    assert assessments.pending() == []                                                               # no more reminders
+    html = app.test_client().get("/assessments").get_data(as_text=True)
+    assert ">Rejected<" in html[html.index("Finished, dismissed, or closed"):]
+    em = app.test_client().get("/email").get_data(as_text=True)
+    assert "Rejected (keeps the assessment)" in em or ">Rejected</span>" in em
+    app.test_client().post(f"/email/{eid}/type", data={"event": "rejection"})                       # twice: no duplicate
+    assert db.count("email_events", "msg_id='<oa2@x>#rejected'") == 1

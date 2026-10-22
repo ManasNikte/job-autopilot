@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.14.2 (2026-10-22)
+- **Rejected after an assessment?** On an assessment email, Fix type → "Rejected (keeps the assessment)" marks the job rejected but keeps the assessment, with its due date and whether you finished it, on the Assessments page with a **Rejected** flag. The Email page shows the same flag next to it.
+
 ## 3.14.1 (2026-10-22)
 - **Assessments from companies that later rejected you stay visible.** The Assessments page lists them under "Finished, dismissed, or closed", flagged **Rejected** (or **Moved forward** after an interview or offer), next to whether you finished them.
 - **Emails from application systems are always read,** even when the subject is only the job title. One Workday rejection had been skipped because of that.
