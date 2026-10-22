@@ -10,6 +10,7 @@ Nothing here runs if the folder isn't a git checkout (for example a downloaded z
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -113,18 +114,32 @@ def _busy() -> str:
     return ""
 
 
-def _resolve_conflicts_keeping_mine() -> list[str]:
-    """After an autostash pop conflict, keep the user's version of each conflicted file."""
+USER_PATHS = ("config/", "profile/")      # your settings and profile: your copy always wins
+
+
+def _resolve_conflicts() -> tuple[list[str], list[str]]:
+    """After the autostash pop conflicts: your settings and profile files keep your version; code files take the
+    update's version (keeping your old copy of a code file would silently drop everything the update changed in
+    it). Your edits to code stay saved in the stash. Returns (kept_yours, took_update)."""
     files = [f for f in _git("diff", "--name-only", "--diff-filter=U").splitlines() if f.strip()]
+    kept, took = [], []
     for f in files:
-        _git("checkout", "--theirs", "--", f)       # in a stash pop, "theirs" is the stashed (user's) version
+        mine = f.startswith(USER_PATHS)
+        # in a stash pop, "ours" is the updated code and "theirs" is your stashed version
+        _git("checkout", "--theirs" if mine else "--ours", "--", f)
         _git("reset", "-q", "--", f)
-    if files:
+        (kept if mine else took).append(f)
+    if files and not took:
         try:
-            _git("stash", "drop")
+            _git("stash", "drop")             # nothing of yours was set aside, so the stash isn't needed
         except RuntimeError:
             pass
-    return files
+    return kept, took
+
+
+def _resolve_conflicts_keeping_mine() -> list[str]:
+    kept, took = _resolve_conflicts()
+    return kept + took
 
 
 # Live progress of an update for the "Updating…" page, which polls /update/progress. `lock` is on from the moment
@@ -157,9 +172,11 @@ def apply(progress=None) -> dict:
             except RuntimeError as e:
                 pull_error = e
             # git reports success even when restoring the user's stashed edits conflicts; always check
-            kept = _resolve_conflicts_keeping_mine()
-            if pull_error and not kept:
+            kept, took = _resolve_conflicts()
+            if pull_error and not (kept or took):
                 raise RuntimeError(f"git pull failed: {pull_error}") from pull_error
+            if took:                              # shown once after the restart, so you know where your edits went
+                db.kv_set("update_set_aside", json.dumps(took))
             after = _git("rev-parse", "HEAD").strip()
             if after == before:
                 STATE.update(behind=0, updating=False)
@@ -227,6 +244,47 @@ def version_before_update() -> str | None:
         return None
 
 
+WIN_TASK = "JobAutopilot Dashboard"
+
+
+def _windows_task_exists() -> bool:
+    try:
+        r = subprocess.run(["schtasks", "/Query", "/TN", WIN_TASK], capture_output=True, timeout=15,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def _windows_restart_script(pid: int, task: bool) -> str:
+    """PowerShell that waits for this process to end, then starts the dashboard again: through its scheduled task
+    when there is one (so Task Scheduler keeps managing it), otherwise as a hidden process."""
+    q = lambda v: "'" + str(v).replace("'", "''") + "'"
+    wait = f"Wait-Process -Id {pid} -Timeout 30 -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; "
+    if task:
+        return wait + f"Start-ScheduledTask -TaskName {q(WIN_TASK)}"
+    flags = ["'-X'", "'utf8'"] if sys.flags.utf8_mode else []
+    args = ",".join(flags + ["'-m'", "'app.cli'", "'serve'"])
+    return wait + f"Start-Process -WindowStyle Hidden -FilePath {q(sys.executable)} -ArgumentList {args} -WorkingDirectory {q(ROOT)}"
+
+
+def _restart_windows() -> None:
+    """os.execv doesn't replace the process on Windows (it starts a new one and the old server keeps answering),
+    so hand the restart to a detached PowerShell and exit."""
+    script = _windows_restart_script(os.getpid(), _windows_task_exists())
+    base = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+    cmd = ["powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script]
+    for flags in (base | 0x01000000, base):          # 0x01000000 = break away from Task Scheduler's job, if allowed
+        try:
+            subprocess.Popen(cmd, creationflags=flags, close_fds=True, cwd=str(ROOT))
+            break
+        except OSError:
+            continue
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
+
+
 def restart_soon(delay: float = 1.5) -> None:
     """Replace this process with a fresh copy of the dashboard (same PID on macOS/Linux, so launchd and
     systemd keep tracking it). Called only after apply() succeeded and nothing was running."""
@@ -235,6 +293,14 @@ def restart_soon(delay: float = 1.5) -> None:
         sys.stdout.flush()
         sys.stderr.flush()
         os.chdir(ROOT)
+        if sys.platform == "win32":
+            try:
+                _restart_windows()
+            except Exception as e:
+                STATE["updating"] = False
+                PROGRESS.update(stage="error", lock=False,
+                                error=f"The update is installed but the app couldn't restart itself ({e}). Restart it to finish.")
+            return
         fd = os.environ.pop("WERKZEUG_SERVER_FD", None)          # don't hand the listening socket to the new copy
         if fd and fd.isdigit():
             try:

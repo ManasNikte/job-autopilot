@@ -46,9 +46,9 @@
   </ol>
   <div class="err" id="err"><b>The update didn't finish.</b> <span id="err-text"></span><br>
     Nothing was lost. <a class="btn" href="/">Back to the dashboard</a></div>
-  <p class="note" id="slow">This is taking longer than usual. If nothing changes in a minute, restart the app (on a Mac:
-    <code>launchctl kickstart -k gui/$(id -u)/com.jobautopilot.dashboard</code>; otherwise see “Updating” in CLAUDE_SETUP.md), then open
-    <a href="/">the dashboard</a>.</p>
+  <p class="note" id="slow">The update is installed, but the app hasn't come back yet. Restart it to finish, then open
+    <a href="/">the dashboard</a>.<br>On a Mac: <code>launchctl kickstart -k gui/$(id -u)/com.jobautopilot.dashboard</code><br>
+    On Windows (PowerShell): <code>Stop-ScheduledTask -TaskName "JobAutopilot Dashboard"; Start-ScheduledTask -TaskName "JobAutopilot Dashboard"</code></p>
 </main>
 <script>
 (function () {
@@ -88,7 +88,7 @@
     if (finished) return;
     var next = { starting: 14, download: 42, install: 78, restart: 97 }[stage] || 97;
     if (shown < next) paint(stage, shown + Math.max(0.15, (next - shown) / 40));
-    if (Date.now() - started > 180000) document.getElementById("slow").style.display = "block";
+    if (Date.now() - started > 75000) document.getElementById("slow").style.display = "block";
   }, 400);
 
   function poll() {

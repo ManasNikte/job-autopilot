@@ -426,6 +426,13 @@ def dashboard():
                    [n for n in notes if n["version"] == VERSION]
             just_updated = {"version": VERSION, "since": since, "sections": mine,
                             "items": [i for n in mine for i in n["items"]]}
+            aside = (db.kv_get("update_set_aside") or {}).get("v")
+            if aside:
+                try:
+                    just_updated["set_aside"] = json.loads(aside)
+                except ValueError:
+                    pass
+                db.kv_set("update_set_aside", "")
         except OSError:
             just_updated = {"version": VERSION, "items": []}
     today = datetime.now().astimezone().date()
@@ -2030,9 +2037,10 @@ def restart_dashboard():
     """Restart this dashboard service (launchd brings it straight back) so 'Jobs at once' takes effect."""
     if sys.platform == "darwin":
         subprocess.Popen(["/bin/bash", "-c", f"sleep 1; launchctl kickstart -k gui/{os.getuid()}/com.jobautopilot.dashboard"])
-        flash("Restarting the dashboard… refresh in a few seconds. Queued work resumes automatically.")
     else:
-        flash("Restart the dashboard from your service manager (see CLAUDE_SETUP.md), or stop and start `python -m app.cli serve`.")
+        from . import updater
+        updater.restart_soon(1.0)                # Windows: through Task Scheduler; Linux: in place (systemd keeps the PID)
+    flash("Restarting the dashboard… refresh in a few seconds. Queued work resumes automatically.")
     return redirect(url_for("settings_page", section="pipeline"))
 
 

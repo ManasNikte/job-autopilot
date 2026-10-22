@@ -3,6 +3,11 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.15.3 (2026-10-23)
+- **Windows: updates finish by themselves.** On Windows the app couldn't restart in place, so the old version kept running and the progress bar waited at 97%. It now restarts through its Task Scheduler task (or as a hidden process if there's no task). If the app still hasn't come back after about a minute, the progress page shows the exact restart command.
+- **Your own edits to the app's code no longer cancel an update's changes.** When an update and your local edit changed the same code file, the updater used to keep your whole old copy, silently dropping everything the update changed in it. Now the update's version goes in place and your edits are saved in git (`git stash show -p`), and the dashboard tells you which files. Your settings and profile files still always keep your version.
+- "Restart the dashboard" in Settings works on Windows and Linux too.
+
 ## 3.15.2 (2026-10-23)
 - **Approve your Chrome extension once.** Only the extension you approve can use Job Autopilot; any other installed extension is refused. The first time yours connects, the dashboard shows a banner with its ID (compare it on `chrome://extensions`) and an Approve button. Until then, the extension says it's waiting for approval.
 - **Extra sign-in emails are invitations now.** On the online dashboard, adding an email under Account does nothing until whoever owns that address signs in and accepts. Then it can see your dashboard and start runs. Your list shows each one as "waiting for them to accept" or "can sign in", and the invited person can also decline. Nobody can add your email and push their jobs into your dashboard anymore.

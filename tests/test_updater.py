@@ -206,3 +206,44 @@ def test_waits_for_a_busy_port_then_gives_up():
     assert _wait_for_port(port, seconds=0.6) is False                       # still held: give up (and exit for a restart)
     s.close()
     assert _wait_for_port(port, seconds=2) is True
+
+
+def test_conflicting_code_file_takes_the_update_and_keeps_your_edits_in_a_stash(repos):
+    """Keeping the user's whole old copy of a code file silently dropped every upstream change to it (a Windows
+    install lost 248 new lines of mailsync.py). Code takes the update; the user's edits stay in the stash."""
+    dev, user = repos
+    (dev / "app" / "mailer.py").write_text("def read():\n    return 'v1'\n", encoding="utf-8")
+    git(dev, "add", "-A"); git(dev, "commit", "-qm", "mailer"); git(dev, "push", "-q", "origin", "main")
+    git(user, "pull", "-q")
+    (user / "app" / "mailer.py").write_text("def read():\n    return 'my outlook reader'\n", encoding="utf-8")   # local edit
+    (user / "config" / "schedule.json").write_text('{"times": ["06:30"]}\n', encoding="utf-8")
+    release(dev, "3.2", ["Better matching."], {"app/mailer.py": "def read():\n    return 'v2 with fix type'\n",
+                                              "config/schedule.json": '{"times": ["09:00"]}\n'})
+    updater.check(force=True)
+    res = updater.apply()
+    assert res["ok"], res
+    assert "v2 with fix type" in (user / "app" / "mailer.py").read_text(encoding="utf-8")     # the update's code
+    assert "06:30" in (user / "config" / "schedule.json").read_text(encoding="utf-8")         # your settings
+    stash = subprocess.run(["git", "-C", str(user), "stash", "show", "-p"], capture_output=True, text=True).stdout
+    assert "my outlook reader" in stash                                                     # your edit, recoverable
+    import json
+    assert json.loads(db.kv_get("update_set_aside")["v"]) == ["app/mailer.py"]
+
+
+def test_windows_restart_goes_through_task_scheduler(monkeypatch):
+    s = updater._windows_restart_script(1234, task=True)
+    assert "Wait-Process -Id 1234" in s and "Start-ScheduledTask -TaskName 'JobAutopilot Dashboard'" in s
+    s = updater._windows_restart_script(1234, task=False)
+    assert "Start-Process -WindowStyle Hidden" in s and "'app.cli'" in s and "'serve'" in s
+    calls = []
+    monkeypatch.setattr(updater.sys, "platform", "win32")
+    monkeypatch.setattr(updater, "_restart_windows", lambda: calls.append("win"))
+    monkeypatch.setattr(updater.os, "execv", lambda *a: calls.append("execv"))
+    monkeypatch.setattr(updater.os, "chdir", lambda *a: None)
+    monkeypatch.setattr(updater.time, "sleep", lambda *a: None)
+    class Now:
+        def __init__(self, target, daemon=None, **k): self.t = target
+        def start(self): self.t()
+    monkeypatch.setattr(updater.threading, "Thread", Now)
+    updater.restart_soon(0)
+    assert calls == ["win"]                                                  # never execv on Windows

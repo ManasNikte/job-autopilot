@@ -534,6 +534,11 @@ settings are gitignored or kept, so nothing personal is lost.
 5. Check http://127.0.0.1:5055/healthz shows the new version (it matches `VERSION` in `app/version.py`), and
    tell the user what changed (the newest section of `CHANGELOG.md`).
 
+- **Local edits to the app's code:** if the user changed a code file (for example a local Outlook reader in
+  `app/mailsync.py`) and an update changes the same file, the in-app updater installs the update's version and saves
+  their edits in `git stash`; the dashboard lists the files. Re-apply them with `git stash show -p` as a guide (better:
+  send the change upstream so it isn't a local patch). Files under `config/` and `profile/` always keep the user's copy.
+
 ### Troubleshooting
 
 | Problem | Fix |

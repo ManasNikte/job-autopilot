@@ -37,6 +37,10 @@
     {% if just_updated["items"] %}<details class="update-notes"><summary>See what's new</summary>
       {% for sec in just_updated.sections or [] %}<h4 class="small">v{{ sec.version }}</h4>
       <ul>{% for item in sec["items"] %}<li>{{ item|mdinline }}</li>{% endfor %}</ul>{% endfor %}</details>{% endif %}</span>
+  {% if just_updated.set_aside %}<span class="sub small" style="flex-basis:100%">Your own changes to
+    {{ just_updated.set_aside|join(', ') }} conflicted with this update, so the update's version is in place. Your changes
+    aren't lost: they're saved in git (in the app folder, <code>git stash list</code> and <code>git stash show -p</code>).
+    Your settings and profile files always keep your version.</span>{% endif %}
   <a class="btn small" href="{{ url_for('dashboard') }}">Dismiss</a>
 </div>
 {% endif %}
