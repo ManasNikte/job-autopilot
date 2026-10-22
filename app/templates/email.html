@@ -18,7 +18,7 @@
   </div>
 </div>
 
-<nav class="tabs" aria-label="Email type">
+<nav class="tabs" aria-label="Email type" data-tour="email-tabs">
   <a href="{{ url_for('email_page', q=q or None) }}" class="tab {{ 'on' if not ev and not state }}">All <span class="count">{{ counts.values()|sum }}</span></a>
   {% for k, label in events.items() %}<a href="{{ url_for('email_page', event=k, q=q or None) }}" class="tab {{ 'on' if ev == k }}">{{ label }} <span class="count">{{ counts.get(k, 0) }}</span></a>{% endfor %}
   <a href="{{ url_for('email_page', state='unmatched', q=q or None) }}" class="tab {{ 'on' if state == 'unmatched' }}">Not matched <span class="count">{{ unmatched }}</span></a>

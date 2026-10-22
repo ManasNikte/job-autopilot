@@ -88,7 +88,7 @@ when the company later invites you to interview, makes an offer, or declines.
 
 **Also in v3.1–v3.4:**
 
-| One-click updates with release notes (v3.1) | A guided tour for new users (v3.3) |
+| One-click updates with release notes (v3.1) | A guided walkthrough of every page for new users (v3.3, v3.11.1) |
 |---|---|
 | ![What's new dialog](docs/screenshots/update-dialog.png) | ![Guided tour](docs/screenshots/tour.png) |
 
@@ -212,6 +212,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.11.1** | The first-run intro became a complete walkthrough of every page (25 steps); the site operator's Users page shows every detail the privacy note allows |
 | **v3.11** | Four ATS-friendly resume templates with previews; empty sections left off and long rows wrapped (no overlaps); an optional, reversible resume-rules upgrade for the master prompt; a How it works page; new charts and pagination on the online dashboard |
 | **v3.10.3** | The day's first run looks back an extra day (and to the last successful run) so overnight postings aren't missed; the log shows each screen's outcome |
 | **v3.10.1** | Windows fixes (dates, time zones, UTF-8, no console pop-ups), "&"/"and" H-1B employer matching, a Windows-tested setup guide |
@@ -300,7 +301,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
   a KPI, a card, Needs you items, map pins, and daily and 3-hours-before reminders.
 - **Phone dashboard and remote runs (v3.0).** Hosted for free on GitHub Pages and Supabase. Secure sign-in with
   emailed codes, and row-level security so each person sees only their own data.
-- **Updates and onboarding (v3.1, v3.3).** In-app updates with release notes and a guided tour for new users.
+- **Updates and onboarding (v3.1, v3.3).** In-app updates with release notes, and a guided walkthrough for new users that visits every page (25 steps).
 - **Application maps.** One map pins every job ready to submit. A second map pins submitted applications,
   with a **Today / All time** switch (today = applied, moved forward, or rejected today) and four toggle chips,
   **Applied**, **Interviewing / offer**, and **Rejected**, to show any mix (double-click a chip for only that

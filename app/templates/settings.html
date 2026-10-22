@@ -5,7 +5,7 @@
   <h1 style="margin-bottom:2px">{{ section_title }}</h1>
   <span class="sub">{{ section_help }}</span>
 </div>
-<nav class="tabs settings-tabs" aria-label="Settings sections">
+<nav class="tabs settings-tabs" aria-label="Settings sections" data-tour="settings-tabs">
   {% for key, label, _ in settings_sections %}<a href="{{ url_for('settings_page', section=key) }}" class="tab {{ 'on' if key == section }}"{% if key == section %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
 </nav>
 <script>
@@ -16,7 +16,7 @@
 
 {% if section == 'schedule' %}
 <div class="grid g2">
-  <div class="card" id="schedule">
+  <div class="card" id="schedule" data-tour="schedule">
     <h2>Daily runs</h2>
     <p class="sub" style="margin-top:0">Each run fetches new postings, has Claude screen them, and builds tailored resume and cover letter PDFs for the good ones. Times are Eastern (your Mac's clock).</p>
     <form method="post" id="sched-form">
@@ -69,7 +69,7 @@
 
 {% endif %}
 {% if section == 'pipeline' %}
-<div class="card" id="pipeline">
+<div class="card" id="pipeline" data-tour="pipeline">
   <h2>Pipeline</h2>
   <form method="post">
     <input type="hidden" name="section" value="pipeline">
@@ -115,7 +115,7 @@
 
 {% endif %}
 {% if section == 'updates' %}
-<div class="card" id="updates">
+<div class="card" id="updates" data-tour="updates">
   <h2>App updates</h2>
   <p style="margin-top:0">You're on <b>v{{ app_version }}</b>{% if upd_state.checked_at %} · checked {{ upd_state.checked_at|ago }}{% endif %}.
     {% if upd_state.behind %}<span class="badge apply">Update available{% if upd_state.remote_version %}: v{{ upd_state.remote_version }}{% endif %}</span>{% elif upd_state.checked_at and not upd_state.error %}<span class="sub">Up to date.</span>{% endif %}</p>
@@ -129,7 +129,7 @@
 
 {% endif %}
 {% if section == 'online' %}
-<div class="card" id="cloud">
+<div class="card" id="cloud" data-tour="online">
   <h2>Online dashboard: check progress from your phone</h2>
   {% if not cloud_cfg %}
     <p class="sub" style="margin-top:0">This copy isn't linked to an online dashboard (no <code>config/cloud.json</code>). See <code>supabase/README.md</code> to host one.</p>
@@ -191,7 +191,7 @@
 
 {% endif %}
 {% if section == 'email' %}
-<div class="card" id="email">
+<div class="card" id="email" data-tour="inboxes">
   <h2>Email: track application replies</h2>
   <p class="sub" style="margin-top:0">Reads your inboxes <b>read-only</b> to find application emails: received, rejected, online assessment, interview, offer. Matching jobs update automatically (see the <a href="{{ url_for('email_page') }}">Email</a> page; every change can be undone). Only emails that look like application updates are sent to Claude to classify. Nothing is ever sent, deleted, or marked as read.</p>
   <div class="grid g2">

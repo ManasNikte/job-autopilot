@@ -1,13 +1,14 @@
-// First-run walkthrough: dims the page, spotlights one part of the dashboard at a time, and explains it.
-// Steps come from the page (#tour-steps JSON). Back / Next / Skip, arrow keys, and Esc. The server remembers
-// when it's finished or skipped (POST /tour/<done|skipped>), so it shows once; Settings can replay it.
+// First-run walkthrough: dims the page, spotlights one part of the app at a time, and explains it. It visits every
+// page: a step's `page` is where it lives, and the tour moves there with ?tour_at=<step> and carries on. Steps come
+// from the dashboard (#tour-steps JSON) or, on other pages, from /tour/steps. Back / Next / Skip, arrow keys, and Esc.
+// The server remembers when it's finished or skipped (POST /tour/<done|skipped>), so it shows once; Settings can replay it.
 (function () {
   const data = document.getElementById("tour-steps");
-  if (!data) return;
-  const steps = JSON.parse(data.textContent);
-  const finishUrl = data.dataset.finish;
+  const at = new URLSearchParams(location.search).get("tour_at");
+  if (!data && at === null) return;
+  const FINISH = "/tour/__how__";
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let i = 0, target = null, openedNav = false;
+  let steps = [], i = 0, target = null, openedNav = false;
 
   const root = document.createElement("div");
   root.className = "tour";
@@ -22,7 +23,19 @@
     "</div>";
   const $ = (s) => root.querySelector(s);
   const card = $(".tour-card"), spot = $(".tour-spot");
-  steps.forEach(() => $(".tour-dots").appendChild(document.createElement("i")));
+
+  function onPage(page) {                                         // "" = any page (e.g. the sidebar search)
+    if (!page) return true;
+    const u = new URL(page, location.href);
+    if (u.pathname !== location.pathname) return false;
+    const here = new URLSearchParams(location.search);
+    return [...u.searchParams].every(([k, v]) => here.get(k) === v) && (u.search || !here.get("status"));
+  }
+  function goTo(n) {
+    const u = new URL(steps[n].page, location.href);
+    u.searchParams.set("tour_at", n);
+    location.href = u.pathname + u.search;
+  }
 
   function visible(el) {
     if (!el) return false;
@@ -64,7 +77,9 @@
   }
 
   function show(n) {
-    i = Math.max(0, Math.min(steps.length - 1, n));
+    n = Math.max(0, Math.min(steps.length - 1, n));
+    if (!onPage(steps[n].page)) { goTo(n); return; }
+    i = n;
     const st = steps[i];
     target = findTarget(st.target);
     if (target) target.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
@@ -86,9 +101,7 @@
     window.removeEventListener("scroll", place, true);
     if (openedNav) document.body.classList.remove("sb-open");
     document.body.classList.remove("touring");
-    try { fetch(finishUrl.replace("__how__", how), { method: "POST", headers: { "X-Requested-With": "tour" } }); } catch (e) { /* offline */ }
-    const st = steps[i];
-    if (how === "done" && st.go) location.href = st.go;
+    try { fetch(FINISH.replace("__how__", how), { method: "POST", headers: { "X-Requested-With": "tour" }, keepalive: true }); } catch (e) { /* offline */ }
   }
 
   function onKey(e) {
@@ -109,14 +122,23 @@
   $(".tour-skip").addEventListener("click", () => end("skipped"));
   $(".tour-block").addEventListener("click", (e) => e.stopPropagation());
 
-  function start() {
+  function start(list, from) {
+    steps = list;
+    if (!steps.length) return;
+    steps.forEach(() => $(".tour-dots").appendChild(document.createElement("i")));
+    if (at !== null) history.replaceState(null, "", location.pathname + location.search.replace(/([?&])tour_at=\d+&?/, "$1").replace(/[?&]$/, "") + location.hash);
     document.body.appendChild(root);
     document.body.classList.add("touring");
     document.addEventListener("keydown", onKey);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
-    show(0);
+    show(from);
   }
-  if (document.readyState === "complete") setTimeout(start, 300);
-  else window.addEventListener("load", () => setTimeout(start, 300));
+  function begin() {
+    const from = Math.max(0, parseInt(at || "0", 10) || 0);
+    if (data) start(JSON.parse(data.textContent), from);
+    else fetch("/tour/steps", { headers: { "X-Requested-With": "tour" } }).then((r) => r.json()).then((l) => start(l, from)).catch(() => {});
+  }
+  if (document.readyState === "complete") setTimeout(begin, 300);
+  else window.addEventListener("load", () => setTimeout(begin, 300));
 })();

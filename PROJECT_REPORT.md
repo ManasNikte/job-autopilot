@@ -139,7 +139,7 @@ the pipeline), plus paged lists of jobs, email updates, and assessments. It can 
 - **Outbound-only computer:** it fetches requests every 30 seconds; nothing on the internet can reach in.
 - **Sleeping Mac:** it can wake every 30 minutes to pick up requests from the phone.
 
-New users get a **guided tour** of the dashboard on first launch, and a **How it works** page explains the six
+New users get a **guided walkthrough** on first launch that visits every page in 25 short steps, and a **How it works** page explains the six
 steps in plain words, along with what the app does and what stays with the candidate. When the maintainer pushes a release, every
 install shows **Update available** with the release notes and updates itself in one click.
 

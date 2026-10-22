@@ -48,6 +48,7 @@
 </footer>
 {% endif %}
 </div>
+{% if request.args.get('tour_at') is not none and not tour %}<script src="{{ url_for('static', filename='tour.js') }}" defer></script>{% endif %}
 <script>
   // Dialogs (data-open / data-close) and forms that show a busy label while submitting.
   document.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => document.getElementById(b.dataset.open).showModal()));

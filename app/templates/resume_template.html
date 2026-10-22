@@ -7,7 +7,7 @@
     tracking systems (ATS) read them cleanly. Your content stays the same; the order and density change.</span>
 </div>
 
-<form method="post" class="tpl-grid">
+<form method="post" class="tpl-grid" data-tour="templates">
   {% for key, t in templates.items() %}
   <label class="tpl-card{{ ' on' if key == current }}">
     <input type="radio" name="template" value="{{ key }}" {{ 'checked' if key == current }}>

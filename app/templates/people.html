@@ -2,7 +2,7 @@
 {% from "_pager.html" import pager %}
 {% block title %}People · Job Autopilot{% endblock %}
 {% block content %}
-<div class="page-head">
+<div class="page-head" data-tour="people">
   <h1>People</h1><span class="sub">{{ page.total }} contact{{ '' if page.total == 1 else 's' }} · referrals are matched to jobs by company</span>
   <span style="margin-left:auto" class="row">
     <a class="btn primary" href="{{ url_for('person_form') }}">+ Add person</a>

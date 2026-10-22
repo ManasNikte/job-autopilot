@@ -7,14 +7,14 @@
   <span class="sub">{{ '{:,}'.format(page.total) }} match{{ '' if page.total == 1 else 'es' }}{% if q %} for “{{ q }}”{% endif %}</span>
 </div>
 
-<nav class="tabs" aria-label="Job status">
+<nav class="tabs" aria-label="Job status" data-tour="job-tabs">
   {% for key, label, _ in tabs %}
   <a href="{{ url_for('jobs', status=key, q=q or None, source=source or None, startup='1' if startup else None, min_match=min_match or None) }}"
      class="tab {{ 'on' if status == key }}">{{ label }} <span class="count">{{ '{:,}'.format(counts[key]) }}</span></a>
   {% endfor %}
 </nav>
 
-<form class="filters" method="get" id="job-filters">
+<form class="filters" method="get" id="job-filters" data-tour="job-filters">
   <input type="hidden" name="status" value="{{ status }}">
   {% if applied in ('today', 'yesterday', '7d', '30d') %}<input type="hidden" name="applied" value="{{ applied }}">
   {% elif applied == 'custom' %}<input type="hidden" name="from" value="{{ d_from }}"><input type="hidden" name="to" value="{{ d_to }}">{% endif %}

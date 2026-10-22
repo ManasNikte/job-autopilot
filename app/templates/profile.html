@@ -6,7 +6,7 @@
   <span class="sub" id="save-state">Last saved {{ modified }}</span>
 </div>
 
-<div class="row" style="margin-bottom:12px">
+<div class="row" style="margin-bottom:12px" data-tour="profile-files">
   {% for key, (label, path, help) in files.items() %}
   <a class="btn {{ 'primary' if key == name }}" href="{{ url_for('profile_page', f=key) }}">{{ label }}</a>
   {% endfor %}

@@ -41,15 +41,33 @@ def test_existing_installs_dont_get_it(client):
     if not db.kv_get("tour") and db.count("runs"):                        # what serve() does at startup
         db.kv_set("tour", "existing")
     assert not has_tour(client)
-    steps = tour_steps("Ava Lee")
-    assert steps[0]["title"].startswith("Welcome to Job Autopilot, Ava") and len(steps) == 12
+    with client.application.test_request_context():
+        steps = tour_steps("Ava Lee")
+    assert steps[0]["title"].startswith("Welcome to Job Autopilot, Ava") and len(steps) >= 20
     assert all(s.get("target", "[data-tour=").startswith("[data-tour=") for s in steps)
+    assert steps[-1]["page"] == "/" and steps[-1]["cta"]                   # ends back on the dashboard
 
 
-def test_every_tour_target_exists_on_the_dashboard(client):
+def test_every_tour_target_exists_on_its_page(client):
+    """The walkthrough visits every page; each step's element must be on the page it opens."""
     from app.web import tour_steps
-    html = client.get("/?tour=1").get_data(as_text=True)
-    for s in tour_steps("Ava"):
-        if s.get("target"):
-            name = s["target"].split('"')[1]
-            assert f'data-tour="{name}"' in html, name
+    pages = {}
+    with client.application.test_request_context():
+        steps = tour_steps("Ava")
+    for st in steps:
+        page = st["page"] or "/"
+        assert client.get(page).status_code == 200, page
+        if st.get("target"):
+            html = pages.setdefault(page, client.get(page + ("&" if "?" in page else "?") + "tour=1").get_data(as_text=True))
+            name = st["target"].split('"')[1]
+            assert f'data-tour="{name}"' in html, (page, name)
+    assert len(pages) >= 12                                                 # it really goes through the app
+
+
+def test_tour_continues_on_other_pages(client):
+    steps = client.get("/tour/steps").get_json()
+    assert steps[0]["title"].startswith("Welcome") and any(s["page"].startswith("/settings/") for s in steps)
+    assert "tour.js" in client.get("/inbox?tour_at=7").get_data(as_text=True)     # carries on mid-walkthrough
+    assert "tour.js" not in client.get("/inbox").get_data(as_text=True)            # and stays out of the way otherwise
+    html = client.get("/?tour_at=3").get_data(as_text=True)
+    assert html.count("tour.js") == 1                                              # never loaded twice on the dashboard

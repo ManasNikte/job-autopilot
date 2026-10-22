@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.11.1 (2026-10-22)
+- **The intro is now a complete walkthrough.** It visits every page in 25 short steps (the dashboard, Needs you, jobs, applied, assessments, email, people, your profile and resume template, sources, each settings page, search, and How it works), moving from page to page on its own. Back, Next, Skip, and the arrow keys work throughout. Already using the app? Replay it from **Settings → Getting started → Replay the tour**.
+
 ## 3.11 (2026-10-22)
 - **Resumes that look right for every profile, automatically.** Empty sections are left off (no bare "Achievements" heading when you have none), and long rows wrap instead of overlapping: the contact line, coursework, skills, and titles or tech stacks that ran into their dates. The checks also ask Claude to shorten any row that doesn't fit on one line.
 - **Pick an ATS-friendly resume template** in Profile → Resume template: Classic (new grads), Projects first, Experience first (2+ years), or Compact (a lot to say). All are one column with standard headings. "Preview with my resume" shows each one with your own content.

@@ -39,7 +39,7 @@
 <div style="margin-top:16px" data-tour="background">{% include "_progress.html" %}</div>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<div class="grid g2" id="maps">
+<div class="grid g2" id="maps" data-tour="maps">
   <div class="card">
     <div class="spread"><h2 style="margin:0">Ready to submit</h2><span class="sub small" id="map-ready-note"></span></div>
     <div class="jmap" id="map-ready" role="img" aria-label="Map of jobs ready to submit"></div>
@@ -194,7 +194,7 @@
 </script>
 
 <div class="grid g2 charts">
-  <div class="card" id="applied-week">
+  <div class="card" id="applied-week" data-tour="week">
     <div class="spread chart-head">
       <div><h2 style="margin:0">Applications this week</h2>
         <div class="sub small" id="wk-sub"></div></div>
@@ -210,7 +210,7 @@
     <script type="application/json" id="wk-data">{{ week|tojson }}</script>
   </div>
 
-  <div class="card saved-card" id="time-saved">
+  <div class="card saved-card" id="time-saved" data-tour="saved">
     <h2 style="margin:0">Time saved</h2>
     <div class="saved-hero"><span class="saved-num">{{ saved.hours }}</span><span class="saved-unit">hours</span>
       <span class="sub">≈ {{ saved.days }} work days you didn't spend reading job descriptions, writing documents, and filling forms</span></div>

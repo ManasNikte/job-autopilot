@@ -1517,38 +1517,83 @@ def set_user_name():
 # ----------------------------------------------------------------------------- first-run tour
 
 def tour_steps(name: str | None) -> list[dict]:
-    """The walkthrough shown once to new users (app/static/tour.js). `target` is a [data-tour] element."""
+    """The walkthrough shown once to new users (app/static/tour.js). It visits every page: `page` is where a step
+    lives (the tour moves there on its own) and `target` is a [data-tour] element on it; no target = a centered card."""
     hi = f", {name.split()[0]}" if name else ""
-    return [
-        {"title": f"Welcome to Job Autopilot{hi} 👋",
-         "text": "A one-minute tour of how it finds jobs, writes your documents, and keeps track of everything. "
-                 "Skip it anytime; you can replay it from Settings."},
-        {"target": '[data-tour="run"]', "title": "Run now",
-         "text": "Finds new postings that match your search, has Claude screen each one against your profile, and writes "
-                 "a tailored one-page resume and cover letter for the good matches. Scheduled runs do this on their own, even while you sleep."},
-        {"target": '[data-tour="kpis"]', "title": "Your numbers at a glance",
-         "text": "New roles today, documents ready to send, jobs waiting for your call, and what you've applied to. Click a tile to see those jobs."},
-        {"target": '[data-tour="background"]', "title": "Watch the work happen",
-         "text": "Live progress while jobs are screened and documents are written, with a time estimate. Nothing to do here."},
-        {"target": '[data-tour="inbox"]', "title": "Needs you: your to-do list",
-         "text": "The few things only you can do: decide on a borderline match, answer a missing fact, or review documents before you submit."},
-        {"target": '[data-tour="jobs"]', "title": "Every job it found",
-         "text": "Filter by status, see match scores, and open a job for its resume, cover letter, and why Claude rated it the way it did."},
-        {"title": "Apply with the Chrome extension",
-         "text": "Open a job's application page and click the Job Autopilot extension: it fills the form from your profile and attaches "
-                 "your documents. You review everything and click Submit yourself. Nothing is ever sent without you."},
-        {"target": '[data-tour="applied"]', "title": "Track what you sent",
-         "text": "Everything you've applied to, filterable by date (today, yesterday, this week), with one click to copy all the links."},
-        {"target": '[data-tour="email"]', "title": "Replies, sorted for you",
-         "text": "Connect your inbox (read-only) and rejections, interviews, assessments, and offers update your jobs automatically."},
-        {"target": '[data-tour="profile"]', "title": "Your profile drives everything",
-         "text": "Your master prompt and form answers. Claude never invents experience, so the more accurate this is, the better your documents."},
-        {"target": '[data-tour="settings"]', "title": "Make it yours",
-         "text": "Run times, minimum pay, how many documents to build at once, email, the phone dashboard, and app updates."},
-        {"title": "You're all set 🚀", "cta": "Let's go",
-         "text": "Click Run now to start your first search. It takes a few minutes and you can watch it on this page. "
-                 "For the whole picture in six steps, open How it works in the sidebar. Replay this tour anytime from Settings."},
+    home, inbox, jobs = url_for("dashboard"), url_for("inbox"), url_for("jobs")
+    S = lambda sec: url_for("settings_page", section=sec)
+    steps = [
+        (home, None, f"Welcome to Job Autopilot{hi} 👋",
+         "A short walk through every page: how it finds jobs, writes your documents, and keeps track of everything. "
+         "It moves from page to page on its own. Skip anytime; you can replay it from Settings."),
+        (home, "run", "Run now",
+         "Finds new postings that match your search, has Claude screen each one against your profile, and writes a tailored "
+         "one-page resume and cover letter for the good matches. Scheduled runs do this on their own, even while you sleep."),
+        (home, "kpis", "Your numbers at a glance",
+         "New roles today, documents ready to send, jobs waiting for your call, what you've applied to, interviews, and "
+         "assessments to finish. Click a tile to see those jobs."),
+        (home, "background", "Watch the work happen",
+         "Live progress while jobs are screened and documents are written. If you get close to your Claude usage limit, "
+         "background work pauses on its own and picks up after the reset."),
+        (home, "week", "Your week, day by day",
+         "Applications for each day from Sunday to Saturday. Use the arrows or the menu to look at earlier weeks."),
+        (home, "saved", "Time saved",
+         "An estimate of the hours you didn't spend reading job descriptions, writing documents, filling forms, and sorting emails."),
+        (home, "maps", "Where your applications are",
+         "One map shows jobs ready to submit; the other shows what you've applied to, with interviews, rejections, and "
+         "assessments. Click a pin to see its jobs."),
+        (inbox, "needs", "Needs you: your to-do list",
+         "The few things only you can do: ask for a referral, decide on a borderline match, answer a fact only you know, "
+         "or review documents before you submit. Answer once and it's remembered."),
+        (jobs, "job-tabs", "Every job it found",
+         "Tabs sort jobs by where they are: ready to submit, in progress, below your threshold, or skipped and why. "
+         "Open a job for its resume, cover letter, match score, and Claude's reasons."),
+        (jobs, "job-filters", "Find anything",
+         "Search by company or title, and filter by source, match score, or when you applied."),
+        (jobs, None, "Apply with the Chrome extension",
+         "Open a job's application page and click the Job Autopilot extension: it fills the form from your profile and attaches "
+         "your documents. You review everything and click Submit yourself. Nothing is ever sent without you."),
+        (url_for("jobs", status="applied_all"), "job-tabs", "Track what you sent",
+         "Everything you've applied to, filterable by date (today, yesterday, this week), with one click to copy all the links."),
+        (url_for("assessments_page"), "assess", "Online assessments",
+         "Assessments from your inbox, with their exact due times, a reminder every morning, and another 3 hours before each one is due."),
+        (url_for("email_page"), "email-tabs", "Replies, sorted for you",
+         "Once your inbox is connected (read-only), rejections, interviews, assessments, and offers update your jobs on their own."),
+        (url_for("people"), "people", "People and referrals",
+         "Add people you know. When a job is at their company, Needs you suggests asking them for a referral, with the message already written."),
+        (url_for("profile_page"), "profile-files", "Your profile drives everything",
+         "Your master prompt (who you are and how to write about you), confirmed facts, and form presets. Claude never "
+         "invents experience, so the more accurate this is, the better your documents. Earlier versions are kept."),
+        (url_for("resume_template_page"), "templates", "Pick a resume template",
+         "Four ATS-friendly layouts. Preview each one with your own resume, then pick the one that suits your profile."),
+        (url_for("sources_page"), "sources", "Where jobs come from",
+         "About 4,000 company job boards and job feeds, plus the USCIS H-1B sponsor data that decides which companies are worth a look."),
+        (S("schedule"), "schedule", "When it runs",
+         "Set your daily run times. The computer can wake itself up for a run, so it works overnight."),
+        (S("pipeline"), "pipeline", "How picky it is",
+         "Your match threshold for building documents, minimum pay, how many jobs to handle per run, and how much Claude effort to use."),
+        (S("email"), "inboxes", "Connect your email",
+         "Gmail, Outlook, or Apple Mail, read-only. This is what keeps your jobs and assessments up to date."),
+        (S("online"), "online", "Check in from your phone",
+         "The optional online dashboard shows your progress on any phone or tablet and can start a run on this computer."),
+        ("", "search", "Search the app",
+         "Press ⌘K (Ctrl+K on Windows) to jump to any page or a single setting, such as \"minimum pay\" or \"Gmail\"."),
+        (url_for("how_it_works"), "how", "The whole picture",
+         "This page explains the six steps in plain words, with answers to common questions. It's always in the sidebar."),
     ]
+    out = [{"page": page, "title": title, "text": text, **({"target": f'[data-tour="{t}"]'} if t else {})}
+           for page, t, title, text in steps]
+    out.append({"page": home, "title": "You're all set 🚀", "cta": "Let's go",
+                "text": "Click Run now to start your first search. It takes a few minutes and you can watch it here. "
+                        "Replay this tour anytime from Settings → Getting started."})
+    return out
+
+
+@app.get("/tour/steps")
+def tour_steps_api():
+    """The steps for tour.js when the walkthrough continues on another page."""
+    from . import greeting
+    return jsonify(tour_steps(greeting.user_name()))
 
 
 @app.route("/how-it-works")
