@@ -31,6 +31,13 @@
   {% if q %}<a class="btn ghost" href="{{ url_for('email_page', event=ev or None, state=state or None) }}">Clear</a>{% endif %}
 </form>
 
+{% if state == 'unmatched' and unmatched %}
+<div class="card spread rematch">
+  <div><b>{{ unmatched }} email{{ '' if unmatched == 1 else 's' }} not matched to a job.</b>
+    <div class="sub small">New emails are matched from their whole text automatically: the sender, the company and job title anywhere in the email, and the requisition number. These are left for you, usually because you applied outside the app. Match one below, or mark it "Not about a job".</div></div>
+  <form method="post" action="/email/rematch" data-busy="Matching…"><button class="btn small" type="submit">Try matching again</button></form>
+</div>
+{% endif %}
 {% if jobs_for_assign %}<datalist id="assign-jobs">{% for j in jobs_for_assign %}<option value="{{ j.company }} · {{ j.title }}" data-id="{{ j.id }}"></option>{% endfor %}</datalist>{% endif %}
 {% if focus %}<div class="flash">Showing one email. <a href="{{ url_for('email_page') }}">See all email updates →</a></div>{% endif %}
 <div class="card flush">

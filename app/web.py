@@ -834,6 +834,20 @@ def email_ignore(eid):
     return redirect(request.referrer or url_for("email_page"))
 
 
+@app.post("/email/rematch")
+def email_rematch():
+    """Try every unmatched email again from its whole text, in the background."""
+    from . import mailsync
+    def run():
+        try:
+            mailsync.rematch_unmatched(lambda m: print(m, flush=True))
+        except Exception as e:
+            print(f"re-matching: {e}", flush=True)
+    threading.Thread(target=run, daemon=True, name="rematch").start()
+    flash("Matching unmatched emails from their full text in the background. Refresh in a minute to see what's left.")
+    return redirect(request.referrer or url_for("email_page", state="unmatched"))
+
+
 @app.post("/email/<int:eid>/type")
 def email_reclassify(eid):
     """Fix type: what this email really is. The job's status and Needs you follow."""

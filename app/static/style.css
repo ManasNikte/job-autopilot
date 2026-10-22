@@ -746,3 +746,4 @@ html.sb-rail .sb-slide .ic { transform: scaleX(-1); }
 @media (max-width: 600px) { .help-chat { right: 10px; bottom: 10px; } .help-fab span { display: none; } .help-fab { padding: 12px; }
   .help-panel { height: calc(100vh - 80px); } }
 @media print { .help-chat { display: none; } }
+.rematch { gap: 16px; align-items: center; }
