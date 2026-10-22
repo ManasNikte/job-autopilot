@@ -1546,6 +1546,16 @@ def _vtuple(v: str | None) -> tuple:
     return tuple(int(x) for x in re.findall(r"\d+", v or ""))
 
 
+def _as_iso(v) -> str | None:
+    """A time from a computer's snapshot as ISO text: some send a Unix timestamp (the usage-limit pause)."""
+    if v in (None, "", 0):
+        return None
+    try:
+        return datetime.fromtimestamp(float(v), timezone.utc).isoformat(timespec="minutes")
+    except (TypeError, ValueError):
+        return str(v)
+
+
 def user_detail(r: dict) -> dict:
     """Everything the operator may see for one person, totalled across their computers (counts only)."""
     from .version import VERSION
@@ -1591,7 +1601,7 @@ def user_detail(r: dict) -> dict:
         "last_run": max(runs, key=lambda x: x["started_at"]) if runs else None,
         "next_run": nexts[0] if nexts else None,
         "queued": sum(_num(m.get("queued")) for m in machines),
-        "paused_until": next((m["paused_until"] for m in machines if m.get("paused_until")), None),
+        "paused_until": _as_iso(next((m["paused_until"] for m in machines if m.get("paused_until")), None)),
         "machines": machines,
     }
 
@@ -1605,10 +1615,23 @@ def users_page():
         abort(404)
     for r in rows:
         r["active"] = (r.get("applied_14d") or 0) > 0
-        r["detail"] = user_detail(r)
+        r["detail"] = d = user_detail(r)
+        r["display"] = r.get("name") or (r.get("email") or "?").split("@")[0]
+        r["initials"] = "".join(p[0] for p in r["display"].split()[:2]).upper() or "?"
+        r["status"] = "active" if r["active"] else ("inactive" if r.get("computers") else "setup")
+        versions = [m.get("app_version") for m in d["machines"] if m.get("app_version")]
+        r["version"] = max(versions, key=_vtuple) if versions else None
+        r["outdated"] = any(m.get("outdated") for m in d["machines"])
+        old_v = [m.get("app_version") for m in d["machines"] if m.get("outdated") and m.get("app_version")]
+        r["old_version"] = min(old_v, key=_vtuple) if old_v else None
+    order = {"active": 0, "inactive": 1, "setup": 2}
+    rows.sort(key=lambda r: (order[r["status"]], -(r.get("applied_week") or 0), -(r.get("applied_total") or 0)))
     stats = {"users": len(rows), "active": sum(r["active"] for r in rows),
-             "week": sum(r.get("applied_week") or 0 for r in rows)}
-    return render_template("users.html", rows=rows, stats=stats)
+             "setup": sum(r["status"] == "setup" for r in rows), "outdated": sum(r["outdated"] for r in rows),
+             "week": sum(r.get("applied_week") or 0 for r in rows), "total": sum(r.get("applied_total") or 0 for r in rows)}
+    nudge = [r for r in rows if r["status"] == "setup" or r["outdated"]]
+    from .version import VERSION
+    return render_template("users.html", rows=rows, stats=stats, nudge=nudge, latest=VERSION)
 
 
 @app.post("/cloud/poll")
@@ -2105,13 +2128,32 @@ def _release_inherited_socket(port: int) -> None:
     s.detach()
 
 
+def _wait_for_port(port: int, seconds: float = 20) -> bool:
+    """Right after a restart the previous copy can still hold the port for a moment. Wait for it to free up."""
+    import socket
+    import time as _t
+    end = _t.time() + seconds
+    while True:
+        s = socket.socket()
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind(("127.0.0.1", port))
+            return True
+        except OSError:
+            if _t.time() > end:
+                return False
+            _t.sleep(0.5)
+        finally:
+            s.close()
+
+
 def serve() -> None:
     import faulthandler
     import logging
     import signal
-    _release_inherited_socket(int(env("PORT", "5055") or 5055))
     if hasattr(signal, "SIGUSR1"):                 # macOS / Linux only
         faulthandler.register(signal.SIGUSR1, all_threads=True)   # `kill -USR1 <pid>` writes every thread's stack to the log
+    _release_inherited_socket(int(env("PORT", "5055") or 5055))
     logging.getLogger("werkzeug").addFilter(_QuietPolling())
     db.init()
     db.recover_interrupted()
@@ -2136,5 +2178,14 @@ def serve() -> None:
     if n:
         print(f"Resumed {n} job(s) waiting for documents.")
     port = int(env("PORT", "5055") or 5055)
-    print(f"Job Autopilot running at http://127.0.0.1:{port}")
-    app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
+    if not _wait_for_port(port):
+        print(f"Port {port} is still busy; exiting so the service manager starts the dashboard again shortly.", flush=True)
+        os._exit(1)
+    print(f"Job Autopilot running at http://127.0.0.1:{port}", flush=True)
+    try:
+        app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
+    except (OSError, SystemExit) as e:
+        # The web server couldn't start (or stopped); background threads would keep a dead dashboard "running",
+        # so exit for real and let launchd / Task Scheduler / systemd bring it back.
+        print(f"The dashboard's web server stopped ({e}); exiting so it restarts.", flush=True)
+        os._exit(1)

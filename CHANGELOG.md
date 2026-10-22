@@ -3,6 +3,10 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.14.4 (2026-10-22)
+- **The dashboard restarts more reliably.** If the previous copy is still letting go of its port, the new one waits up to 20 seconds. If it still can't start its web server, it exits so the system starts it again, instead of hanging as "running" with nothing to show.
+- For the site operator: a redesigned Users page, with five summary tiles (including not set up and behind on updates), a "Needs a nudge" list with email buttons, filters, search, sortable columns, a 14-day mini chart and app version per person, and details that open in place.
+
 ## 3.14.3 (2026-10-22)
 - **Emails are matched to jobs from their whole text,** not just the company name Claude picked out. That means the sender's address, the company and job title anywhere in the email, and the requisition number from the job's link. When a few jobs are plausible, Claude reads the email and picks one only if the role really matches. If you applied to a job the app had held or skipped, the job moves to Applied. Emails it still can't place stay in **Not matched** for you.
 - **Try matching again** on Email → Not matched re-checks every unmatched email against its full text.

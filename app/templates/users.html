@@ -3,36 +3,68 @@
 {% block content %}
 <div class="page-head">
   <h1 style="margin-bottom:2px">Users</h1>
-  <span class="sub">Everyone on your online dashboard. Only you see this page (site operator). Open "All details" under a person for everything the privacy note lets you see. Which companies people apply to stays private to them.</span>
+  <span class="sub">Everyone on your online dashboard. Only you see this page. Click a person for everything the privacy note lets you see; which companies they apply to stays private to them.</span>
 </div>
 
-<div class="grid kpis kpis-3">
-  <div class="tile"><div class="v">{{ stats.users }}</div><div class="k">Users</div></div>
-  <div class="tile"><div class="v">{{ stats.active }}</div><div class="k">Active (applied in the last 14 days)</div></div>
-  <div class="tile"><div class="v">{{ stats.week }}</div><div class="k">Applications this week, everyone</div></div>
+<div class="grid kpis kpis-5 u-kpis">
+  <button type="button" class="tile u-filter-tile" data-f="all"><div class="v">{{ stats.users }}</div><div class="k">Users</div></button>
+  <button type="button" class="tile u-filter-tile" data-f="active"><div class="v">{{ stats.active }}</div><div class="k">Active · applied in 14 days</div></button>
+  <button type="button" class="tile u-filter-tile{{ ' warn' if stats.setup }}" data-f="setup"><div class="v">{{ stats.setup }}</div><div class="k">Not set up yet</div></button>
+  <button type="button" class="tile u-filter-tile{{ ' warn' if stats.outdated }}" data-f="outdated"><div class="v">{{ stats.outdated }}</div><div class="k">Behind v{{ latest }}</div></button>
+  <div class="tile"><div class="v">{{ stats.week }}</div><div class="k">Applications this week · {{ stats.total }} all time</div></div>
 </div>
 
-<div class="card">
+{% if nudge %}
+<div class="card u-nudge">
+  <h2>Needs a nudge</h2>
+  <ul>
+    {% for r in nudge %}
+    <li><span class="u-av sm">{{ r.initials }}</span><b>{{ r.display }}</b>
+      <span class="sub">{% if r.status == 'setup' %}signed up {{ r.joined|ago }} but hasn't connected a computer{% else %}a computer is on v{{ r.old_version }}, behind v{{ latest }}{% endif %}</span>
+      <a class="btn small" href="mailto:{{ r.email }}?subject={{ ('Finishing your Job Autopilot setup' if r.status == 'setup' else 'Update Job Autopilot')|urlencode }}">Email</a></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="card flush">
   {% if rows %}
-  <table class="jobs-table users-table">
-    <thead><tr><th>Person</th><th>Location</th><th class="num">This week</th><th class="num">Last 14 days</th><th class="num">All time</th><th>Status</th><th>Last seen</th></tr></thead>
+  <div class="u-bar">
+    <div class="seg u-chips" role="group" aria-label="Show">
+      <button type="button" data-f="all" class="on">All <span>{{ stats.users }}</span></button>
+      <button type="button" data-f="active">Active <span>{{ stats.active }}</span></button>
+      <button type="button" data-f="inactive">Inactive <span>{{ stats.users - stats.active - stats.setup }}</span></button>
+      <button type="button" data-f="setup">Not set up <span>{{ stats.setup }}</span></button>
+      {% if stats.outdated %}<button type="button" data-f="outdated">Behind <span>{{ stats.outdated }}</span></button>{% endif %}
+    </div>
+    <input type="search" id="u-q" placeholder="Search name, email, or city" aria-label="Search users">
+  </div>
+  <table class="jobs-table u-table" id="u-table">
+    <thead><tr>
+      <th data-sort="name">Person</th><th data-sort="status">Status</th><th data-sort="week" class="num">This week</th>
+      <th class="u-spark-h">Last 14 days</th><th data-sort="total" class="num">All time</th><th data-sort="version">Version</th>
+      <th data-sort="city">Location</th><th data-sort="seen">Last seen</th></tr></thead>
     {% for r in rows %}
-    <tr>
-      <td class="role"><b>{{ r.name or r.email.split('@')[0] }}</b><div class="meta">{{ r.email }} · joined {{ r.joined|ago }}</div></td>
+    {% set d = r.detail %}
+    <tbody class="u-person" data-status="{{ r.status }}" data-outdated="{{ 1 if r.outdated else 0 }}"
+           data-name="{{ r.display|lower }}" data-q="{{ (r.display ~ ' ' ~ r.email ~ ' ' ~ (r.city or ''))|lower }}"
+           data-week="{{ r.applied_week or 0 }}" data-total="{{ r.applied_total or 0 }}" data-version="{{ r.old_version or r.version or '' }}"
+           data-city="{{ (r.city or '~')|lower }}" data-seen="{{ r.last_seen or '' }}" data-order="{{ loop.index }}">
+    <tr class="u-row" tabindex="0" aria-expanded="false" aria-controls="u-d{{ loop.index }}">
+      <td class="u-who"><span class="u-caret" aria-hidden="true">›</span><span class="u-av">{{ r.initials }}</span>
+        <span><b>{{ r.display }}</b><span class="meta">{{ r.email }} · joined {{ r.joined|ago }}</span></span></td>
+      <td data-label="Status">{% if r.status == 'active' %}<span class="badge apply">Active</span>{% elif r.status == 'inactive' %}<span class="badge">Inactive</span>{% else %}<span class="badge risk">Not set up</span>{% endif %}</td>
+      <td class="num u-big" data-label="This week">{{ r.applied_week or 0 }}</td>
+      <td class="u-spark-c" data-label="Last 14 days">{% if d.series %}<span class="u-spark" title="{{ r.applied_14d or 0 }} in the last 14 days">{% for e in d.series %}<i style="height:{{ [e.h, 6 if e.n else 2]|max }}%" title="{{ e.label }}: {{ e.n }}"></i>{% endfor %}</span>{% else %}<span class="muted small">—</span>{% endif %}</td>
+      <td class="num" data-label="All time">{{ r.applied_total or 0 }}</td>
+      <td data-label="Version">{% if r.version %}v{{ r.old_version or r.version }}{% if r.outdated %} <span class="badge risk" title="A computer is behind v{{ latest }}">old</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
       <td data-label="Location">{% if r.city %}{{ r.city }}{% else %}<span class="muted">Not shared</span>{% endif %}</td>
-      <td class="num" data-label="This week">{{ r.applied_week }}</td>
-      <td class="num" data-label="Last 14 days">{{ r.applied_14d }}</td>
-      <td class="num" data-label="All time">{{ r.applied_total }}</td>
-      <td data-label="Status">{% if r.active %}<span class="badge apply">Active</span>{% elif r.computers %}<span class="badge">Inactive</span>{% else %}<span class="badge">No computer connected</span>{% endif %}</td>
       <td class="sub small nowrap" data-label="Last seen">{{ r.last_seen|ago if r.last_seen else '—' }}</td>
     </tr>
-    {% set d = r.detail %}
-    <tr class="ud-row"><td colspan="7">
-      <details class="ud">
-        <summary>All details for {{ r.name or r.email.split('@')[0] }}</summary>
-        {% if r.machines is not defined or r.machines is none %}
-        <p class="sub small">Your Supabase database has the older version of this view. Run <code>supabase/schema.sql</code> again in the Supabase SQL editor (it's safe to re-run) to see every detail here.</p>
-        {% else %}
+    <tr class="u-detail" id="u-d{{ loop.index }}" hidden><td colspan="8">
+      {% if r.machines is not defined or r.machines is none %}
+      <p class="sub small">Your Supabase database has the older version of this view. Run <code>supabase/schema.sql</code> again in the Supabase SQL editor (it's safe to re-run) to see every detail here.</p>
+      {% else %}
         <div class="ud-grid">
           <section class="ud-box">
             <h3>Account</h3>
@@ -100,15 +132,56 @@
           </table>
           {% else %}<p class="muted small">No computer connected yet: the account exists, but setup on their computer isn't finished.</p>{% endif %}
         </section>
-        {% endif %}
-        <p class="sub small">This is everything the privacy note says you can see. Companies, job titles, links, and their emails stay on their computer and aren't in the database view you have.</p>
-      </details>
+      {% endif %}
     </td></tr>
+    </tbody>
     {% endfor %}
   </table>
+  <p class="muted u-empty" id="u-empty" hidden>Nobody matches.</p>
   {% else %}
-  <p class="muted">No confirmed accounts yet.</p>
+  <p class="muted" style="padding:16px">No confirmed accounts yet.</p>
   {% endif %}
-  <p class="sub small" style="margin-top:12px">Active: applied to at least one job in the last 14 days. Location is the city each person chose in their Settings (blank keeps it private). Updated whenever their computer syncs.</p>
 </div>
+<p class="sub small">Active: applied to at least one job in the last 14 days. Location is the city each person chose in their Settings (blank keeps it private). Updated whenever their computer syncs. Companies, job titles, links, and email content stay on their computers.</p>
+
+<script>
+(() => {
+  const table = document.getElementById("u-table"); if (!table) return;
+  const people = [...table.querySelectorAll("tbody.u-person")], q = document.getElementById("u-q");
+  let filter = "all";
+  function apply() {
+    const term = (q.value || "").trim().toLowerCase(); let shown = 0;
+    people.forEach((p) => {
+      const ok = (filter === "all" || (filter === "outdated" ? p.dataset.outdated === "1" : p.dataset.status === filter))
+                 && (!term || p.dataset.q.includes(term));
+      p.hidden = !ok; if (ok) shown++;
+    });
+    document.getElementById("u-empty").hidden = shown > 0;
+    document.querySelectorAll(".u-chips button").forEach((b) => b.classList.toggle("on", b.dataset.f === filter));
+    document.querySelectorAll(".u-filter-tile").forEach((b) => b.classList.toggle("on", b.dataset.f === filter && filter !== "all"));
+  }
+  document.querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", () => { filter = b.dataset.f; apply(); }));
+  q.addEventListener("input", apply);
+  function toggle(row) {
+    const d = document.getElementById(row.getAttribute("aria-controls")), open = d.hidden;
+    d.hidden = !open; row.setAttribute("aria-expanded", String(open)); row.parentElement.classList.toggle("open", open);
+  }
+  table.querySelectorAll(".u-row").forEach((row) => {
+    row.addEventListener("click", (e) => { if (!e.target.closest("a, button")) toggle(row); });
+    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(row); } });
+  });
+  let sortKey = null, dir = 1;
+  const num = (k) => ["week", "total"].includes(k), rank = { active: 0, inactive: 1, setup: 2 };
+  const vkey = (v) => (v || "0").split(".").map((x) => x.padStart(4, "0")).join(".");
+  table.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
+    const k = th.dataset.sort; dir = sortKey === k ? -dir : (num(k) || k === "seen" || k === "version" ? -1 : 1); sortKey = k;
+    const val = (p) => k === "status" ? rank[p.dataset.status] : num(k) ? +p.dataset[k] : k === "version" ? vkey(p.dataset.version) : (p.dataset[k] || "");
+    people.sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : a.dataset.order - b.dataset.order) * dir)
+          .forEach((p) => table.appendChild(p));
+    table.querySelectorAll("th[data-sort]").forEach((h) => h.removeAttribute("aria-sort"));
+    th.setAttribute("aria-sort", dir > 0 ? "ascending" : "descending");
+  }));
+  if (people.length === 1) toggle(people[0].querySelector(".u-row"));
+})();
+</script>
 {% endblock %}

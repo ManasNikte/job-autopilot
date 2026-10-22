@@ -235,7 +235,9 @@ def test_users_page_shows_every_detail_the_privacy_note_allows(tmp_path, monkeyp
                  "behind v", "Data Analyst", "Hours saved", "Items in Needs you", "Ready to submit",
                  "setup on their computer isn"):
         assert text in html, text
-    assert html.count("behind v") == 1                                      # only the older computer is flagged
+    assert html.count('class="badge">behind v') == 1                        # only the older computer is flagged
+    assert "a computer is on v3.9, behind v" in html                         # the nudge names the old version
+    assert 'data-status="setup"' in html and "Not set up yet" in html
     assert ">30</td>" in html.replace(" ", "") or ">30<" in html             # family counts add up across computers
     assert ">6</b><span>Ready to submit" in html                             # 3 + 3 across both computers
 

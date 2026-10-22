@@ -197,3 +197,12 @@ def test_restart_releases_the_inherited_listening_socket(monkeypatch):
     monkeypatch.setenv("WERKZEUG_SERVER_FD", str(r))
     _release_inherited_socket(port)
     os.fstat(r); os.close(r); os.close(w)
+
+
+def test_waits_for_a_busy_port_then_gives_up():
+    import socket
+    from app.web import _wait_for_port
+    s = socket.socket(); s.bind(("127.0.0.1", 0)); s.listen(); port = s.getsockname()[1]
+    assert _wait_for_port(port, seconds=0.6) is False                       # still held: give up (and exit for a restart)
+    s.close()
+    assert _wait_for_port(port, seconds=2) is True
