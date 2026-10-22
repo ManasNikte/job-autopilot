@@ -161,7 +161,7 @@ def answer(question: str, history: list[dict] | None = None) -> str:
         role = "User" if h.get("role") == "user" else "Assistant"
         turns.append(f"{role}: {str(h.get('text', ''))[:1500]}")
     user = (f"<install_state>\n{json.dumps(state(), default=str, indent=1)[:12000]}\n</install_state>\n\n"
-            + (f"<conversation>\n" + "\n".join(turns) + "\n</conversation>\n\n" if turns else "")
+            + ("<conversation>\n" + "\n".join(turns) + "\n</conversation>\n\n" if turns else "")
             + f"Question: {question}")
     res = llm.structured(system=SYSTEM + "\n\n" + knowledge(), user=user, schema=obj(answer=S),
                          model=env("MODEL_HELP", env("MODEL_SCREEN", "claude-opus-5-5")), effort="low",
