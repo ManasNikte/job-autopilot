@@ -216,7 +216,15 @@ def inject():
     from .version import VERSION
     op = cloud.STATUS.get("operator") if request.endpoint == "dashboard" else None
     upd = updater.STATE if updater.update_available() else None
-    return {"open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "operator_nav": bool(cloud.STATUS.get("operator")), "settings_nav": SETTINGS_SECTIONS, "nav_index": nav_index(bool(cloud.STATUS.get("operator"))), "app_update": upd, "app_version": VERSION, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
+    ext_request = None
+    try:
+        from .ext_api import paired_extensions
+        pend = json.loads((db.kv_get("ext_pending") or {}).get("v") or "null")
+        if pend and pend.get("id") not in paired_extensions():
+            ext_request = pend
+    except Exception:
+        ext_request = None
+    return {"ext_request": ext_request, "open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "operator_nav": bool(cloud.STATUS.get("operator")), "settings_nav": SETTINGS_SECTIONS, "nav_index": nav_index(bool(cloud.STATUS.get("operator"))), "app_update": upd, "app_version": VERSION, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
 
 
 def _followups() -> None:
@@ -873,6 +881,24 @@ def email_ignore(eid):
     return redirect(request.referrer or url_for("email_page"))
 
 
+@app.post("/extension/<how>")
+def extension_pairing(how):
+    """Approve (or refuse) the Chrome extension that asked to connect."""
+    from .ext_api import paired_extensions
+    pend = json.loads((db.kv_get("ext_pending") or {}).get("v") or "null") or {}
+    ext = request.form.get("id", "")
+    if not ext or ext != pend.get("id") or how not in ("approve", "dismiss"):
+        abort(400)
+    if how == "approve":
+        ids = paired_extensions() | {ext}
+        db.kv_set("ext_paired", json.dumps(sorted(ids)))
+        flash("Extension approved. Reopen it on the application page.")
+    else:
+        flash("Okay, that extension stays blocked.")
+    db.kv_set("ext_pending", "null")
+    return redirect(request.referrer or url_for("dashboard"))
+
+
 @app.post("/email/rematch")
 def email_rematch():
     """Try every unmatched email again from its whole text, in the background."""
@@ -1471,8 +1497,12 @@ def _same_origin_posts():
     if request.method != "POST":
         return None
     origin = request.headers.get("Origin") or ""
-    if not origin or origin.startswith("chrome-extension://"):
+    if not origin:
         return None
+    if origin.startswith("chrome-extension://"):
+        if request.path.startswith("/api/ext/"):
+            return None                          # the extension API checks that it's the extension you approved
+        abort(403)
     from urllib.parse import urlparse
     host = urlparse(origin).netloc
     if host in (request.host, f"127.0.0.1:{request.host.split(':')[-1]}", f"localhost:{request.host.split(':')[-1]}"):
@@ -1816,6 +1846,9 @@ WHATS_NEW = {
               "Hover or tap for every family's count that day."),
              (None, None, "Updates install together",
               "When several updates are waiting, one click installs all of them, then this tour shows what's new.")],
+    "3.15.2": [(None, None, "Approve your Chrome extension",
+                "For safety, only the Chrome extension you approve can use Job Autopilot now. The next time you click "
+                "it, a banner at the top asks you to approve it; compare the ID with chrome://extensions.")],
     "3.15": [("/interviews", "interviews", "Interviews and offers",
               "Every interview you've had stays here, even after a rejection (flagged Rejected). Offers are flagged and "
               "listed on top. On the Email page, Fix type on an interview keeps it when you mark it Rejected or Offer.")],

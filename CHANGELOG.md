@@ -3,6 +3,10 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.15.2 (2026-10-23)
+- **Approve your Chrome extension once.** Only the extension you approve can use Job Autopilot; any other installed extension is refused. The first time yours connects, the dashboard shows a banner with its ID (compare it on `chrome://extensions`) and an Approve button. Until then, the extension says it's waiting for approval.
+- **Extra sign-in emails are invitations now.** On the online dashboard, adding an email under Account does nothing until whoever owns that address signs in and accepts. Then it can see your dashboard and start runs. Your list shows each one as "waiting for them to accept" or "can sign in", and the invited person can also decline. Nobody can add your email and push their jobs into your dashboard anymore.
+
 ## 3.15.1 (2026-10-23)
 A full review of the app, with fixes:
 - **Security:** the dashboard only answers requests addressed to this computer, so a website can't use a DNS trick to read your data or press buttons. Links taken from emails are only shown if they're ordinary web links. Help-chat links and map labels can't carry hidden code.

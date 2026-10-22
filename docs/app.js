@@ -125,6 +125,7 @@
     sel.hidden = machines.length < 2;
     $("#no-machine").hidden = machines.length > 0; $("#dash-body").hidden = machines.length === 0;
     me = session.user;
+    loadInvites();
     loadAliases();
     $("#form-alias").addEventListener("submit", addAlias);
     $("#leave-shared").onclick = leaveShared;
@@ -353,17 +354,39 @@
   }
 
   // ---- extra sign-in emails (account_emails): mine to manage, or shared with me to leave
+  // Invitations to see someone else's dashboard: nothing is shared until you accept.
+  async function loadInvites() {
+    const box = $("#invites"); box.replaceChildren();
+    const { data, error } = await sb.rpc("my_invitations");
+    if (error) return;
+    (data || []).filter((i) => !i.accepted).forEach((i) => {
+      const card = el("div", "card invite");
+      const who = i.owner_name ? `${i.owner_name} (${i.owner_email})` : i.owner_email;
+      card.append(el("h2", null, "Invitation to a shared dashboard"),
+        el("p", null, `${who} added this email so it can sign in to their Job Autopilot dashboard: see their progress and start runs on their computer.`),
+        el("p", "sub small", "Accept only if you know this person and asked for it (for example, it's your own second email)."));
+      const row = el("div", "row"), yes = el("button", "btn primary small", "Accept"), no = el("button", "btn small", "Decline");
+      yes.type = no.type = "button";
+      yes.onclick = async () => { yes.disabled = no.disabled = true; await sb.rpc("accept_invitation", { owner: i.owner_id }); location.reload(); };
+      no.onclick = async () => { yes.disabled = no.disabled = true;
+        await sb.from("account_emails").delete().eq("owner_id", i.owner_id).eq("email", (me.email || "").toLowerCase()); loadInvites(); };
+      row.append(yes, no); card.appendChild(row); box.appendChild(card);
+    });
+  }
+
   async function loadAliases() {
-    const { data } = await sb.from("account_emails").select("owner_id,email,created_at").order("created_at");
+    const { data } = await sb.from("account_emails").select("owner_id,email,created_at,accepted_at").order("created_at");
     const rows = data || [];
     const mine = rows.filter((r) => r.owner_id === me.id);
-    $("#shared-with-me").hidden = !rows.some((r) => r.owner_id !== me.id);
+    $("#shared-with-me").hidden = !rows.some((r) => r.owner_id !== me.id && r.accepted_at);
     const box = $("#aliases"); box.replaceChildren();
     if (!mine.length) box.appendChild(el("p", "sub small", "None yet."));
     mine.forEach((r) => {
       const row = el("div", "job"); const btn = el("button", "btn small", "Remove"); btn.type = "button";
       btn.onclick = async () => { btn.disabled = true; await sb.from("account_emails").delete().eq("owner_id", me.id).eq("email", r.email); loadAliases(); };
-      row.append(el("div", null, r.email), btn); box.appendChild(row);
+      const label = el("div", null, r.email);
+      label.appendChild(el("span", "sub small", r.accepted_at ? " · can sign in" : " · waiting for them to accept"));
+      row.append(label, btn); box.appendChild(row);
     });
   }
 
@@ -374,7 +397,7 @@
     if (email === (me.email || "").toLowerCase()) { msg.textContent = "That's the email you're signed in with."; return; }
     const { error } = await sb.from("account_emails").insert({ owner_id: me.id, email });
     msg.textContent = error ? (error.code === "23505" ? "Already added." : error.message.includes("at most") ? "You can add up to 5 emails." : "Couldn't add it. Try again.")
-      : `Added. Now create an account with ${email} on this site (or sign in, if it already has one).`;
+      : `Invitation added. Sign in on this site with ${email} (create an account for it first, if needed) and accept it there.`;
     if (!error) f.reset();
     loadAliases();
   }

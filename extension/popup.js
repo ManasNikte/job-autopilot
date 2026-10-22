@@ -5,7 +5,8 @@ const send = (msg) => new Promise((res) => chrome.runtime.sendMessage(msg, (r) =
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const ping = await send({ type: "ping" });
   if (ping.error) {
-    $("server").textContent = "The Job Autopilot app isn't running. Start it with: python -m app.cli serve";
+    $("server").textContent = /approve/i.test(ping.error) ? ping.error
+      : "The Job Autopilot app isn't running. Start it with: python -m app.cli serve";
     $("server").className = "bad";
     return;
   }

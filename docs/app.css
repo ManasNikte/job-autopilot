@@ -145,3 +145,4 @@ code { font-size: 13px; background: var(--surface-2); padding: 1px 5px; border-r
 .table-view summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .table-view table { width: 100%; font-size: 13px; margin-top: 6px; } .table-view .num { text-align: right; }
 .m0 { margin: 0; }
+.invite { border-color: var(--accent, #2a78d6); } .invite .row { display: flex; gap: 8px; margin-top: 8px; }

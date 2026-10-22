@@ -453,7 +453,9 @@ Tell the user:
 1. Open `chrome://extensions` in Chrome and turn on **Developer mode** (top right).
 2. Click **Load unpacked** and choose the `extension` folder inside the project (give them the full path).
 3. Pin **Job Autopilot** from the puzzle-piece menu.
-4. Open applications from a job's **Open application** button on the dashboard, then click **Autofill** in
+4. Click the extension once. The dashboard then shows **"A Chrome extension wants to connect"** with the extension's
+   ID: approve it (the ID matches the one on `chrome://extensions`). Only an approved extension can use the app.
+5. Open applications from a job's **Open application** button on the dashboard, then click **Autofill** in
    the side panel. It fills the form; the user always presses Submit.
 
 ### Step 11: Optional extras

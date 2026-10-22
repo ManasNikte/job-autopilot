@@ -6,6 +6,7 @@ websites cannot read these responses even though the server listens on 127.0.0.1
 """
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -20,11 +21,30 @@ bp = Blueprint("ext", __name__, url_prefix="/api/ext")
 VERSION = "1.0.0"
 
 
+def paired_extensions() -> set[str]:
+    raw = (db.kv_get("ext_paired") or {}).get("v") or "[]"
+    try:
+        return set(json.loads(raw))
+    except ValueError:
+        return set()
+
+
+def extension_id(origin: str) -> str:
+    return origin[len("chrome-extension://"):].strip("/").lower() if origin.startswith("chrome-extension://") else ""
+
+
 @bp.before_request
 def only_the_extension():
     origin = request.headers.get("Origin", "")
     if request.headers.get("X-Autopilot") != "1" or (origin and not origin.startswith("chrome-extension://")):
         abort(403)
+    ext = extension_id(origin)
+    if ext and ext not in paired_extensions():
+        # A Chrome extension we haven't seen: ask you on the dashboard before it can read or fill anything.
+        # (Any installed extension can reach 127.0.0.1; only the one you approve gets in.)
+        db.kv_set("ext_pending", json.dumps({"id": ext, "at": db.now()}))
+        return jsonify({"error": "Approve this extension in your Job Autopilot dashboard: open it and click "
+                                 "\"Approve\" on the banner at the top.", "pair": True}), 403
 
 
 STATUS_TEXT = {

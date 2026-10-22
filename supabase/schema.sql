@@ -107,8 +107,9 @@ create policy "own profile" on public.profiles for all
 
 -- ---------------------------------------------------------------- extra sign-in emails
 -- An owner can let other email addresses sign in to the same dashboard (for example a personal and a
--- university address). Each address is its own confirmed account with its own password; it sees the
--- owner's data and can send requests to the owner's computers, but can't connect computers or add emails.
+-- university address). Each address is its own confirmed account with its own password. Adding an email is an
+-- invitation: it does nothing until that person signs in and accepts (accepted_at). Then it sees the owner's
+-- data and can send requests to the owner's computers, but can't connect computers or add emails.
 create table if not exists public.account_emails (
   owner_id uuid not null references auth.users(id) on delete cascade,
   email text not null check (email = lower(email) and char_length(email) between 3 and 254 and email like '%_@_%'),
@@ -116,15 +117,67 @@ create table if not exists public.account_emails (
   primary key (owner_id, email)
 );
 alter table public.account_emails enable row level security;
+alter table public.account_emails add column if not exists accepted_at timestamptz;
+-- Emails added before invitations existed keep working (they were set up by the same people); fixed cutoff, so
+-- running this file again changes nothing.
+do $$ begin
+  perform set_config('app.accepting', 'on', true);
+  update public.account_emails set accepted_at = created_at
+    where accepted_at is null and created_at < timestamptz '2026-10-23 16:00+00';
+end $$;
 
--- Owners whose data the signed-in user may see: themselves, plus anyone who added their confirmed email.
+-- Only the invited person can accept: owners can't insert or flip accepted_at themselves.
+create or replace function public.account_email_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then
+    new.accepted_at := null;
+  elsif new.accepted_at is distinct from old.accepted_at and coalesce(current_setting('app.accepting', true), '') <> 'on' then
+    raise exception 'only the invited person can accept';
+  end if;
+  return new;
+end $$;
+drop trigger if exists account_email_guard on public.account_emails;
+create trigger account_email_guard before insert or update on public.account_emails
+  for each row execute function public.account_email_guard();
+
+-- Invitations for the signed-in email, with who sent them (names and emails of owners aren't otherwise readable).
+create or replace function public.my_invitations() returns table (owner_id uuid, owner_name text, owner_email text,
+  invited_at timestamptz, accepted boolean)
+language sql stable security definer set search_path = public as $$
+  select a.owner_id, p.display_name, o.email, a.created_at, a.accepted_at is not null
+  from public.account_emails a
+  join auth.users me on me.id = auth.uid() and me.email_confirmed_at is not null
+  join auth.users o on o.id = a.owner_id
+  left join public.profiles p on p.id = a.owner_id
+  where a.email = lower(me.email) and a.owner_id <> auth.uid()
+$$;
+revoke all on function public.my_invitations() from public, anon;
+grant execute on function public.my_invitations() to authenticated;
+
+create or replace function public.accept_invitation(owner uuid) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  perform set_config('app.accepting', 'on', true);
+  update public.account_emails a set accepted_at = now()
+  from auth.users me
+  where me.id = auth.uid() and me.email_confirmed_at is not null
+    and a.owner_id = owner and a.email = lower(me.email) and a.accepted_at is null;
+  get diagnostics n = row_count;
+  return n > 0;
+end $$;
+revoke all on function public.accept_invitation(uuid) from public, anon;
+grant execute on function public.accept_invitation(uuid) to authenticated;
+
+-- Owners whose data the signed-in user may see: themselves, plus anyone whose invitation they accepted.
 create or replace function public.viewable_owner_ids() returns setof uuid
 language sql stable security definer set search_path = public as $$
   select auth.uid()
   union
   select a.owner_id from public.account_emails a
   join auth.users u on u.id = auth.uid() and u.email_confirmed_at is not null   -- only a confirmed address
-  where a.email = lower(u.email) and a.owner_id <> auth.uid()
+  where a.email = lower(u.email) and a.owner_id <> auth.uid() and a.accepted_at is not null
 $$;
 revoke all on function public.viewable_owner_ids() from public, anon;
 grant execute on function public.viewable_owner_ids() to authenticated;
@@ -266,7 +319,7 @@ begin
     'users', (select count(*) from auth.users u
               where u.email_confirmed_at is not null
                 and not (exists (select 1 from public.account_emails a
-                                     where a.email = lower(u.email) and a.owner_id <> u.id)
+                                     where a.email = lower(u.email) and a.owner_id <> u.id and a.accepted_at is not null)
                          and not exists (select 1 from public.machines m where m.user_id = u.id))),
     -- active: applied to at least one job in the last 14 days
     'active', (select count(distinct s.user_id) from public.snapshots s
@@ -320,7 +373,7 @@ begin
              where m.user_id = u.id) as machines
     from auth.users u left join public.profiles p on p.id = u.id
     where u.email_confirmed_at is not null
-      and not (exists (select 1 from public.account_emails a where a.email = lower(u.email) and a.owner_id <> u.id)
+      and not (exists (select 1 from public.account_emails a where a.email = lower(u.email) and a.owner_id <> u.id and a.accepted_at is not null)
                     and not exists (select 1 from public.machines m where m.user_id = u.id))
   ) x), '[]'::jsonb);
 end $$;

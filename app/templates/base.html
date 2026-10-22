@@ -34,6 +34,17 @@
 </header>
 <main>
   {% with msgs = get_flashed_messages() %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endwith %}
+  {% if ext_request %}
+  <div class="update-banner ext-banner" role="alert">
+    <span class="grow"><b>A Chrome extension wants to connect to Job Autopilot.</b>
+      <span class="sub">Approve it only if you just installed or reloaded the Job Autopilot extension. Its ID, which you can compare on
+        <code>chrome://extensions</code>: <code>{{ ext_request.id }}</code></span></span>
+    <span class="update-actions">
+      <form class="inline" method="post" action="{{ url_for('extension_pairing', how='dismiss') }}"><input type="hidden" name="id" value="{{ ext_request.id }}"><button class="btn small" type="submit">Not mine</button></form>
+      <form class="inline" method="post" action="{{ url_for('extension_pairing', how='approve') }}"><input type="hidden" name="id" value="{{ ext_request.id }}"><button class="btn primary small" type="submit">Approve</button></form>
+    </span>
+  </div>
+  {% endif %}
   {% block content %}{% endblock %}
 </main>
 {% if credits.author %}

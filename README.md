@@ -224,6 +224,8 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.15.2** | Only the Chrome extension you approve can use the app; extra sign-in emails on the online dashboard need the other person to accept |
+| **v3.15.1** | Fixes from a full review: security (DNS rebinding, email links), email matching and sync reliability, background work, updates |
 | **v3.15** | An Interviews page: every interview stays, flagged Rejected or Offer; offers on top; the dashboard counts interviews ever |
 | **v3.14** | Updates run in the background with a progress bar and open the new version by themselves; fixes the "Internal Server Error" during updates |
 | **v3.13** | A Help chat on every page that answers from the latest docs and diagnoses problems from the app's current state |
@@ -507,7 +509,9 @@ Open http://127.0.0.1:5055. The first time, it asks what to call you. Then click
 
 1. Open `chrome://extensions` and turn on **Developer mode**.
 2. Click **Load unpacked** and choose the `extension/` folder.
-3. Open an application from a job's **Open application** button, then click **Autofill** in the side panel.
+3. Click the extension once, then click **Approve** on the dashboard's "A Chrome extension wants to connect" banner
+   (its ID matches the one on `chrome://extensions`). Only the extension you approve can use the app.
+4. Open an application from a job's **Open application** button, then click **Autofill** in the side panel.
 
 The extension only talks to your local app (`127.0.0.1:5055`).
 
