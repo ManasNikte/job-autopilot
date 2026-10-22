@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.14.5 (2026-10-22)
+- For the site operator: "This week" on the Users page now counts Sunday to Saturday on each person's computer, matching their dashboard. It was the last 7 days before.
+
 ## 3.14.4 (2026-10-22)
 - **The dashboard restarts more reliably.** If the previous copy is still letting go of its port, the new one waits up to 20 seconds. If it still can't start its web server, it exits so the system starts it again, instead of hanging as "running" with nothing to show.
 - For the site operator: a redesigned Users page, with five summary tiles (including not set up and behind on updates), a "Needs a nudge" list with email buttons, filters, search, sortable columns, a 14-day mini chart and app version per person, and details that open in place.

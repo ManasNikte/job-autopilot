@@ -216,7 +216,7 @@ def test_users_page_shows_every_detail_the_privacy_note_allows(tmp_path, monkeyp
         "name": name, "platform": "windows", "app_version": ver, "city": "Austin, TX",
         "last_seen": "2026-10-22T01:00:00+00:00", "connected": "2026-10-10T00:00:00+00:00", "synced": "2026-10-22T01:00:00+00:00",
         "kpis": {"applied_today": 2, "ready": 3, "decide": 1, "interviewing": 1, "rejected": 4, "assessments": 1,
-                 "applied_total": applied, "posted_today": 9},
+                 "applied_total": applied, "posted_today": 9, "applied_week": 3},
         "pipeline": {"ready": 3, "applied": applied, "closed": 4},
         "series": [{"day": "2026-10-21", "n": 2}, {"day": "2026-10-22", "n": 5}],
         "families": [{"fam": "Data Analyst", "n": applied, "pct": 100}],
@@ -235,6 +235,7 @@ def test_users_page_shows_every_detail_the_privacy_note_allows(tmp_path, monkeyp
                  "behind v", "Data Analyst", "Hours saved", "Items in Needs you", "Ready to submit",
                  "setup on their computer isn"):
         assert text in html, text
+    assert 'data-week="6"' in html                                           # Sunday-Saturday, 3 + 3 (not the 7-day 8)
     assert html.count('class="badge">behind v') == 1                        # only the older computer is flagged
     assert "a computer is on v3.9, behind v" in html                         # the nudge names the old version
     assert 'data-status="setup"' in html and "Not set up yet" in html

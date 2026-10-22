@@ -1614,6 +1614,11 @@ def users_page():
     if rows is None:
         abort(404)
     for r in rows:
+        # This week = Sunday to Saturday on each person's computer (its own count), not the last 7 days. Computers
+        # on versions too old to send it keep the database's 7-day figure.
+        weeks = [(m.get("kpis") or {}).get("applied_week") for m in (r.get("machines") or []) if isinstance(m, dict)]
+        if any(w is not None for w in weeks):
+            r["applied_week"] = sum(int(w or 0) for w in weeks)
         r["active"] = (r.get("applied_14d") or 0) > 0
         r["detail"] = d = user_detail(r)
         r["display"] = r.get("name") or (r.get("email") or "?").split("@")[0]
