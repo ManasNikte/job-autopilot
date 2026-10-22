@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Interviews · Job Autopilot{% endblock %}
+{% block content %}
+<div class="page-head" data-tour="interviews">
+  <h1 style="margin-bottom:2px">Interviews and offers</h1>
+  <span class="sub">Every interview you've had, from your inbox and from jobs you marked Interviewing. An interview stays here even after a rejection (flagged Rejected); an offer is flagged Offer and listed on top.</span>
+</div>
+
+<div class="grid kpis kpis-4">
+  <div class="tile"><div class="v">{{ counts.interviews }}</div><div class="k">Interviews</div></div>
+  <div class="tile"><div class="v">{{ counts.open }}</div><div class="k">Still in progress</div></div>
+  <div class="tile"><div class="v">{{ counts.offers }}</div><div class="k">Offers</div></div>
+  <div class="tile"><div class="v">{{ counts.rejected }}</div><div class="k">Rejected after interviewing</div></div>
+</div>
+
+{% macro rows(list) %}
+<table class="jobs-table">
+  <thead><tr><th>Company</th><th>First interview</th><th>Status</th><th></th></tr></thead>
+  {% for i in list %}
+  <tr>
+    <td class="role">{% if i.job_id %}<a class="title" href="{{ url_for('job_detail', job_id=i.job_id) }}">{{ i.company }}</a>{% else %}<b>{{ i.company or 'Unknown company' }}</b>{% endif %}
+      {% if i.role %}<div class="meta">{{ i.role }}{% if not i.job_id %} · applied outside the app{% endif %}</div>{% endif %}</td>
+    <td class="sub small nowrap" data-label="First interview">{{ i.first_at|local if i.first_at else '—' }}</td>
+    <td data-label="Status"><span class="badge apply">Interview</span>
+      {% if i.offer %}<span class="badge apply" title="Offer{% if i.offer_at %} {{ i.offer_at|local }}{% endif %}">🎉 Offer</span>
+      {% elif i.rejected %}<span class="badge no" title="Rejected{% if i.rejected_at %} {{ i.rejected_at|local }}{% endif %}">Rejected</span>
+      {% else %}<span class="sub small">in progress</span>{% endif %}</td>
+    <td class="num nowrap">{% if i.link %}<a class="btn small" href="{{ i.link }}" target="_blank" rel="noopener noreferrer">Open link ↗</a> {% endif %}
+      {% if i.email_id %}<a class="btn small" href="{{ url_for('email_page', id=i.email_id) }}">See the email</a>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endmacro %}
+
+{% if offers %}
+<div class="card flush"><h2 style="padding:14px 16px 0">Offers 🎉</h2>{{ rows(offers) }}</div>
+{% endif %}
+<div class="card flush">
+  <h2 style="padding:14px 16px 0">All interviews</h2>
+  {% if items %}{{ rows(items) }}
+  {% else %}<p class="muted" style="padding:0 16px 16px">No interviews yet. Interview invites from your inbox show up here on their own, and so do jobs you mark Interviewing.</p>{% endif %}
+</div>
+{% endblock %}

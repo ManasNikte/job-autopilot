@@ -3,6 +3,12 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.15 (2026-10-22)
+- **Interviews are kept for good.** A new Interviews page (sidebar, under Jobs) lists every interview you've had, from your inbox and from jobs you marked Interviewing, including applications you sent outside the app. An interview that later ends in a rejection stays, flagged **Rejected**. An offer is flagged **Offer** and listed on top.
+- The dashboard tile now counts **interviews ever**, with how many became offers or were rejected. Before, it dropped an interview once that job was rejected.
+- On the Email page, interview emails show the same flags. Fix type on an interview → Rejected or Offer keeps the interview and records the outcome.
+- The phone dashboard and the site operator's Users page count interviews and offers ever, too.
+
 ## 3.14.5 (2026-10-22)
 - For the site operator: "This week" on the Users page now counts Sunday to Saturday on each person's computer, matching their dashboard. It was the last 7 days before.
 

@@ -161,7 +161,8 @@
     $("#hello-text").textContent = d.greeting?.text || "";
     const k = d.kpis || {};
     const tiles = [["Applied today", k.applied_today], ["Applied this week", k.applied_week], ["Applied, all time", k.applied_total], ["Ready to submit", k.ready],
-                   ["Interviewing / offers", k.interviewing], ["Waiting on your call", k.decide], ["Rejected", k.rejected],
+                   [k.interviews != null ? (k.offers ? `Interviews · ${k.offers} offer${k.offers === 1 ? "" : "s"}` : "Interviews") : "Interviewing / offers",
+                    k.interviews != null ? k.interviews : k.interviewing], ["Waiting on your call", k.decide], ["Rejected", k.rejected],
                    ["Assessments to finish", k.assessments]];
     const box = $("#kpis"); box.replaceChildren();
     tiles.forEach(([label, v]) => { const t = el("div", "tile"); t.append(el("div", "v", String(v ?? 0)), el("div", "k", label)); box.appendChild(t); });

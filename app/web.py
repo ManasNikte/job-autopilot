@@ -132,6 +132,7 @@ def nav_index(operator: bool = False) -> list[dict]:
         ("Filtered out", "Jobs", url_for("jobs", status="filtered_out"), "rules prefilter dropped"),
         ("Applied", "Jobs", url_for("jobs", status="applied_all"), "submitted applications copy links date today yesterday week"),
         ("Assessments", "Jobs", url_for("assessments_page"), "online assessment oa test hackerrank codesignal due deadline reminder"),
+        ("Interviews and offers", "Jobs", url_for("interviews_page"), "interview recruiter call onsite offer rejected after interview"),
         ("Email", "Inbox & network", url_for("email_page"), "inbox replies messages"),
         ("Email: assessments", "Email", url_for("email_page", event="assessment"), "oa test"),
         ("Email: interviews", "Email", url_for("email_page", event="interview"), "recruiter call schedule"),
@@ -401,6 +402,8 @@ def dashboard():
         "applied_total": applied_total,
         "interviewing": counts.get("interviewing", 0) + counts.get("offer", 0),
     }
+    from . import interviews
+    kpis.update({f"iv_{k}": v for k, v in interviews.counts().items()})
     from . import assessments
     assess = assessments.pending()
     for a in assess:
@@ -787,7 +790,8 @@ def email_page():
     cond = " AND ".join(where)
     page = Page(db.fetchone(f"SELECT count(*) AS n FROM email_events e LEFT JOIN jobs j ON j.id=e.job_id WHERE {cond}", tuple(params))["n"])
     rows = db.fetchall(f"SELECT e.*, j.company AS job_company, j.title AS job_title, j.status AS job_status, "
-                       "(SELECT 1 FROM email_events x WHERE x.msg_id = e.msg_id || '#rejected') AS marked_rejected FROM email_events e "
+                       "(SELECT 1 FROM email_events x WHERE x.msg_id = e.msg_id || '#rejected') AS marked_rejected, "
+                       "(SELECT 1 FROM email_events x WHERE x.msg_id = e.msg_id || '#offer') AS marked_offer FROM email_events e "
                        f"LEFT JOIN jobs j ON j.id=e.job_id WHERE {cond} ORDER BY e.received_at DESC LIMIT ? OFFSET ?",
                        (*params, page.per_page, page.offset))
     counts = {r["event"]: r["n"] for r in db.fetchall("SELECT event, count(*) AS n FROM email_events WHERE state != 'ignored' GROUP BY event")}
@@ -859,7 +863,9 @@ def email_reclassify(eid):
     elif kind == "not_application":
         flash("Hidden: not about a job. Any change it made to the job was reversed.")
     elif row.get("rejected"):
-        flash("Kept as an assessment and flagged Rejected; the job is marked rejected.")
+        flash(f"Kept as {'an interview' if row.get('event') == 'interview' else 'an assessment'} and flagged Rejected; the job is marked rejected.")
+    elif row.get("offer"):
+        flash("Kept as an interview and flagged Offer 🎉; the job is marked as an offer.")
     else:
         label = EMAIL_EVENTS.get(kind, kind)
         flash(f"Now marked as {label.lower()}" + (f"; {row.get('company') or 'the job'} is updated." if row.get("state") == "applied" else "."))
@@ -1589,7 +1595,8 @@ def user_detail(r: dict) -> dict:
         "tiles": [("Applied today", k.get("applied_today", 0)), ("This week", r.get("applied_week") or 0),
                   ("Last 14 days", r.get("applied_14d") or 0), ("All time", r.get("applied_total") or 0),
                   ("Ready to submit", k.get("ready", 0)), ("Waiting on their call", k.get("decide", 0)),
-                  ("Interviewing / offers", k.get("interviewing", 0)), ("Rejected", k.get("rejected", 0)),
+                  ("Interviews (ever)", k.get("interviews", k.get("interviewing", 0))), ("Offers", k.get("offers", 0)),
+                  ("Rejected", k.get("rejected", 0)),
                   ("Assessments to finish", k.get("assessments", 0)),
                   ("Items in Needs you", sum(_num(m.get("open_items")) for m in machines)),
                   ("New roles today", k.get("posted_today", 0)), ("Hours saved", round(hours))],
@@ -1763,6 +1770,9 @@ WHATS_NEW = {
               "Hover or tap for every family's count that day."),
              (None, None, "Updates install together",
               "When several updates are waiting, one click installs all of them, then this tour shows what's new.")],
+    "3.15": [("/interviews", "interviews", "Interviews and offers",
+              "Every interview you've had stays here, even after a rejection (flagged Rejected). Offers are flagged and "
+              "listed on top. On the Email page, Fix type on an interview keeps it when you mark it Rejected or Offer.")],
     "3.14": [(None, None, "Smoother updates",
               "Updates now run in the background with a progress bar, then open the new version by themselves. "
               "No more error page while the app restarts.")],
@@ -1824,6 +1834,15 @@ def help_chat():
 @app.route("/how-it-works")
 def how_it_works():
     return render_template("how_it_works.html")
+
+
+@app.route("/interviews")
+def interviews_page():
+    """Every interview you've had, kept even after a rejection (flagged), with offers on top."""
+    from . import interviews
+    items = interviews.history()
+    return render_template("interviews.html", items=items, offers=[i for i in items if i["offer"]],
+                           counts=interviews.counts(items))
 
 
 @app.route("/assessments")

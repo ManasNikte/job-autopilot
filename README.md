@@ -224,6 +224,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.15** | An Interviews page: every interview stays, flagged Rejected or Offer; offers on top; the dashboard counts interviews ever |
 | **v3.14** | Updates run in the background with a progress bar and open the new version by themselves; fixes the "Internal Server Error" during updates |
 | **v3.13** | A Help chat on every page that answers from the latest docs and diagnoses problems from the app's current state |
 | **v3.12** | Active applications by role family (line chart); updates install together and end with a walkthrough of what's new |

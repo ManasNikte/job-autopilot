@@ -30,7 +30,7 @@
   <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_today }}</div><div class="k">Applied today</div></a>
   <a class="tile" href="{{ url_for('jobs', status='applied_all') }}" title="Sunday to Saturday"><div class="v">{{ kpis.applied_week }}</div><div class="k">Applied this week</div></a>
   <a class="tile" href="{{ url_for('jobs', status='applied_all') }}"><div class="v">{{ kpis.applied_total }}</div><div class="k">Applied, all time</div></a>
-  <a class="tile" href="{{ url_for('jobs', status='interviewing') }}"><div class="v">{{ kpis.interviewing }}</div><div class="k">Interviewing / offers</div></a>
+  <a class="tile" href="{{ url_for('interviews_page') }}"><div class="v">{{ kpis.iv_interviews }}</div><div class="k">Interviews{% if kpis.iv_offers %} · {{ kpis.iv_offers }} offer{{ '' if kpis.iv_offers == 1 else 's' }}{% endif %}{% if kpis.iv_rejected %} · {{ kpis.iv_rejected }} rejected{% endif %}</div></a>
   <a class="tile{{ ' tile-alert' if assess and assess[0].urgent }}" href="{{ url_for('assessments_page') }}"><div class="v">{{ kpis.assessments }}</div><div class="k">Online assessments to finish</div></a>
 </div>
 

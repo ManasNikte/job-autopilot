@@ -306,6 +306,16 @@ def _applied_this_week() -> int:
     return db.count("jobs", "applied_at >= ?", (week_start_utc(),))
 
 
+def _interview_counts() -> dict:
+    """Interviews ever and offers ever (an interview that ended in a rejection still counts)."""
+    try:
+        from . import interviews
+        c = interviews.counts()
+        return {"interviews": c["interviews"], "offers": c["offers"]}
+    except Exception:
+        return {}
+
+
 def _assessment_kpi() -> int:
     try:
         from . import assessments
@@ -350,6 +360,7 @@ def snapshot() -> dict:
             "applied_today": db.count("jobs", "applied_at >= ?", (start,)),
             "applied_total": sum(counts.get(s, 0) for s in ("applied", "interviewing", "offer", "closed")),
             "interviewing": counts.get("interviewing", 0) + counts.get("offer", 0),
+            **_interview_counts(),
             "rejected": counts.get("closed", 0),
             "assessments": _assessment_kpi(),
             "applied_week": _applied_this_week(),

@@ -674,8 +674,8 @@ def reclassify(event_id: int, event: str) -> dict | None:
     ev = db.fetchone("SELECT * FROM email_events WHERE id=?", (event_id,))
     if not ev or event not in EVENT_KINDS:
         return None
-    if ev["event"] == "assessment" and event == "rejection":
-        return mark_rejected(event_id)
+    if (ev["event"] == "assessment" and event == "rejection") or (ev["event"] == "interview" and event in ("rejection", "offer")):
+        return mark_outcome(event_id, event)
     if ev["state"] == "applied":
         undo(event_id)
     if event == "not_application":
@@ -689,12 +689,16 @@ def reclassify(event_id: int, event: str) -> dict | None:
 
 
 def mark_rejected(event_id: int) -> dict | None:
-    """An assessment and then a rejection: keep the assessment (with its due date and whether you finished it) and
-    record the rejection next to it, so the job closes and the assessment shows a Rejected flag."""
+    return mark_outcome(event_id, "rejection")
+
+
+def mark_outcome(event_id: int, outcome: str = "rejection") -> dict | None:
+    """An assessment or interview, and then a rejection (or, after an interview, an offer): keep the original email
+    as it is and record the outcome next to it, so the job's status follows and the original shows a flag."""
     ev = db.fetchone("SELECT * FROM email_events WHERE id=?", (event_id,))
-    if not ev:
+    if not ev or outcome not in ("rejection", "offer"):
         return None
-    mid = f"{ev['msg_id']}#rejected"
+    mid = f"{ev['msg_id']}#{'rejected' if outcome == 'rejection' else 'offer'}"
     if not db.fetchone("SELECT 1 FROM email_events WHERE msg_id=?", (mid,)):
         try:
             when = (datetime.fromisoformat(ev["received_at"]) + timedelta(seconds=1)).isoformat(timespec="seconds")
@@ -703,11 +707,14 @@ def mark_rejected(event_id: int) -> dict | None:
         job = db.get_job(ev["job_id"]) if ev["job_id"] else None
         apply_event({"account": ev["account"], "msg_id": mid, "received_at": when, "sender": ev["sender"],
                      "subject": ev["subject"], "company": ev["company"], "role": ev["role"], "link": "", "deadline": "",
-                     "event": "rejection", "summary": "You marked this application as rejected (from the assessment email).",
-                     "body": ""}, job=job)
-    db.execute("UPDATE interventions SET status='done', resolved_at=? WHERE kind='assessment' AND status='open' AND "
-               "(job_id=? OR (job_id IS NULL AND title LIKE ?))", (db.now(), ev["job_id"], f"Online assessment from {ev['company']} ·%"))
-    return {**ev, "rejected": True}
+                     "event": outcome, "body": "",
+                     "summary": (f"You marked this application as rejected (from the {ev['event']} email)." if outcome == "rejection"
+                                 else f"You marked this as an offer (from the {ev['event']} email).")}, job=job)
+    if outcome == "rejection":
+        db.execute("UPDATE interventions SET status='done', resolved_at=? WHERE kind IN ('assessment','interview') AND status='open' AND "
+                   "(job_id=? OR (job_id IS NULL AND (title LIKE ? OR title LIKE ?)))",
+                   (db.now(), ev["job_id"], f"Online assessment from {ev['company']} ·%", f"Interview invite from {ev['company']}%"))
+    return {**ev, "rejected": outcome == "rejection", "offer": outcome == "offer"}
 
 
 def full_text(row: dict) -> str:

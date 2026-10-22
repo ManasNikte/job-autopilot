@@ -53,7 +53,10 @@
         <div class="sub small">The first part of the email, as saved. The full message is in {{ e.account or 'your inbox' }}.</div>{% endif %}
       {% if e.link %}<div class="small"><a href="{{ e.link }}" target="_blank" rel="noopener noreferrer">Open link ↗</a>{% if e.deadline %} · due {{ e.deadline }}{% endif %}</div>{% endif %}</td>
     <td class="nowrap"><span class="badge {{ 'no' if e.event == 'rejection' else 'apply' if e.event in ('interview', 'offer') else 'risk' if e.event == 'assessment' else '' }}">{{ events.get(e.event, e.event) }}</span>
-      {% if e.event == 'assessment' and (e.job_status == 'closed' or e.marked_rejected) %}<span class="badge no" title="The company rejected this application">Rejected</span>{% endif %}
+      {% if e.event in ('assessment', 'interview') %}
+        {% if e.job_status == 'offer' or e.marked_offer %}<span class="badge apply" title="This led to an offer">🎉 Offer</span>
+        {% elif e.job_status == 'closed' or e.marked_rejected %}<span class="badge no" title="The company rejected this application">Rejected</span>{% endif %}
+      {% endif %}
       {% if e.state == 'applied' and e.prev_status != e.new_status %}<div class="sub small">{{ status_labels.get(e.prev_status, e.prev_status) }} → {{ status_labels.get(e.new_status, e.new_status) }}</div>{% endif %}
 </td>
     <td>{% if e.job_id %}<a href="{{ url_for('job_detail', job_id=e.job_id) }}">{{ e.job_company }}</a><div class="sub small">{{ e.job_title|truncate(50) }}</div>
@@ -69,7 +72,8 @@
       <form class="inline fix-type" method="post"{% if loop.first %} data-tour="fix-type"{% endif %} action="{{ url_for('email_reclassify', eid=e.id) }}">
         <select name="event" class="small" aria-label="Fix what this email is" title="Claude got it wrong? Pick what this email really is; the job's status follows.">
           <option value="" selected disabled>Fix type…</option>
-          {% for k, label in [('confirmation', 'Received'), ('rejection', 'Rejected (keeps the assessment)' if e.event == 'assessment' else 'Rejected'), ('assessment', 'Assessment'), ('interview', 'Interview'), ('offer', 'Offer'), ('not_application', 'Not about a job')] %}
+          {% set keeps = ' (keeps the ' ~ e.event ~ ')' if e.event in ('assessment', 'interview') else '' %}
+          {% for k, label in [('confirmation', 'Received'), ('rejection', 'Rejected' ~ keeps), ('assessment', 'Assessment'), ('interview', 'Interview'), ('offer', 'Offer' ~ (keeps if e.event == 'interview' else '')), ('not_application', 'Not about a job')] %}
           {% if k != e.event %}<option value="{{ k }}">{{ label }}</option>{% endif %}{% endfor %}
         </select>
       </form>

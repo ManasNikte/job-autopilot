@@ -231,3 +231,31 @@ def test_rematch_unmatched(jobs_db, monkeypatch):
     st = mailsync.rematch_unmatched(lambda *a: None, use_claude=False)
     assert st == {"checked": 1, "matched": 1, "left": 0}
     assert db.get_job("g:3")["status"] == "closed"                     # Acme Corp backend job, found from the full text
+
+
+def test_interviews_stay_with_rejected_and_offer_flags(jobs_db):
+    from app import interviews
+    from app.web import app
+    base = {"account": "a", "sender": "s", "link": "", "deadline": "", "body": ""}
+    mailsync.apply_event({**base, "msg_id": "<iv1@x>", "received_at": "2026-10-10T15:00:00+00:00", "subject": "Interview invite",
+                          "company": "Stripe", "role": "Software Engineer, New Grad", "event": "interview", "summary": ""})
+    assert db.get_job("g:1")["status"] == "interviewing"
+    mailsync.apply_event({**base, "msg_id": "<rj1@x>", "received_at": "2026-10-14T15:00:00+00:00", "subject": "Update",
+                          "company": "Stripe", "role": "Software Engineer, New Grad", "event": "rejection", "summary": ""})
+    assert db.get_job("g:1")["status"] == "closed"
+    mailsync.apply_event({**base, "msg_id": "<iv2@x>", "received_at": "2026-10-11T15:00:00+00:00", "subject": "Let's talk",
+                          "company": "Zed Labs", "role": "Engineer", "event": "interview", "summary": ""})      # applied outside the app
+    h = {i["company"]: i for i in interviews.history()}
+    assert h["Stripe"]["state"] == "rejected" and h["Zed Labs"]["state"] == "open"                 # the rejected one stays
+    assert interviews.counts() == {"interviews": 2, "offers": 0, "rejected": 1, "open": 1}
+    eid = db.fetchone("SELECT id FROM email_events WHERE msg_id='<iv2@x>'")["id"]
+    assert mailsync.reclassify(eid, "offer")["offer"]                                             # Fix type -> Offer keeps it
+    assert db.fetchone("SELECT event FROM email_events WHERE id=?", (eid,))["event"] == "interview"
+    assert interviews.counts()["offers"] == 1
+    c = app.test_client()
+    page = c.get("/interviews").get_data(as_text=True)
+    assert "Offers 🎉" in page and ">Rejected<" in page and "Zed Labs" in page
+    dash = c.get("/").get_data(as_text=True)
+    assert ">2</div><div class=\"k\">Interviews · 1 offer · 1 rejected<" in dash
+    from app import cloud
+    assert {"interviews": 2, "offers": 1} == cloud._interview_counts()
