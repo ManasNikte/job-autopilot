@@ -1410,6 +1410,72 @@ def cloud_city():
     return redirect(url_for("settings_page", section="online"))
 
 
+PIPELINE_LABELS = [("to_screen", "Waiting for screen"), ("needs_decision", "Their call"), ("to_tailor", "Queued for documents"),
+                   ("tailoring", "Building documents"), ("ready", "Ready to submit"), ("applied", "Applied"),
+                   ("interviewing", "Interviewing"), ("offer", "Offer"), ("closed", "Rejected")]
+
+
+def _num(v) -> int:
+    try:
+        return int(v or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _vtuple(v: str | None) -> tuple:
+    return tuple(int(x) for x in re.findall(r"\d+", v or ""))
+
+
+def user_detail(r: dict) -> dict:
+    """Everything the operator may see for one person, totalled across their computers (counts only)."""
+    from .version import VERSION
+    machines = [m for m in (r.get("machines") or []) if isinstance(m, dict)]
+    k, pipe, fams, days = {}, {}, {}, {}
+    for m in machines:
+        for key, v in (m.get("kpis") or {}).items():
+            k[key] = k.get(key, 0) + _num(v)
+        for key, v in (m.get("pipeline") or {}).items():
+            pipe[key] = pipe.get(key, 0) + _num(v)
+        for f in m.get("families") or []:
+            fam = f.get("fam") or "Other"
+            fams[fam] = fams.get(fam, 0) + _num(f.get("n"))
+        for e in m.get("series") or []:
+            if e.get("day"):
+                days[e["day"]] = days.get(e["day"], 0) + _num(e.get("n"))
+        m["outdated"] = bool(m.get("app_version")) and _vtuple(m.get("app_version")) < _vtuple(VERSION)
+    fam_total = sum(fams.values())
+    series = [{"day": d, "n": n} for d, n in sorted(days.items())][-14:]
+    peak = max([e["n"] for e in series] + [1])
+    for e in series:
+        e["h"] = round(e["n"] / peak * 100)
+        try:
+            e["label"] = strf(datetime.fromisoformat(e["day"]), "%a %b %-d")
+        except ValueError:
+            e["label"] = e["day"]
+    runs = [m["last_run"] for m in machines if isinstance(m.get("last_run"), dict) and m["last_run"].get("started_at")]
+    nexts = sorted(m["next_run"] for m in machines if m.get("next_run"))
+    hours = sum(float(m.get("time_saved_hours") or 0) for m in machines)
+    return {
+        "tiles": [("Applied today", k.get("applied_today", 0)), ("This week", r.get("applied_week") or 0),
+                  ("Last 14 days", r.get("applied_14d") or 0), ("All time", r.get("applied_total") or 0),
+                  ("Ready to submit", k.get("ready", 0)), ("Waiting on their call", k.get("decide", 0)),
+                  ("Interviewing / offers", k.get("interviewing", 0)), ("Rejected", k.get("rejected", 0)),
+                  ("Assessments to finish", k.get("assessments", 0)),
+                  ("Items in Needs you", sum(_num(m.get("open_items")) for m in machines)),
+                  ("New roles today", k.get("posted_today", 0)), ("Hours saved", round(hours))],
+        "pipeline": [(label, pipe.get(key, 0)) for key, label in PIPELINE_LABELS],
+        "pipe_max": max(list(pipe.values()) + [1]),
+        "families": [{"fam": f, "n": n, "pct": round(n / fam_total * 100) if fam_total else 0}
+                     for f, n in sorted(fams.items(), key=lambda x: (-x[1], x[0]))],
+        "series": series,
+        "last_run": max(runs, key=lambda x: x["started_at"]) if runs else None,
+        "next_run": nexts[0] if nexts else None,
+        "queued": sum(_num(m.get("queued")) for m in machines),
+        "paused_until": next((m["paused_until"] for m in machines if m.get("paused_until")), None),
+        "machines": machines,
+    }
+
+
 @app.get("/users")
 def users_page():
     """Site operator only: everyone using the online dashboard, with application counts (never companies)."""
@@ -1419,6 +1485,7 @@ def users_page():
         abort(404)
     for r in rows:
         r["active"] = (r.get("applied_14d") or 0) > 0
+        r["detail"] = user_detail(r)
     stats = {"users": len(rows), "active": sum(r["active"] for r in rows),
              "week": sum(r.get("applied_week") or 0 for r in rows)}
     return render_template("users.html", rows=rows, stats=stats)

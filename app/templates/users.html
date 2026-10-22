@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head">
   <h1 style="margin-bottom:2px">Users</h1>
-  <span class="sub">Everyone on your online dashboard. Only you see this page (site operator). Counts only: which companies people apply to stays private to them.</span>
+  <span class="sub">Everyone on your online dashboard. Only you see this page (site operator). Open "All details" under a person for everything the privacy note lets you see. Which companies people apply to stays private to them.</span>
 </div>
 
 <div class="grid kpis kpis-3">
@@ -26,6 +26,84 @@
       <td data-label="Status">{% if r.active %}<span class="badge apply">Active</span>{% elif r.computers %}<span class="badge">Inactive</span>{% else %}<span class="badge">No computer connected</span>{% endif %}</td>
       <td class="sub small nowrap" data-label="Last seen">{{ r.last_seen|ago if r.last_seen else '—' }}</td>
     </tr>
+    {% set d = r.detail %}
+    <tr class="ud-row"><td colspan="7">
+      <details class="ud">
+        <summary>All details for {{ r.name or r.email.split('@')[0] }}</summary>
+        {% if r.machines is not defined or r.machines is none %}
+        <p class="sub small">Your Supabase database has the older version of this view. Run <code>supabase/schema.sql</code> again in the Supabase SQL editor (it's safe to re-run) to see every detail here.</p>
+        {% else %}
+        <div class="ud-grid">
+          <section class="ud-box">
+            <h3>Account</h3>
+            <dl class="ud-dl">
+              <dt>Email</dt><dd>{{ r.email }}</dd>
+              <dt>Other sign-in emails</dt><dd>{% if r.other_emails %}{{ r.other_emails|join(', ') }}{% else %}<span class="muted">None</span>{% endif %}</dd>
+              <dt>Joined</dt><dd>{{ r.joined|local }} ({{ r.joined|ago }})</dd>
+              <dt>Last signed in to the site</dt><dd>{% if r.last_sign_in %}{{ r.last_sign_in|local }} ({{ r.last_sign_in|ago }}){% else %}<span class="muted">Never</span>{% endif %}</dd>
+              <dt>Product updates by email</dt><dd>{% if r.opt_in %}Opted in{% if r.opt_in_at %} on {{ r.opt_in_at|local }}{% endif %}{% else %}<span class="muted">Not opted in</span>{% endif %}</dd>
+              <dt>Location</dt><dd>{% if r.city %}{{ r.city }}{% else %}<span class="muted">Not shared</span>{% endif %}</dd>
+              <dt>Requests from the site</dt><dd>{{ r.requests_30d or 0 }} in the last 30 days{% if r.last_request %} · last {{ r.last_request|ago }}{% endif %}</dd>
+            </dl>
+          </section>
+          <section class="ud-box">
+            <h3>Runs</h3>
+            <dl class="ud-dl">
+              <dt>Last run</dt><dd>{% if d.last_run %}{{ d.last_run.status or '—' }} · started {{ d.last_run.started_at|ago }}{% if d.last_run.source %} ({{ d.last_run.source }}){% endif %}{% else %}<span class="muted">No runs yet</span>{% endif %}</dd>
+              <dt>Next scheduled run</dt><dd>{{ d.next_run|local if d.next_run else '—' }}</dd>
+              <dt>Waiting in the queue</dt><dd>{{ d.queued }}</dd>
+              <dt>Paused for usage limit</dt><dd>{% if d.paused_until %}until {{ d.paused_until|local }}{% else %}<span class="muted">No</span>{% endif %}</dd>
+            </dl>
+          </section>
+        </div>
+
+        <div class="ud-tiles">
+          {% for label, n in d.tiles %}<div class="ud-tile"><b>{{ n }}</b><span>{{ label }}</span></div>{% endfor %}
+        </div>
+
+        <div class="ud-grid">
+          <section class="ud-box">
+            <h3>Applications, last 14 days</h3>
+            {% if d.series %}
+            <div class="ud-spark" role="img" aria-label="Applications per day for the last 14 days">
+              {% for e in d.series %}<div class="ud-col" title="{{ e.label }}: {{ e.n }}"><span class="ud-n">{{ e.n if e.n else '' }}</span><i style="height:{{ e.h }}%"></i></div>{% endfor %}
+            </div>
+            <div class="ud-axis"><span>{{ d.series[0].label }}</span><span>{{ d.series[-1].label }}</span></div>
+            {% else %}<p class="muted small">No data from their computer yet.</p>{% endif %}
+          </section>
+          <section class="ud-box">
+            <h3>Applied by role family</h3>
+            {% if d.families %}
+            <table class="ud-table">{% for f in d.families %}<tr><td>{{ f.fam }}</td><td class="num">{{ f.n }}</td><td class="num muted">{{ f.pct }}%</td></tr>{% endfor %}</table>
+            {% else %}<p class="muted small">None yet.</p>{% endif %}
+          </section>
+          <section class="ud-box">
+            <h3>Pipeline</h3>
+            {% for label, n in d.pipeline %}
+            <div class="ud-bar"><span>{{ label }}</span><span class="ud-track"><i style="width:{{ (n / d.pipe_max * 100)|round(1) }}%"></i></span><b>{{ n }}</b></div>
+            {% endfor %}
+          </section>
+        </div>
+
+        <section class="ud-box">
+          <h3>Computers ({{ d.machines|length }})</h3>
+          {% if d.machines %}
+          <table class="ud-table ud-machines">
+            <thead><tr><th>Name</th><th>System</th><th>App version</th><th>City</th><th>Connected</th><th>Last seen</th><th>Last synced</th></tr></thead>
+            {% for m in d.machines %}
+            <tr>
+              <td>{{ m.name }}</td><td>{{ (m.platform or '—')|replace('darwin', 'macOS')|replace('windows', 'Windows')|replace('linux', 'Linux') }}</td>
+              <td>{{ m.app_version or '—' }}{% if m.outdated %} <span class="badge">behind v{{ app_version }}</span>{% endif %}</td>
+              <td>{{ m.city or '—' }}</td><td>{{ m.connected|ago }}</td><td>{{ m.last_seen|ago }}</td><td>{{ m.synced|ago }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          {% else %}<p class="muted small">No computer connected yet: the account exists, but setup on their computer isn't finished.</p>{% endif %}
+        </section>
+        {% endif %}
+        <p class="sub small">This is everything the privacy note says you can see. Companies, job titles, links, and their emails stay on their computer and aren't in the database view you have.</p>
+      </details>
+    </td></tr>
     {% endfor %}
   </table>
   {% else %}

@@ -649,3 +649,41 @@ html.sb-rail .sb-slide .ic { transform: scaleX(-1); }
 .how-list { margin: 0; padding-left: 20px; } .how-list li { margin: 6px 0; line-height: 1.45; }
 .card details { padding: 8px 0; border-top: 1px solid var(--border); } .card details:first-of-type { border-top: 0; }
 .card details summary { cursor: pointer; font-weight: 600; }
+
+/* Users page: one person's full details */
+.users-table tr.ud-row td { padding-top: 0; border-top: 0; }
+.ud > summary { cursor: pointer; color: var(--accent); font-size: 13px; padding: 2px 0 10px; }
+.ud[open] > summary { margin-bottom: 4px; }
+.ud { padding-bottom: 6px; }
+.ud h3 { font-size: 13px; margin: 0 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.ud-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.ud-box { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; min-width: 0; }
+.ud-grid .ud-box { margin-bottom: 0; }
+.ud-dl { display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: 6px 14px; margin: 0; font-size: 13px; }
+.ud-dl dt { color: var(--muted); }
+.ud-dl dd { margin: 0; overflow-wrap: anywhere; }
+.ud-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.ud-tile { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.ud-tile b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.ud-tile span { font-size: 12px; color: var(--muted); }
+.ud-spark { display: flex; align-items: flex-end; gap: 3px; height: 90px; }
+.ud-col { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; }
+.ud-col i { display: block; width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 1px; opacity: .85; }
+.ud-n { font-size: 10px; color: var(--muted); line-height: 1.4; }
+.ud-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.ud-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ud-table td, .ud-table th { padding: 5px 6px; border-top: 1px solid var(--border); text-align: left; }
+.ud-table tr:first-child td { border-top: 0; }
+.ud-table th { color: var(--muted); font-weight: 500; font-size: 12px; border-top: 0; }
+.ud-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ud-machines { display: block; overflow-x: auto; }
+.ud-bar { display: grid; grid-template-columns: 140px 1fr 36px; align-items: center; gap: 8px; font-size: 12.5px; padding: 2px 0; }
+.ud-bar b { text-align: right; font-variant-numeric: tabular-nums; }
+.ud-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.ud-track i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+@media (max-width: 760px) {
+  .users-table tr.ud-row td { grid-column: 1 / -1; }
+  .ud-dl { grid-template-columns: 1fr; gap: 2px; }
+  .ud-dl dd { margin-bottom: 6px; }
+  .ud-bar { grid-template-columns: 110px 1fr 30px; }
+}

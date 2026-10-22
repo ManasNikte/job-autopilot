@@ -274,8 +274,9 @@ end $$;
 revoke all on function public.operator_stats() from public, anon;
 grant execute on function public.operator_stats() to authenticated;
 
--- One row per person for the operator: name, email, chosen city, and application counts.
--- Never company names, job titles, links, or email content.
+-- One row per person for the operator: account details, each computer, and progress counts.
+-- Exactly what the privacy note lists. Never company names, job titles, links, assessment or email content,
+-- or the greeting (it can name companies): only numbers, role-family labels, and run times.
 create or replace function public.operator_users() returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 begin
@@ -284,14 +285,35 @@ begin
   end if;
   return coalesce((select jsonb_agg(row_to_json(x)::jsonb order by x.applied_week desc, x.applied_total desc)
   from (
-    select u.email, p.display_name as name, u.email_confirmed_at as joined,
+    select u.email, p.display_name as name, u.email_confirmed_at as joined, u.last_sign_in_at as last_sign_in,
+           coalesce(p.marketing_opt_in, false) as opt_in, p.opt_in_at,
+           (select coalesce(jsonb_agg(a.email order by a.created_at), '[]'::jsonb)
+              from public.account_emails a where a.owner_id = u.id) as other_emails,
            (select m.city from public.machines m where m.user_id = u.id and coalesce(m.city, '') <> ''
              order by m.last_seen desc nulls last limit 1) as city,
            (select count(*) from public.machines m where m.user_id = u.id) as computers,
            (select max(m.last_seen) from public.machines m where m.user_id = u.id) as last_seen,
            coalesce((select sum((s.data->'kpis'->>'applied_total')::int) from public.snapshots s where s.user_id = u.id), 0) as applied_total,
            coalesce((select sum(public.applied_in_days(s.data, 7)) from public.snapshots s where s.user_id = u.id), 0) as applied_week,
-           coalesce((select sum(public.applied_in_days(s.data, 14)) from public.snapshots s where s.user_id = u.id), 0) as applied_14d
+           coalesce((select sum(public.applied_in_days(s.data, 14)) from public.snapshots s where s.user_id = u.id), 0) as applied_14d,
+           (select count(*) from public.commands c where c.user_id = u.id and c.created_at > now() - interval '30 days') as requests_30d,
+           (select max(c.created_at) from public.commands c where c.user_id = u.id) as last_request,
+           (select coalesce(jsonb_agg(jsonb_build_object(
+               'name', m.name, 'platform', m.platform, 'app_version', m.app_version, 'city', m.city,
+               'last_seen', m.last_seen, 'connected', m.created_at, 'synced', s.updated_at,
+               'kpis', s.data->'kpis', 'pipeline', s.data->'pipeline', 'series', s.data->'series',
+               'families', (select coalesce(jsonb_agg(jsonb_build_object('fam', f->>'fam', 'n', f->'n', 'pct', f->'pct')), '[]'::jsonb)
+                              from jsonb_array_elements(coalesce(s.data->'families'->'slices', '[]'::jsonb)) f),
+               'time_saved_hours', s.data->'time_saved'->'hours',
+               'last_run', case when s.data ? 'last_run' and jsonb_typeof(s.data->'last_run') = 'object' then jsonb_build_object(
+                   'status', s.data->'last_run'->'status', 'started_at', s.data->'last_run'->'started_at',
+                   'finished_at', s.data->'last_run'->'finished_at', 'source', s.data->'last_run'->'source') end,
+               'next_run', s.data->'next_run',
+               'queued', s.data->'background'->'queued', 'paused_until', s.data->'background'->'paused_until',
+               'open_items', s.data->'open_items'
+             ) order by m.last_seen desc nulls last), '[]'::jsonb)
+             from public.machines m left join public.snapshots s on s.machine_id = m.id
+             where m.user_id = u.id) as machines
     from auth.users u left join public.profiles p on p.id = u.id
     where u.email_confirmed_at is not null
       and not exists (select 1 from public.account_emails a where a.email = lower(u.email) and a.owner_id <> u.id)

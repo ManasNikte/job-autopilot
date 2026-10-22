@@ -206,6 +206,40 @@ def test_users_page_is_operator_only_and_shows_no_companies(tmp_path, monkeypatc
     assert html.count("badge apply\">Active") == 1 and "Inactive" in html
 
 
+def test_users_page_shows_every_detail_the_privacy_note_allows(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    from app.web import app
+    c = app.test_client()
+    monkeypatch.setattr(cloud, "connected", lambda: True)
+    machine = lambda name, applied, ver: {
+        "name": name, "platform": "windows", "app_version": ver, "city": "Austin, TX",
+        "last_seen": "2026-10-22T01:00:00+00:00", "connected": "2026-10-10T00:00:00+00:00", "synced": "2026-10-22T01:00:00+00:00",
+        "kpis": {"applied_today": 2, "ready": 3, "decide": 1, "interviewing": 1, "rejected": 4, "assessments": 1,
+                 "applied_total": applied, "posted_today": 9},
+        "pipeline": {"ready": 3, "applied": applied, "closed": 4},
+        "series": [{"day": "2026-10-21", "n": 2}, {"day": "2026-10-22", "n": 5}],
+        "families": [{"fam": "Data Analyst", "n": applied, "pct": 100}],
+        "time_saved_hours": 12.4, "next_run": "2026-10-22T16:00:00+00:00", "queued": 7, "paused_until": None,
+        "last_run": {"status": "done", "started_at": "2026-10-22T00:00:00+00:00", "source": "schedule"}, "open_items": 5}
+    monkeypatch.setattr(cloud, "operator_users", lambda: [
+        {"name": "Ava Park", "email": "ava@example.com", "city": "Austin, TX", "joined": "2026-10-10T00:00:00+00:00",
+         "last_sign_in": "2026-10-21T00:00:00+00:00", "opt_in": True, "opt_in_at": "2026-10-10T00:00:00+00:00",
+         "other_emails": ["ava@school.example.edu"], "requests_30d": 6, "last_request": "2026-10-21T00:00:00+00:00",
+         "computers": 2, "last_seen": "2026-10-22T01:00:00+00:00", "applied_total": 30, "applied_week": 8, "applied_14d": 12,
+         "machines": [machine("Ava's laptop", 20, "3.9"), machine("Ava's desktop", 10, "99.0")]},
+        {"name": "New", "email": "new@example.com", "joined": "2026-10-21T00:00:00+00:00", "computers": 0,
+         "applied_total": 0, "applied_week": 0, "applied_14d": 0, "machines": []}])
+    html = c.get("/users").get_data(as_text=True)
+    for text in ("ava@school.example.edu", "Opted in", "6 in the last 30 days", "Ava&#39;s laptop", "Windows",
+                 "behind v", "Data Analyst", "Hours saved", "Items in Needs you", "Ready to submit",
+                 "setup on their computer isn"):
+        assert text in html, text
+    assert html.count("behind v") == 1                                      # only the older computer is flagged
+    assert ">30</td>" in html.replace(" ", "") or ">30<" in html             # family counts add up across computers
+    assert ">6</b><span>Ready to submit" in html                             # 3 + 3 across both computers
+
+
 def test_city_defaults_to_form_presets_and_can_be_cleared(fake, tmp_path, monkeypatch):
     import app.config as cfg
     f = tmp_path / "applicant.json"
