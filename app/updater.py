@@ -126,8 +126,19 @@ def _resolve_conflicts_keeping_mine() -> list[str]:
     return files
 
 
-def apply() -> dict:
-    """Pull the update. Returns {'ok', 'message', 'version', 'restart'}. Restart happens via restart_soon()."""
+# Live progress of an update for the "Updating…" page, which polls /update/progress. `lock` is on from the moment
+# files start changing until the restart: the running (old) code must not render the new templates.
+PROGRESS: dict = {"stage": "", "pct": 0, "message": "", "target": None, "error": "", "lock": False}
+
+
+def _step(stage: str, pct: int, message: str) -> None:
+    PROGRESS.update(stage=stage, pct=pct, message=message)
+
+
+def apply(progress=None) -> dict:
+    """Pull the update. Returns {'ok', 'message', 'version', 'restart'}. Restart happens via restart_soon().
+    `progress(stage, pct, message)` reports each step."""
+    step = progress or (lambda *a: None)
     if not available():
         return {"ok": False, "message": STATE.get("error") or "Not a git checkout."}
     busy = _busy()
@@ -136,6 +147,8 @@ def apply() -> dict:
     with _lock:
         STATE["updating"] = True
         try:
+            step("download", 15, "Downloading the new version")
+            PROGRESS["lock"] = True
             before = _git("rev-parse", "HEAD").strip()
             try:
                 _git("pull", "--ff-only", "--autostash", "--quiet", timeout=180)
@@ -149,10 +162,12 @@ def apply() -> dict:
             after = _git("rev-parse", "HEAD").strip()
             if after == before:
                 STATE.update(behind=0, updating=False)
+                PROGRESS["lock"] = False
                 return {"ok": True, "message": "Already up to date.", "restart": False}
             db.kv_set("updated_from", VERSION)           # the "what's new" tour covers everything after this
             changed = _git("diff", "--name-only", before, after).splitlines()
             if "requirements.txt" in changed:
+                step("install", 45, "Installing new components (this can take a minute)")
                 r = subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-r", str(ROOT / "requirements.txt")],
                                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
                 if r.returncode != 0:
@@ -163,7 +178,35 @@ def apply() -> dict:
             return {"ok": True, "message": "Updated.", "version": m.group(1) if m else None, "restart": True}
         except Exception as e:
             STATE["updating"] = False
+            PROGRESS["lock"] = False
             return {"ok": False, "message": str(e)[:300]}
+
+
+def start() -> dict:
+    """Update in the background so the browser can show progress. Returns {'ok', 'message', 'target'} right away;
+    the work continues on a thread: download, install if needed, restart into the new version."""
+    if not available():
+        return {"ok": False, "message": STATE.get("error") or "Not a git checkout."}
+    busy = _busy()
+    if busy:
+        return {"ok": False, "message": busy}
+    if PROGRESS.get("stage") in ("starting", "download", "install", "restart"):
+        return {"ok": True, "message": "Already updating.", "target": PROGRESS.get("target")}
+    PROGRESS.update(stage="starting", pct=5, message="Getting ready", target=STATE.get("remote_version"), error="", lock=False)
+
+    def run():
+        res = apply(progress=_step)
+        if not res.get("ok"):
+            PROGRESS.update(stage="error", pct=0, error=res.get("message") or "The update didn't run.", lock=False)
+            return
+        if not res.get("restart"):
+            PROGRESS.update(stage="done", pct=100, message=res.get("message") or "Already up to date.", lock=False)
+            return
+        PROGRESS.update(target=res.get("version") or PROGRESS.get("target"))
+        _step("restart", 80, "Restarting into the new version")
+        restart_soon(1.0)
+    threading.Thread(target=run, daemon=True, name="update").start()
+    return {"ok": True, "message": "Updating.", "target": PROGRESS.get("target")}
 
 
 def version_before_update() -> str | None:
@@ -184,6 +227,12 @@ def restart_soon(delay: float = 1.5) -> None:
         sys.stdout.flush()
         sys.stderr.flush()
         os.chdir(ROOT)
+        fd = os.environ.pop("WERKZEUG_SERVER_FD", None)          # don't hand the listening socket to the new copy
+        if fd and fd.isdigit():
+            try:
+                os.set_inheritable(int(fd), False)
+            except OSError:
+                pass
         flags = ["-X", "utf8"] if sys.flags.utf8_mode else []     # keep Windows' UTF-8 mode across the restart
         os.execv(sys.executable, [sys.executable, *flags, "-m", "app.cli", "serve"])
     threading.Thread(target=go, daemon=True).start()

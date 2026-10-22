@@ -3,6 +3,10 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.14 (2026-10-22)
+- **Updating no longer shows "Internal Server Error".** The update page broke when the old version tried to show it with the new version's files. It now works whatever version you're coming from.
+- **Updates run in the background with a progress bar:** download, install new components if needed, restart. Then the new version opens on its own with a short tour of what's new. If something goes wrong, the page says what happened and nothing is lost. Other open tabs show a simple "updating" screen instead of an error until it's done.
+
 ## 3.13 (2026-10-22)
 - **Help chat.** A Help button in the corner of every page opens a small chat. Ask anything about the app or describe a problem, like "why weren't my emails scanned?". It answers from the latest guides and release notes, and it checks your app's current state (last run, email checks, recent errors, pauses) to tell you what's going on and how to fix it. It runs on your own Claude seat, and nothing is saved.
 

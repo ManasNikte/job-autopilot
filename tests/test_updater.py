@@ -31,7 +31,9 @@ def repos(tmp_path, monkeypatch):
     db.init()
     monkeypatch.setattr(updater, "_busy", lambda: "")
     updater.STATE.update(behind=0, remote_version=None, notes=[], commits=[], checked_at=None, error="", updating=False)
-    return dev, user
+    updater.PROGRESS.update(stage="", pct=0, message="", target=None, error="", lock=False)
+    yield dev, user
+    updater.PROGRESS.update(stage="", lock=False)
 
 
 def release(dev, version, notes, extra=None):
@@ -113,3 +115,85 @@ def test_not_a_git_checkout(tmp_path, monkeypatch):
     monkeypatch.setattr(updater, "ROOT", tmp_path)
     st = updater.check(force=True)
     assert "isn't a git checkout" in st["error"] and not updater.apply()["ok"]
+
+
+def test_updating_page_is_standalone():
+    """An older running version renders this page right after the new files land: it must not depend on
+    the base layout, url_for, or anything else that version might lack."""
+    from pathlib import Path
+    src = (Path(__file__).parent.parent / "app" / "templates" / "updating.html").read_text(encoding="utf-8")
+    assert "{% extends" not in src and "url_for(" not in src and "{% include" not in src
+    from jinja2 import Environment
+    html = Environment().from_string(src).render(version="3.2")            # bare Jinja, only `version`
+    assert "Updating Job Autopilot to v3.2" in html and "/update/progress" in html and 'href = "/?updated=1"' in html
+
+
+def test_background_update_reports_progress_and_restarts(repos, monkeypatch):
+    import time
+    dev, _ = repos
+    release(dev, "3.2", ["Thing."])
+    updater.check(force=True)
+    restarted = []
+    monkeypatch.setattr(updater, "restart_soon", lambda delay=1.5: restarted.append(delay))
+    updater.PROGRESS.update(stage="", pct=0, message="", target=None, error="", lock=False)
+    res = updater.start()
+    assert res["ok"] and res["target"] == "3.2"
+    for _ in range(100):
+        if restarted:
+            break
+        time.sleep(0.05)
+    assert restarted and updater.PROGRESS["stage"] == "restart" and updater.PROGRESS["lock"]
+    assert db.kv_get("updated_from")["v"] == "3.1"
+
+    from app.web import app
+    c = app.test_client()
+    r = c.get("/")
+    assert r.status_code == 503 and "is updating" in r.get_data(as_text=True)    # no half-updated pages
+    assert c.get("/api/map").status_code == 503
+    p = c.get("/update/progress").get_json()
+    assert p["stage"] == "restart" and p["target"] == "3.2"
+    assert c.get("/healthz").status_code == 200
+    updater.PROGRESS.update(stage="", lock=False)
+    assert c.get("/").status_code == 200
+
+
+def test_background_update_failure_unlocks(repos, monkeypatch):
+    import time
+    dev, _ = repos
+    release(dev, "3.2", ["Thing."])
+    updater.check(force=True)
+    def fake_git(*a, **k):
+        if a[0] == "pull":
+            raise RuntimeError("network down")
+        return "abc" if a[0] == "rev-parse" else ""
+    monkeypatch.setattr(updater, "_git", fake_git)
+    updater.PROGRESS.update(stage="", pct=0, message="", target=None, error="", lock=False)
+    assert updater.start()["ok"]
+    for _ in range(100):
+        if updater.PROGRESS["stage"] == "error":
+            break
+        time.sleep(0.05)
+    assert updater.PROGRESS["stage"] == "error" and "network down" in updater.PROGRESS["error"] and not updater.PROGRESS["lock"]
+    monkeypatch.setattr(updater, "_busy", lambda: "A run is in progress.")
+    updater.PROGRESS["stage"] = ""
+    assert not updater.start()["ok"]
+
+
+def test_restart_releases_the_inherited_listening_socket(monkeypatch):
+    """An in-place restart inherits werkzeug's listening socket; the new copy must close it or it can't bind."""
+    import os
+    import socket
+    from app.web import _release_inherited_socket
+    s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(("127.0.0.1", 0)); s.listen(); port = s.getsockname()[1]
+    fd = s.detach()
+    monkeypatch.setenv("WERKZEUG_SERVER_FD", str(fd))
+    _release_inherited_socket(port)
+    assert "WERKZEUG_SERVER_FD" not in os.environ
+    again = socket.socket(); again.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    again.bind(("127.0.0.1", port)); again.close()                               # the port is free again
+
+    r, w = os.pipe()                                                             # a number that isn't our socket: left alone
+    monkeypatch.setenv("WERKZEUG_SERVER_FD", str(r))
+    _release_inherited_socket(port)
+    os.fstat(r); os.close(r); os.close(w)

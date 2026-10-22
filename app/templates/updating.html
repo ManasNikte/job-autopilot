@@ -1,25 +1,121 @@
-{% extends "base.html" %}
-{% block title %}Updating · Job Autopilot{% endblock %}
-{% block content %}
-<div class="card updating" role="status" aria-live="polite">
-  <div class="spinner" aria-hidden="true"></div>
-  <h1>Updating{% if version %} to v{{ version }}{% endif %}…</h1>
-  <p class="sub" id="upd-msg">The new version is installed. The dashboard is restarting; this page reloads by itself.</p>
-</div>
+<!doctype html>
+{#- Standalone on purpose: no base layout, no url_for, no shared variables. During an update this page can be
+    rendered by the *old* running code right after the new files arrive, so it must not depend on anything
+    either version might lack. Only `version` (the target) and, from 3.14 on, `current` are passed in. -#}
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Updating · Job Autopilot</title>
+<style>
+  :root { --bg: #f5f6f8; --surface: #fff; --border: #e2e5ea; --text: #1b1f27; --muted: #667085; --accent: #2a6fdb; --track: #e8ebf0; --bad: #c2410c; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0c0f15; --surface: #141922; --border: #262d3b; --text: #e7eaf0; --muted: #98a2b3; --accent: #5b8def; --track: #222a38; --bad: #f97316; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .box { width: min(480px, 100%); background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px 26px 24px; }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .bar { height: 10px; border-radius: 6px; background: var(--track); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 3%; background: var(--accent); border-radius: 6px; transition: width .6s ease; }
+  .pct { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin: 8px 0 18px; font-variant-numeric: tabular-nums; }
+  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+  li { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+  li .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: grid; place-items: center; font-size: 12px; flex: none; }
+  li.now { color: var(--text); font-weight: 600; } li.now .dot { border-color: var(--accent); border-top-color: transparent; animation: spin .9s linear infinite; }
+  li.done { color: var(--text); } li.done .dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .err { display: none; margin-top: 18px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--bad); color: var(--text); }
+  .err b { color: var(--bad); }
+  .note { display: none; margin-top: 16px; font-size: 13.5px; color: var(--muted); }
+  a.btn { display: inline-block; margin-top: 12px; padding: 8px 14px; border-radius: 9px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } li.now .dot { animation: none; } }
+</style>
+</head>
+<body>
+<main class="box" role="status" aria-live="polite">
+  <h1>Updating Job Autopilot{% if version %} to v{{ version }}{% endif %}</h1>
+  <p class="sub">Keep this page open. The new version opens here by itself when it's ready. Your jobs, documents, and settings stay as they are.</p>
+  <div class="bar" role="progressbar" aria-label="Update progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="3"><i id="fill"></i></div>
+  <div class="pct"><span id="msg">Getting ready</span><span id="num">3%</span></div>
+  <ol id="steps">
+    <li data-s="download"><span class="dot"></span>Download the new version</li>
+    <li data-s="install"><span class="dot"></span>Install new components, if any</li>
+    <li data-s="restart"><span class="dot"></span>Restart the app</li>
+    <li data-s="open"><span class="dot"></span>Open the new version</li>
+  </ol>
+  <div class="err" id="err"><b>The update didn't finish.</b> <span id="err-text"></span><br>
+    Nothing was lost. <a class="btn" href="/">Back to the dashboard</a></div>
+  <p class="note" id="slow">This is taking longer than usual. If nothing changes in a minute, restart the app (on a Mac:
+    <code>launchctl kickstart -k gui/$(id -u)/com.jobautopilot.dashboard</code>; otherwise see “Updating” in CLAUDE_SETUP.md), then open
+    <a href="/">the dashboard</a>.</p>
+</main>
 <script>
-  (function () {
-    const want = {{ (version or "")|tojson }}; let tries = 0;
-    async function ping() {
-      tries++;
-      try {
-        const r = await fetch("{{ url_for('healthz') }}", { cache: "no-store" });
-        const d = await r.json();
-        if (!want || d.version === want) { location.href = "{{ url_for('dashboard') }}?updated=1"; return; }
-      } catch (e) { /* restarting */ }
-      if (tries > 60) document.getElementById("upd-msg").textContent = "This is taking longer than usual. If the page doesn't come back, restart the dashboard (see CLAUDE_SETUP.md, 'Updating').";
-      setTimeout(ping, 1500);
-    }
-    setTimeout(ping, 2500);
-  })();
+(function () {
+  var target = {{ (version or "")|tojson }}, current = {{ (current or "")|tojson }};
+  var ORDER = ["download", "install", "restart", "open"], PCT = { starting: 5, download: 15, install: 45, restart: 80, open: 100 };
+  var shown = 3, stage = "starting", started = Date.now(), finished = false;
+  var fill = document.getElementById("fill"), num = document.getElementById("num"), msg = document.getElementById("msg");
+
+  function paint(st, pct, text) {
+    if (finished) return;
+    stage = st;
+    shown = Math.max(shown, Math.min(pct, 100));
+    fill.style.width = shown + "%"; num.textContent = Math.round(shown) + "%";
+    document.querySelector(".bar").setAttribute("aria-valuenow", String(Math.round(shown)));
+    if (text) msg.textContent = text;
+    var at = ORDER.indexOf(st);
+    document.querySelectorAll("#steps li").forEach(function (li) {
+      var i = ORDER.indexOf(li.dataset.s);
+      li.className = i < at ? "done" : i === at ? "now" : "";
+    });
+  }
+  function open() {
+    paint("open", 100, "Opening the new version");
+    finished = true;
+    document.querySelectorAll("#steps li").forEach(function (li) { li.className = "done"; });
+    setTimeout(function () { location.href = "/?updated=1"; }, 700);
+  }
+  function fail(text) {
+    finished = true;
+    document.getElementById("err-text").textContent = text || "";
+    document.getElementById("err").style.display = "block";
+  }
+  function isNew(v) { return v && ((target && v === target) || (!target && current && v !== current)); }
+
+  // Creep forward inside the current step so the bar never looks stuck.
+  setInterval(function () {
+    if (finished) return;
+    var next = { starting: 14, download: 42, install: 78, restart: 97 }[stage] || 97;
+    if (shown < next) paint(stage, shown + Math.max(0.15, (next - shown) / 40));
+    if (Date.now() - started > 180000) document.getElementById("slow").style.display = "block";
+  }, 400);
+
+  function poll() {
+    if (finished) return;
+    fetch("/update/progress", { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("restarting");
+      return r.json();
+    }).then(function (d) {
+      if (d.stage === "error") return fail(d.error);
+      if (d.stage === "done" && !isNew(d.version)) { msg.textContent = d.message || "Already up to date."; finished = true;
+        setTimeout(function () { location.href = "/"; }, 1200); return; }
+      if (isNew(d.version) && ["starting", "download", "install", "restart"].indexOf(d.stage) < 0) return open();
+      if (d.stage) paint(d.stage === "starting" ? "starting" : d.stage, d.pct || PCT[d.stage] || shown, d.message);
+      setTimeout(poll, 700);
+    }).catch(function () {
+      // The app is restarting, or an older version is still running and has no progress endpoint: the download
+      // is already done. Wait for the new version to answer.
+      if (ORDER.indexOf(stage) < 2) paint("restart", PCT.restart, "Restarting the app");
+      fetch("/healthz", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : {}; }).then(function (d) {
+        if (isNew(d.version)) return open();
+        setTimeout(poll, 1000);
+      }).catch(function () { setTimeout(poll, 1000); });
+    });
+  }
+  paint(target ? "starting" : "restart", target ? 5 : 80, target ? "Getting ready" : "Restarting the app");
+  setTimeout(poll, 400);
+})();
 </script>
-{% endblock %}
+</body>
+</html>

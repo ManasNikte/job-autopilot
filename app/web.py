@@ -22,6 +22,26 @@ app.register_blueprint(ext_bp)
 app.secret_key = "local-only"
 app.config["TEMPLATES_AUTO_RELOAD"] = True   # template tweaks show up without restarting background work
 
+_UPDATING_HTML = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="3"><title>Updating · Job Autopilot</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;font:16px system-ui,-apple-system,sans-serif;background:#0c0f15;color:#e7eaf0}
+@media (prefers-color-scheme: light){body{background:#f5f6f8;color:#1b1f27}}p{opacity:.7}</style></head>
+<body><div><h1>Job Autopilot is updating…</h1><p>This page opens the new version by itself in a few seconds.</p></div></body></html>"""
+
+
+@app.before_request
+def _hold_pages_while_updating():
+    """While an update is changing files, the running (old) code must not render pages from the new templates:
+    that's what showed "Internal Server Error" mid-update. Everything waits on a plain page until the restart."""
+    from . import updater
+    if not updater.PROGRESS.get("lock"):
+        return None
+    if request.path.startswith(("/update/progress", "/healthz", "/static/")):
+        return None
+    if request.path.startswith("/api/") or request.accept_mimetypes.best == "application/json":
+        return jsonify({"error": "updating"}), 503
+    return _UPDATING_HTML, 503, {"Retry-After": "3", "Cache-Control": "no-store"}
+
 STATUS_LABELS = {
     "to_screen": "Waiting for screen", "rejected": "Don't apply", "needs_decision": "Your call",
     "screening": "Screening now", "tailoring": "Building documents now", "below_threshold": "Below your threshold",
@@ -1698,6 +1718,9 @@ WHATS_NEW = {
               "Hover or tap for every family's count that day."),
              (None, None, "Updates install together",
               "When several updates are waiting, one click installs all of them, then this tour shows what's new.")],
+    "3.14": [(None, None, "Smoother updates",
+              "Updates now run in the background with a progress bar, then open the new version by themselves. "
+              "No more error page while the app restarts.")],
     "3.13": [("", "help-chat", "Ask the Help chat",
               "Questions about the app, or something not working? Ask here. It answers from the latest guides and "
               "checks your app's current state to tell you what's going on.")],
@@ -1818,16 +1841,24 @@ def update_check():
 
 @app.post("/update")
 def update_apply():
+    """Start the update in the background and show the progress page; it opens the new version when it's ready."""
     from . import updater
-    res = updater.apply()
+    from .version import VERSION
+    res = updater.start()
     if not res.get("ok"):
         flash("Update didn't run: " + res["message"])
         return redirect(request.referrer or url_for("dashboard"))
-    if not res.get("restart"):
-        flash(res["message"])
-        return redirect(url_for("dashboard"))
-    updater.restart_soon()
-    return render_template("updating.html", version=res.get("version"))
+    return render_template("updating.html", version=res.get("target"), current=VERSION)
+
+
+@app.get("/update/progress")
+def update_progress():
+    from . import updater
+    from .version import VERSION
+    p = updater.PROGRESS
+    return jsonify({"stage": p.get("stage") or "", "pct": p.get("pct") or 0, "message": p.get("message") or "",
+                    "error": p.get("error") or "", "target": p.get("target"), "version": VERSION},
+                   ), 200, {"Cache-Control": "no-store"}
 
 
 @app.post("/settings/restart")
@@ -2018,10 +2049,33 @@ class _QuietPolling:
         return not any(p in msg for p in ("GET /activity", "GET /progress", "GET /static/", "GET /favicon"))
 
 
+def _release_inherited_socket(port: int) -> None:
+    """After an in-place restart (os.execv), the old server's listening socket is still open in this process:
+    werkzeug marks it inheritable and leaves its number in WERKZEUG_SERVER_FD. Binding the port again would then
+    fail with "Address already in use" and the app would never come back. Close it first (only if it really is
+    a socket on our port, never some other file that happens to have that number)."""
+    import socket
+    fd = os.environ.pop("WERKZEUG_SERVER_FD", None)
+    if not fd or not fd.isdigit():
+        return
+    try:
+        s = socket.socket(fileno=int(fd))
+    except OSError:
+        return
+    try:
+        if s.type == socket.SOCK_STREAM and s.getsockname()[1] == port:
+            s.close()
+            return
+    except OSError:
+        pass
+    s.detach()
+
+
 def serve() -> None:
     import faulthandler
     import logging
     import signal
+    _release_inherited_socket(int(env("PORT", "5055") or 5055))
     if hasattr(signal, "SIGUSR1"):                 # macOS / Linux only
         faulthandler.register(signal.SIGUSR1, all_threads=True)   # `kill -USR1 <pid>` writes every thread's stack to the log
     logging.getLogger("werkzeug").addFilter(_QuietPolling())
