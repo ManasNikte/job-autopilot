@@ -30,6 +30,9 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 
 **v3.12: more charts, and updates that show you what's new.**
 
+- **Help chat (v3.13).** A Help button on every page answers questions about the app from the latest guides and
+  release notes, and checks the app's current state (runs, email checks, recent errors) to explain what's wrong
+  and how to fix it.
 - **Charts by role family:** applied, rejected, and assessments as three donuts in one row, plus a line chart of
   active applications (sent and not rejected yet) for each family, day by day.
 - **Fix type** on every email: if Claude labels one wrong, pick what it really is and the job follows.
@@ -221,6 +224,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.13** | A Help chat on every page that answers from the latest docs and diagnoses problems from the app's current state |
 | **v3.12** | Active applications by role family (line chart); updates install together and end with a walkthrough of what's new |
 | **v3.11.4** | Fix type on emails (replaces Undo/Ignore); applied, rejected, and assessment donuts by role family; Apple Mail inboxes read in full; screening questionnaires recognized |
 | **v3.11.3** | Emails you forward from your own address are read (e.g. from a school inbox); assessment-game invitations recognized; more accurate due dates |

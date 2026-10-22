@@ -1698,6 +1698,9 @@ WHATS_NEW = {
               "Hover or tap for every family's count that day."),
              (None, None, "Updates install together",
               "When several updates are waiting, one click installs all of them, then this tour shows what's new.")],
+    "3.13": [("", "help-chat", "Ask the Help chat",
+              "Questions about the app, or something not working? Ask here. It answers from the latest guides and "
+              "checks your app's current state to tell you what's going on.")],
 }
 
 
@@ -1727,6 +1730,27 @@ def tour_steps_api():
         return jsonify(whats_new_steps((db.kv_get("updated_from") or {}).get("v")))
     from . import greeting
     return jsonify(tour_steps(greeting.user_name()))
+
+
+@app.post("/api/help")
+def help_chat():
+    """The Help chat: one question (plus the last few turns) in, one answer out. Nothing is stored."""
+    from . import helpchat, llm
+    body = request.get_json(silent=True) or {}
+    q = str(body.get("q", "")).strip()
+    if not q:
+        return jsonify({"error": "Ask a question first."}), 400
+    history = body.get("history") if isinstance(body.get("history"), list) else []
+    try:
+        return jsonify({"answer": helpchat.answer(q, history)})
+    except llm.BackendUnavailable as e:
+        msg = str(e)
+        if "sign in" in msg.lower() or "logged in" in msg.lower():
+            msg = ("I can't reach Claude: its sign-in has expired. Open a terminal, run `claude`, type `/login`, and sign in "
+                   "with your Claude account. Then ask me again.")
+        return jsonify({"error": msg[:400]}), 503
+    except Exception as e:
+        return jsonify({"error": f"Something went wrong answering that: {str(e)[:200]}"}), 500
 
 
 @app.route("/how-it-works")

@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.13 (2026-10-22)
+- **Help chat.** A Help button in the corner of every page opens a small chat. Ask anything about the app or describe a problem, like "why weren't my emails scanned?". It answers from the latest guides and release notes, and it checks your app's current state (last run, email checks, recent errors, pauses) to tell you what's going on and how to fix it. It runs on your own Claude seat, and nothing is saved.
+
 ## 3.12 (2026-10-22)
 - **Active applications by role family:** a new line chart, one line per family, showing applications you've sent that haven't been rejected yet, day by day. Hover or tap to see every family's count that day. It sits next to the pipeline, and Posted today has its own full row again.
 - **Updates install together, then show what's new.** When several updates are waiting, the banner says so and one click installs them all. After the restart, a short walkthrough visits each new feature on its page, and the banner lists the notes for every version you skipped.

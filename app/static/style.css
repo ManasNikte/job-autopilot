@@ -714,3 +714,35 @@ html.sb-rail .sb-slide .ic { transform: scaleX(-1); }
 .ln-tip div { display: grid; grid-template-columns: 10px 1fr auto; gap: 7px; align-items: center; padding: 1px 0; }
 .ln-tip .sw { width: 10px; height: 10px; border-radius: 3px; }
 .table-scroll { overflow-x: auto; }
+/* Help chat: a button in the corner of every page and a small panel */
+.help-chat { position: fixed; right: 18px; bottom: 18px; z-index: 900; }
+.help-fab { display: flex; align-items: center; gap: 7px; padding: 10px 15px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--accent); color: #fff; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.help-fab svg { width: 18px; height: 18px; }
+.help-fab:hover { filter: brightness(1.08); }
+.help-chat.open .help-fab { display: none; }
+.help-panel { width: min(400px, calc(100vw - 24px)); height: min(560px, calc(100vh - 100px)); display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 16px 48px rgba(0,0,0,.35); overflow: hidden; }
+.help-panel[hidden] { display: none; }
+.help-head { display: flex; align-items: center; gap: 6px; padding: 12px 12px 10px 16px; border-bottom: 1px solid var(--border); }
+.help-head > div { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.help-log { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.help-msg { max-width: 88%; padding: 9px 12px; border-radius: 14px; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.help-msg p { margin: 0 0 6px; } .help-msg p:last-child { margin-bottom: 0; }
+.help-msg ol, .help-msg ul { margin: 4px 0 6px; padding-left: 20px; } .help-msg li { margin: 2px 0; }
+.help-msg code { font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+.help-msg.bot { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 4px; }
+.help-msg.me { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+.help-msg.typing { color: var(--muted); font-style: italic; }
+.help-msg.error { border: 1px solid var(--no, #d9534f); }
+.help-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.help-chips[hidden] { display: none; }
+.help-chips button { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 999px; padding: 6px 11px;
+  font: inherit; font-size: 12.5px; cursor: pointer; text-align: left; }
+.help-chips button:hover { border-color: var(--accent); color: var(--accent); }
+.help-form { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px; border-top: 1px solid var(--border); }
+.help-form textarea { flex: 1; resize: none; min-height: 38px; max-height: 120px; padding: 9px 11px; border-radius: 10px; font: inherit; font-size: 14px;
+  border: 1px solid var(--border); background: var(--input); color: var(--text); }
+@media (max-width: 600px) { .help-chat { right: 10px; bottom: 10px; } .help-fab span { display: none; } .help-fab { padding: 12px; }
+  .help-panel { height: calc(100vh - 80px); } }
+@media print { .help-chat { display: none; } }
