@@ -3,6 +3,11 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.14.1 (2026-10-22)
+- **Assessments from companies that later rejected you stay visible.** The Assessments page lists them under "Finished, dismissed, or closed", flagged **Rejected** (or **Moved forward** after an interview or offer), next to whether you finished them.
+- **Emails from application systems are always read,** even when the subject is only the job title. One Workday rejection had been skipped because of that.
+- The "undone" label is gone from the Email page.
+
 ## 3.14 (2026-10-22)
 - **Updating no longer shows "Internal Server Error".** The update page broke when the old version tried to show it with the new version's files. It now works whatever version you're coming from.
 - **Updates run in the background with a progress bar:** download, install new components if needed, restart. Then the new version opens on its own with a short tour of what's new. If something goes wrong, the page says what happened and nothing is lost. Other open tabs show a simple "updating" screen instead of an error until it's done.

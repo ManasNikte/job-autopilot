@@ -47,7 +47,7 @@
       {% if e.link %}<div class="small"><a href="{{ e.link }}" target="_blank" rel="noopener noreferrer">Open link ↗</a>{% if e.deadline %} · due {{ e.deadline }}{% endif %}</div>{% endif %}</td>
     <td class="nowrap"><span class="badge {{ 'no' if e.event == 'rejection' else 'apply' if e.event in ('interview', 'offer') else 'risk' if e.event == 'assessment' else '' }}">{{ events.get(e.event, e.event) }}</span>
       {% if e.state == 'applied' and e.prev_status != e.new_status %}<div class="sub small">{{ status_labels.get(e.prev_status, e.prev_status) }} → {{ status_labels.get(e.new_status, e.new_status) }}</div>{% endif %}
-      {% if e.state == 'undone' %}<div class="sub small">undone</div>{% endif %}</td>
+</td>
     <td>{% if e.job_id %}<a href="{{ url_for('job_detail', job_id=e.job_id) }}">{{ e.job_company }}</a><div class="sub small">{{ e.job_title|truncate(50) }}</div>
       {% elif e.state == 'unmatched' %}<span class="muted small">{{ e.company or 'Unknown company' }}{% if e.role %} · {{ e.role }}{% endif %}</span>
       <form method="post" action="{{ url_for('email_assign', eid=e.id) }}" class="row assign" style="gap:4px;margin-top:4px">

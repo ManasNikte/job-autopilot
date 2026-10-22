@@ -150,3 +150,27 @@ def test_email_page_has_fix_type_not_undo(tmp_path, monkeypatch):
     eid = db.fetchone("SELECT id FROM email_events")["id"]
     r = app.test_client().post(f"/email/{eid}/type", data={"event": "interview"})
     assert r.status_code == 302 and db.get_job("g:1")["status"] == "interviewing"
+
+
+def test_application_system_emails_count_even_with_just_a_job_title():
+    from app.mailsync import likely_application_email as likely
+    assert likely("acme@myworkday.com", "Business Insights Data Analyst", set())          # a rejection, subject = title
+    assert likely("Acme <no-reply@us.greenhouse-mail.io>", "Software Engineer", set())
+    assert not likely("LinkedIn <jobs-noreply@linkedin.com>", "Software Engineer", set())
+    assert not likely("acme@myworkday.com", "Job alert: 30 new jobs for you", set())
+
+
+def test_assessments_page_flags_ones_the_company_later_rejected(jobs_db):
+    from app.web import app
+    base = {"account": "a", "sender": "s", "company": "Stripe", "role": "Software Engineer, New Grad", "link": "", "deadline": ""}
+    mailsync.apply_event({**base, "msg_id": "<oa@x>", "received_at": "2026-10-15T18:34:00+00:00", "subject": "Screening invite",
+                          "event": "assessment", "summary": "Screening due Oct 18", "body": "due Oct 18, 2026"})
+    db.execute("UPDATE email_events SET done_at='2026-10-15T19:51:00+00:00', done_how='done' WHERE msg_id='<oa@x>'")
+    mailsync.apply_event({**base, "msg_id": "<rj@x>", "received_at": "2026-10-15T22:38:00+00:00", "subject": "Your application",
+                          "event": "rejection", "summary": "Pursuing other candidates", "body": ""})
+    assert db.get_job("g:1")["status"] == "closed"
+    html = app.test_client().get("/assessments").get_data(as_text=True)
+    i = html.index("Finished, dismissed, or closed")
+    rest = html[i:]
+    assert "Stripe" in rest and ">Done<" in rest and ">Rejected<" in rest
+    assert ">undone<" not in app.test_client().get("/email").get_data(as_text=True)

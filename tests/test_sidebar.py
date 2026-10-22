@@ -48,7 +48,7 @@ def test_settings_are_separate_pages(client):
 
 def test_assessments_page(client):
     html = client.get("/assessments").get_data(as_text=True)
-    assert "Online assessments" in html and "Finished or dismissed" in html
+    assert "Online assessments" in html and "Finished, dismissed, or closed" in html
     assert 'class="sb-link on"' in html and "Assessments</span>" in html
 
 

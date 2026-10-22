@@ -403,10 +403,19 @@ def own_addresses() -> set[str]:
     return {str(a.get("address")).lower() for a in accounts().values() if isinstance(a, dict) and a.get("address")}
 
 
+# Application systems that only ever email candidates about their applications: anything from them counts, even
+# when the subject is just the job title ("Business Insights Data Analyst" was a Workday rejection).
+ATS_DOMAINS = re.compile(r"@(?:[\w.-]+\.)?(?:myworkday(?:site)?\.com|greenhouse(?:-mail)?\.io|greenhouse\.io|lever\.co|"
+                         r"ashbyhq\.com|icims\.com|smartrecruiters\.com|jobvite\.com|taleo\.net|successfactors\.\w+|"
+                         r"workablemail\.com|bamboohr\.com|eightfold\.ai|avature\.net)>?\s*$", re.I)
+
+
 def likely_application_email(sender: str, subject: str, own: set[str] | None = None) -> bool:
     text = f"{sender} {subject}"
     if NOT_UPDATES.search(subject or ""):
         return False
+    if ATS_DOMAINS.search((sender or "").strip()):
+        return True
     addr = (email.utils.parseaddr(sender or "")[1] or "").lower()
     if FORWARDED.match(subject or "") and addr and addr in (own if own is not None else own_addresses()):
         return True

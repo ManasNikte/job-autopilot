@@ -1787,9 +1787,26 @@ def assessments_page():
     assess = assessments.pending()
     for a in assess:
         a["label"] = assessments.due_label(a)
-    done = db.fetchall("SELECT e.id, coalesce(j.company, e.company) AS company, coalesce(j.title, e.role) AS role, e.due_at, "
-                       "e.done_at, e.done_how FROM email_events e LEFT JOIN jobs j ON j.id = e.job_id "
-                       "WHERE e.event='assessment' AND e.done_at IS NOT NULL ORDER BY e.done_at DESC LIMIT 50")
+    # Everything that isn't still to do: finished, dismissed, or where the company has since rejected you (flagged,
+    # so an assessment you took before a rejection still shows) or moved you on to an interview or offer.
+    open_ids = {i for a in assess for i in a["ids"]}
+    done = []
+    for d in db.fetchall(
+            "SELECT e.id, e.received_at, coalesce(j.company, e.company) AS company, coalesce(j.title, e.role) AS role, "
+            "e.due_at, e.done_at, e.done_how, j.status AS job_status, "
+            "(SELECT max(x.received_at) FROM email_events x WHERE x.event='rejection' AND x.state NOT IN ('ignored','undone') "
+            " AND (x.job_id = e.job_id OR lower(x.company) = lower(e.company))) AS rejected_at, "
+            "(SELECT max(x.received_at) FROM email_events x WHERE x.event IN ('interview','offer') AND x.state NOT IN ('ignored','undone') "
+            " AND (x.job_id = e.job_id OR lower(x.company) = lower(e.company))) AS advanced_at "
+            "FROM email_events e LEFT JOIN jobs j ON j.id = e.job_id "
+            "WHERE e.event='assessment' AND e.state NOT IN ('ignored') ORDER BY e.received_at DESC LIMIT 100"):
+        if d["id"] in open_ids:
+            continue
+        rejected = d["job_status"] == "closed" or bool(d["rejected_at"] and d["rejected_at"] >= d["received_at"])
+        advanced = bool(d["advanced_at"] and d["advanced_at"] >= d["received_at"]) and not rejected
+        if not (d["done_at"] or rejected or advanced):
+            continue
+        done.append({**d, "rejected": rejected, "advanced": advanced})
     return render_template("assessments.html", assess=assess, done=done)
 
 

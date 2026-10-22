@@ -9,7 +9,7 @@
 <div class="card"><p class="muted" style="margin:0">Nothing to finish right now. New assessment emails show up here on their own after each email check.</p></div>
 {% endif %}
 <div class="card">
-  <h2>Finished or dismissed</h2>
+  <h2>Finished, dismissed, or closed</h2>
   {% if done %}
   <table class="jobs-table">
     <thead><tr><th>Company</th><th>Due</th><th>Status</th><th></th></tr></thead>
@@ -17,7 +17,11 @@
     <tr>
       <td class="role"><b>{{ d.company }}</b>{% if d.role %}<div class="meta">{{ d.role }}</div>{% endif %}</td>
       <td class="sub small nowrap" data-label="Due">{{ d.due_at|local if d.due_at else '—' }}</td>
-      <td data-label="Status"><span class="badge {{ 'apply' if d.done_how == 'done' else '' }}">{{ 'Done' if d.done_how == 'done' else 'Not doing it' }}</span> <span class="sub small">{{ d.done_at|ago }}</span></td>
+      <td data-label="Status">
+        {% if d.done_how == 'done' %}<span class="badge apply">Done</span>{% elif d.done_at %}<span class="badge">Not doing it</span>{% endif %}
+        {% if d.rejected %}<span class="badge no" title="The company rejected the application afterwards">Rejected</span>
+        {% elif d.advanced %}<span class="badge apply" title="The company moved you to an interview or offer">Moved forward</span>{% endif %}
+        {% if d.done_at %}<span class="sub small">{{ d.done_at|ago }}</span>{% endif %}</td>
       <td class="num"><a class="btn small" href="{{ url_for('email_page', id=d.id) }}">See the email</a></td>
     </tr>
     {% endfor %}
