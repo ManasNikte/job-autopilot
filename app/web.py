@@ -29,6 +29,37 @@ _UPDATING_HTML = """<!doctype html><html lang="en"><head><meta charset="utf-8"><
 <body><div><h1>Job Autopilot is updating…</h1><p>This page opens the new version by itself in a few seconds.</p></div></body></html>"""
 
 
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "[::1]"}
+
+
+@app.before_request
+def _local_hosts_only():
+    """Answer only requests addressed to this computer. A website can point its own domain at 127.0.0.1 (DNS
+    rebinding) and then read pages or press buttons here; such requests carry that domain as the Host, so refuse."""
+    host = (request.host or "").rsplit(":", 1)[0] if not (request.host or "").startswith("[") else (request.host or "").split("]")[0] + "]"
+    if host.lower() not in LOCAL_HOSTS:
+        abort(403)
+
+
+@app.template_filter("safeurl")
+def safeurl(url: str | None) -> str:
+    """Only http(s) links from emails make it into a page (never javascript: or data:)."""
+    u = (url or "").strip()
+    return u if re.match(r"^https?://", u, re.I) else ""
+
+
+_DB_READY = False
+
+
+@app.before_request
+def _ensure_db():
+    """Create the tables on the first request, however the app was started (serve() also does this)."""
+    global _DB_READY
+    if not _DB_READY:
+        db.init()
+        _DB_READY = True
+
+
 @app.before_request
 def _hold_pages_while_updating():
     """While an update is changing files, the running (old) code must not render pages from the new templates:
@@ -408,7 +439,7 @@ def dashboard():
     assess = assessments.pending()
     for a in assess:
         a["label"] = assessments.due_label(a)
-    kpis["assessments"] = sum(1 for a in assess if not a["overdue"])
+    kpis["assessments"] = len(assess)          # the same list the card below shows (overdue ones stay a day)
     week = week_series()
     weeks = week_options()
     saved = time_saved()
@@ -686,7 +717,11 @@ def open_application(job_id):
     """Remember which job you are applying to (the extension uses it to match the page), then go there."""
     job = db.get_job(job_id) or abort(404)
     db.kv_set("last_opened_job", job_id)
-    return redirect(job.get("apply_url") or job["url"])
+    target = job.get("apply_url") or job.get("url")
+    if not target:
+        flash("This job has no application link saved. Search the company's careers page for it.")
+        return redirect(url_for("job_detail", job_id=job_id))
+    return redirect(target)
 
 
 @app.route("/inbox")
@@ -1359,7 +1394,11 @@ SETTINGS_SECTIONS = [   # (key, title, one-line description): each is its own pa
 @app.route("/settings", methods=["GET", "POST"])
 def settings_root():
     """/settings opens the first section (307 keeps a POST from older pages a POST)."""
-    return redirect(url_for("settings_page", section="schedule", **request.args), code=307)
+    args = request.args.to_dict()
+    sec = args.pop("section", "schedule")
+    if sec not in {k for k, _, _ in SETTINGS_SECTIONS}:
+        sec = "schedule"
+    return redirect(url_for("settings_page", section=sec, **args), code=307)
 
 
 @app.route("/settings/<section>", methods=["GET", "POST"])
@@ -1445,8 +1484,15 @@ def _same_origin_posts():
 def cloud_connect():
     from . import cloud
     if request.form.get("disconnect"):
-        cloud.disconnect()
-        flash("This computer is disconnected from the online dashboard, and its data there was removed.")
+        force = request.form.get("force") == "1"
+        try:
+            cloud.disconnect(force=force)
+        except RuntimeError as e:
+            flash(f"{e} (Or disconnect anyway: its data stays online until you delete your account on the site.)")
+            return redirect(url_for("settings_page", section="online"))
+        flash("This computer is disconnected from the online dashboard" +
+              (" (its data online couldn't be deleted; delete your account on the site to remove it)." if force
+               else ", and its data there was removed."))
         return redirect(url_for("settings_page", section="online"))
     email, password = request.form.get("email", "").strip(), request.form.get("password", "")
     name = (request.form.get("machine_name") or cloud.default_machine_name()).strip()
@@ -1880,8 +1926,12 @@ def assessment_mark(event_id, how):
     if how not in ("done", "skip"):
         abort(404)
     a = next((x for x in assessments.pending() if event_id in x["ids"]), None)
-    if not a:
-        abort(404)
+    if not a:                                    # overdue or already moved on: mark that email itself
+        ev = db.fetchone("SELECT e.id, coalesce(j.company, e.company) AS shown_company FROM email_events e "
+                         "LEFT JOIN jobs j ON j.id = e.job_id WHERE e.id=? AND e.event='assessment'", (event_id,))
+        if not ev:
+            abort(404)
+        a = {"ids": [ev["id"]], "shown_company": ev["shown_company"]}
     assessments.mark(a["ids"], "done" if how == "done" else "skipped")
     flash(f"Nice work on the {a['shown_company']} assessment! 🎯" if how == "done"
           else f"Okay, no more reminders for the {a['shown_company']} assessment.")
@@ -2063,6 +2113,9 @@ def resume_preview():
     """A real PDF of your latest tailored resume drawn with the chosen template (nothing is saved to a job)."""
     from .render import pdfgen
     t = request.args.get("t", "")
+    if not t:
+        from .pipeline import resume_template
+        t = resume_template()                       # no template named: show the one you use
     if t not in pdfgen.TEMPLATES:
         abort(404)
     data, _ = _latest_resume_data()

@@ -40,9 +40,20 @@ NETWORK_RE = re.compile(r"can't reach the api|ENOTFOUND|ECONNREFUSED|ECONNRESET|
                         r"getaddrinfo|socket hang up|fetch failed|connection (error|reset|refused)", re.I)
 # Signed out or an expired session ("Failed to authenticate: OAuth session expired and could not be refreshed"):
 # stop and ask the user to sign in again, instead of failing every job.
-AUTH_RE = re.compile(r"not logged in|logged out|please (run )?/?login|failed to authenticate|authentication (failed|error)|"
-                     r"oauth|session expired|invalid api key|unauthori[sz]ed|\b401\b|credentials", re.I)
+AUTH_RE = re.compile(r"not logged in|logged out|please (run )?/login|failed to authenticate|authentication[_ ](failed|error)|"
+                     r"oauth (session|token)[^.]*(expired|revoked|invalid)|session expired|invalid api key|401 unauthorized", re.I)
+# Claude's servers busy or failing for a moment: wait and try again rather than marking the job as failed for good.
+SERVER_RE = re.compile(r"overloaded|\b(500|502|503|504|529)\b|internal server error|api_error|service unavailable|"
+                       r"bad gateway|gateway timeout|temporarily unavailable", re.I)
 LIMIT_RE = re.compile(r"session limit|usage limit|hit your limit|rate limit|limit reached|out of (extra )?usage|quota", re.I)
+
+
+def _seconds(value, default: float) -> float:
+    """A retry-after header ("120", "1.5", or junk) as seconds."""
+    try:
+        return max(1.0, float(value))
+    except (TypeError, ValueError):
+        return default
 
 
 def _reset_time(msg: str) -> float:
@@ -253,7 +264,7 @@ def _via_api(system: str, user: str, schema: dict, model: str, effort: str, max_
         raise BackendUnavailable(f"Anthropic API key rejected: {e.message}") from e
     except anthropic.RateLimitError as e:
         raise BackendUnavailable("Rate limited by the Anthropic API; pausing and retrying shortly.",
-                                 retry_at=time.time() + int(e.response.headers.get("retry-after", "120"))) from e
+                                 retry_at=time.time() + _seconds(e.response.headers.get("retry-after"), 120)) from e
     except anthropic.APIStatusError as e:
         raise LLMError(f"Anthropic API error {e.status_code}: {e.message}") from e
     except anthropic.APIConnectionError as e:
@@ -305,14 +316,16 @@ def _via_cli(system: str, user: str, schema: dict, model: str, effort: str, web_
                "cache_write": u.get("cache_creation_input_tokens"), "turns": out.get("num_turns")})
     if out.get("is_error"):
         msg = str(out.get("result", "unknown error"))
-        low = msg.lower()
-        if AUTH_RE.search(msg) or "login" in low:
-            raise BackendUnavailable(f"Claude needs you to sign in again ({msg[:160]}). Run `claude` in a terminal, type /login, "
-                                     "and sign in with your Claude account; then click Run now.")
-        if LIMIT_RE.search(msg):
-            raise BackendUnavailable(f"Claude usage limit reached: {msg}", retry_at=_reset_time(msg))
+        # Order matters: an offline token refresh says "OAuth ... fetch failed" (that's the network, not a sign-in).
         if NETWORK_RE.search(msg):           # Wi-Fi dropped or DNS failed: wait and retry, don't fail the job
             raise BackendUnavailable(f"No internet connection ({msg[:120]}); retrying in 5 minutes", retry_at=time.time() + 300)
+        if LIMIT_RE.search(msg):
+            raise BackendUnavailable(f"Claude usage limit reached: {msg}", retry_at=_reset_time(msg))
+        if SERVER_RE.search(msg):
+            raise BackendUnavailable(f"Claude is busy right now ({msg[:120]}); retrying in 5 minutes", retry_at=time.time() + 300)
+        if AUTH_RE.search(msg):
+            raise BackendUnavailable(f"Claude needs you to sign in again ({msg[:160]}). Run `claude` in a terminal, type /login, "
+                                     "and sign in with your Claude account; then click Run now.")
         raise LLMError(f"Claude CLI error: {msg}")
     if isinstance(out.get("structured_output"), dict):
         return out["structured_output"]

@@ -47,6 +47,7 @@ def _wait_if_paused() -> None:
 def resume() -> bool:
     """Lift a usage-limit pause now (e.g. the limit was reset early). If Claude is still limited, the next
     call simply pauses again. Returns True if work was paused."""
+    state["signin_needed"] = None               # you pressed Run: try Claude again
     was = bool(state["paused_until"])
     if was:
         state["paused_until"], state["pause_reason"] = None, ""
@@ -119,6 +120,7 @@ def _loop() -> None:
             else:
                 _log(f"✗ task {kind} failed: {e}")
                 if e.__class__.__name__ == "BackendUnavailable":
+                    state["signin_needed"] = str(e)[:300]
                     db.add_intervention(None, "error", "Claude backend needs setup", str(e))
         finally:
             with _pending_lock:
@@ -190,7 +192,8 @@ def backlog_tick() -> bool:
     """Jobs waiting to be screened while nothing is running or paused? Start a batch (it chains until done).
     Returns True when a batch was queued."""
     from . import db
-    if not env_int("AUTO_CONTINUE_SCREENING", 1) or state["paused_until"] or state["active"] or _q.qsize():
+    if (not env_int("AUTO_CONTINUE_SCREENING", 1) or state["paused_until"] or state["active"] or _q.qsize()
+            or state.get("signin_needed")):         # signed out of Claude: wait for you instead of failing every few minutes
         return False
     if db.count("jobs", "status='to_screen'"):
         return submit("process", "auto")
@@ -243,9 +246,17 @@ def start() -> None:
 
 
 def submit(kind: str, arg: str | None = None) -> bool:
+    try:
+        from . import updater
+        if updater.PROGRESS.get("lock") or updater.STATE.get("updating"):
+            _log(f"not starting {kind}: the app is updating")       # the restart would cut it off
+            return False
+    except Exception:
+        pass
     with _pending_lock:
-        busy_run = kind in ("run", "process") and (
-            any(k == kind for k, _ in _pending) or any(v.split(" ")[0] == kind for v in list(state["active"].values())))
+        group = ("run", "process")              # a full run and a screening batch never run at the same time
+        busy_run = kind in group and (
+            any(k in group for k, _ in _pending) or any(v.split(" ")[0] in group for v in list(state["active"].values())))
         if (kind, arg) in _pending or busy_run:
             _log(f"already queued: {kind} {arg or ''}")
             return False

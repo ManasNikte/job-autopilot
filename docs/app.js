@@ -131,7 +131,7 @@
     const prof = await sb.from("profiles").select("display_name").eq("id", me.id).maybeSingle();
     if (!machines.length) { $("#hello-title").textContent = `Welcome${prof.data?.display_name ? ", " + prof.data.display_name : ""} 👋`; return; }
     machineId = sel.value || machines[0].id;
-    sel.onchange = () => { machineId = sel.value; refresh(); };
+    sel.onchange = () => { machineId = sel.value; jobPage = emailPage = cmdPage = 0; refresh(); };
     TABS.forEach(([k, label]) => { const a = el("a", "tab", label); a.href = "#"; a.dataset.k = k; a.onclick = (ev) => { ev.preventDefault(); jobTab = k; jobPage = 0; loadJobs(); }; $("#job-tabs").appendChild(a); });
     $("#job-q").addEventListener("input", () => { jobPage = 0; loadJobs(); });
     document.querySelectorAll("[data-cmd]").forEach((b) => b.addEventListener("click", () => send(b.dataset.cmd, b)));
@@ -275,6 +275,11 @@
     w.days.forEach((x) => { const r = el("tr"); r.append(el("td", null, x.label), el("td", "num", x.future ? "—" : String(x.n))); t.appendChild(r); });
   }
 
+  // The page to go back to when the one you were on no longer exists (fewer rows now): the last real page.
+  function lastPage(count, per, page) {
+    return typeof count === "number" ? Math.max(0, Math.min(page - 1, Math.ceil(count / per) - 1)) : page - 1;
+  }
+
   async function loadJobs() {
     document.querySelectorAll("#job-tabs .tab").forEach((t) => t.classList.toggle("on", t.dataset.k === jobTab));
     let q = sb.from("jobs").select("job_id,company,title,location,status,match_score,salary,applied_at,url,updated_at", { count: "exact" })
@@ -284,6 +289,7 @@
     const term = $("#job-q").value.trim().replace(/[%,()]/g, " ");
     if (term) q = q.or(`company.ilike.%${term}%,title.ilike.%${term}%`);
     const { data, count } = await q.range(jobPage * JOB_PER, jobPage * JOB_PER + JOB_PER - 1);
+    if (!(data && data.length) && jobPage > 0) { jobPage = lastPage(count, JOB_PER, jobPage); return loadJobs(); }   // list shrank
     const rows = data || [], box = $("#jobs"); box.replaceChildren();
     if (!rows.length) box.appendChild(el("p", "sub", "Nothing here yet."));
     rows.forEach((j) => {
@@ -302,6 +308,7 @@
   async function loadEmails() {
     const { data, count } = await sb.from("email_updates").select("received_at,company,role,event,summary,deadline,new_status,state", { count: "exact" })
       .eq("machine_id", machineId).order("received_at", { ascending: false }).range(emailPage * EMAIL_PER, emailPage * EMAIL_PER + EMAIL_PER - 1);
+    if (!(data && data.length) && emailPage > 0) { emailPage = lastPage(count, EMAIL_PER, emailPage); return loadEmails(); }
     pager($("#emails-pager"), emailPage, EMAIL_PER, count, (to) => { emailPage = to; loadEmails(); });
     const box = $("#emails"); box.replaceChildren();
     if (!(data || []).length) box.appendChild(el("p", "sub", "No email updates yet. Connect an inbox on your computer (Settings → Email)."));
@@ -318,6 +325,7 @@
   async function loadCommands() {
     const { data, count } = await sb.from("commands").select("kind,status,result,created_at", { count: "exact" }).eq("machine_id", machineId)
       .order("created_at", { ascending: false }).range(cmdPage * CMD_PER, cmdPage * CMD_PER + CMD_PER - 1);
+    if (!(data && data.length) && cmdPage > 0) { cmdPage = lastPage(count, CMD_PER, cmdPage); return loadCommands(); }
     pager($("#commands-pager"), cmdPage, CMD_PER, count, (to) => { cmdPage = to; loadCommands(); });
     const box = $("#commands"); box.replaceChildren();
     if (!(data || []).length) box.appendChild(el("p", "sub", "Requests you send from here show up with their status."));

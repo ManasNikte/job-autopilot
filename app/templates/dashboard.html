@@ -124,7 +124,7 @@
                   : pin.jobs.some(j => ["interviewing", "offer"].includes(j.status)) ? "interviewing" : pin.jobs[0].status;
       const c = color(worst);
       L.circleMarker([pin.lat, pin.lng], { radius: Math.min(6 + 2.5 * Math.sqrt(pin.jobs.length - 1) * 2, 18), color: css("--surface"),
-        weight: 2, fillColor: c, fillOpacity: 0.9 }).bindPopup(popup(pin)).bindTooltip(`${pin.place}: ${pin.jobs.length}`).addTo(m._layer);
+        weight: 2, fillColor: c, fillOpacity: 0.9 }).bindPopup(popup(pin)).bindTooltip(Object.assign(document.createElement('span'), { textContent: `${pin.place}: ${pin.jobs.length}` })).addTo(m._layer);
       pts.push([pin.lat, pin.lng]);
     }
     if (pts.length) m.fitBounds(pts, { padding: [28, 28], maxZoom: 7 });

@@ -21,7 +21,12 @@ def main(argv: list[str]) -> None:
         serve()
     elif cmd == "run":
         from .pipeline import run
-        run()
+        lock = db.DB_PATH.parent / "headless.lock"         # tells a dashboard that starts meanwhile to leave these jobs alone
+        lock.write_text(str(__import__("os").getpid()), encoding="utf-8")
+        try:
+            run()
+        finally:
+            lock.unlink(missing_ok=True)
     elif cmd == "fetch":
         from .pipeline import fetch_all
         fetch_all()

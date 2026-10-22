@@ -150,6 +150,7 @@
     <p class="sub small">The site operator sees your name, email, this city, and how many applications you send (this week and in total). Never company names, job titles, or your documents.</p>
     {% if is_mac and remote_wake %}<p class="sub small">Wake-ups use the lid-closed helper; if you installed it before this option existed, run <code>sudo ~/job-autopilot/scripts/install_wake.sh</code> once. Keep the Mac plugged in.</p>{% endif %}
     <form method="post" action="{{ url_for('cloud_connect') }}"><button class="btn small danger" name="disconnect" value="1" onclick="return confirm('Disconnect this computer? Its data on the online dashboard is deleted.')">Disconnect this computer</button></form>
+    <form method="post" action="{{ url_for('cloud_connect') }}"><input type="hidden" name="force" value="1"><button class="btn small ghost" name="disconnect" value="1" title="Use only if you're offline and want to disconnect now" onclick="return confirm('Disconnect without deleting its data online? Its data stays online until you delete your account on the site.')">Disconnect anyway</button></form>
   {% elif cloud_pending %}
     <p style="margin-top:0">Almost done. We emailed a <b>6-digit code</b> to <b>{{ cloud_pending.email }}</b>. Enter it to confirm your account and connect this computer.</p>
     <form method="post" action="{{ url_for('cloud_verify') }}" class="row" style="gap:8px" data-busy="Confirming…">

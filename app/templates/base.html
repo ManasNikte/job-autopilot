@@ -24,7 +24,7 @@
   <button type="button" class="btn small icon sb-toggle" id="sb-toggle" aria-label="Menu" aria-controls="sidebar" aria-expanded="false" title="Menu">
     <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   <form class="global-search" action="{{ url_for('jobs') }}" method="get" role="search">
-    <input type="search" name="q" id="global-q" placeholder="Search jobs  ( / )" value="{{ request.args.get('q', '') if ep == 'jobs' else '' }}" aria-label="Search jobs">
+    <input type="search" name="q" id="global-q" placeholder="Search jobs  ( / )" value="{{ request.args.get('q', '') if request.endpoint == 'jobs' else '' }}" aria-label="Search jobs">
   </form>
   <div class="right">
     <span id="worker-state" class="sub">{% if worker.active %}Working on {{ worker.active|length }} job(s){% else %}Idle{% endif %}<span id="bg-dot" class="dot" hidden></span></span>

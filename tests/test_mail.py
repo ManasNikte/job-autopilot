@@ -203,19 +203,26 @@ def test_matching_from_the_whole_email(jobs_db, monkeypatch):
     db.upsert_job({"id": "g:9", "company": "Fabrikam", "title": "Software Engineer, Trust & Safety", "status": "applied"})
     db.upsert_job({"id": "g:10", "company": "Fabrikam", "title": "Data Analyst", "status": "applied"})
     asked = []
+    pick = {"want": "workday:northwind:R-110635"}
     monkeypatch.setattr(mailsync, "ask_claude_to_match", lambda ev, text, cands: asked.append([c["id"] for c in cands]) or
-                        next(c for c in cands if c["id"] == "g:9"))
-    # requisition number in the text + company in the sender: clear, no Claude; a held job moves to Applied
+                        next((c for c in cands if c["id"] == pick["want"]), None))
+    # requisition number + company in the sender, but the app had skipped that job: Claude confirms before it
+    # moves to Applied (a held job is never promoted on a heuristic alone)
     ev = {"account": "a", "msg_id": "<p@x>", "received_at": "2026-10-20T12:00:00+00:00", "sender": "northwindgroup@myworkday.com",
           "subject": "Thank You For Applying!", "company": "", "role": "", "link": "", "deadline": "", "event": "confirmation",
           "summary": "", "body": "Thanks for applying to Software Engineer I (R-110635)."}
-    assert mailsync.apply_event(ev)["state"] == "applied" and not asked
+    assert mailsync.apply_event(ev)["state"] == "applied" and asked == [["workday:northwind:R-110635"]]
+    asked.clear(); pick["want"] = "g:9"
     j = db.get_job("workday:northwind:R-110635")
     assert j["status"] == "applied" and j["applied_at"].startswith("2026-10-20")
     # two jobs at the company, no title in the email: Claude picks from just those
     ev2 = {**ev, "msg_id": "<c@x>", "sender": "no-reply@fabrikam.com", "subject": "Your Application to Fabrikam", "event": "rejection",
            "body": "We won't be moving forward with your application for the Trust & Safety team."}
     assert mailsync.apply_event(ev2)["job_id"] == "g:9" and set(asked[0]) == {"g:9", "g:10"}
+    # Claude can't tell either: left unmatched instead of guessing the most recent one
+    pick["want"] = None
+    ev4 = {**ev2, "msg_id": "<c2@x>", "body": "Thanks for your interest."}
+    assert mailsync.apply_event(ev4)["state"] == "unmatched"
     # nothing plausible: stays unmatched, no Claude call
     n = len(asked)
     ev3 = {**ev, "msg_id": "<n@x>", "sender": "no-reply@nobody.example", "subject": "Thanks for applying", "company": "Zzyzx Co", "body": "hi"}
@@ -228,7 +235,9 @@ def test_rematch_unmatched(jobs_db, monkeypatch):
                           "summary": "", "body": ""})
     assert db.count("email_events", "state='unmatched'") == 1
     monkeypatch.setattr(mailsync, "full_text", lambda row: "Your application for Backend Engineer at Acme Corp was not selected.")
-    st = mailsync.rematch_unmatched(lambda *a: None, use_claude=False)
+    assert mailsync.rematch_unmatched(lambda *a: None, use_claude=False)["matched"] == 0   # a name in the text alone isn't enough
+    monkeypatch.setattr(mailsync, "ask_claude_to_match", lambda ev, text, cands: next(c for c in cands if c["id"] == "g:3"))
+    st = mailsync.rematch_unmatched(lambda *a: None)
     assert st == {"checked": 1, "matched": 1, "left": 0}
     assert db.get_job("g:3")["status"] == "closed"                     # Acme Corp backend job, found from the full text
 
@@ -259,3 +268,52 @@ def test_interviews_stay_with_rejected_and_offer_flags(jobs_db):
     assert ">2</div><div class=\"k\">Interviews · 1 offer · 1 rejected<" in dash
     from app import cloud
     assert {"interviews": 2, "offers": 1} == cloud._interview_counts()
+
+
+def test_review_fixes_email(jobs_db, monkeypatch):
+    from app import assessments, interviews
+    # "Apple" never matches "Apple Hospitality REIT"; "Stripe" matches "Stripe, Inc."
+    db.upsert_job({"id": "h:1", "company": "Apple Hospitality REIT", "title": "Data Analyst", "status": "applied"})
+    assert mailsync.match_job("Apple", "Software Engineer", "jobs@apple.com") is None
+    assert mailsync.match_job("Stripe Inc", "Data Engineer", "")["id"] == "g:2"
+    # a word in the body ("check the box below") never marks a job applied
+    db.upsert_job({"id": "b:1", "company": "Box", "title": "Data Analyst", "status": "new"})
+    monkeypatch.setattr(mailsync, "ask_claude_to_match", lambda *a: None)
+    row = mailsync.apply_event({"account": "a", "msg_id": "<bx@x>", "received_at": "2026-10-20T12:00:00+00:00",
+                                "sender": "jobs@contoso.example", "subject": "Thanks for applying", "company": "Contoso",
+                                "role": "Data Analyst", "link": "javascript:alert(1)", "deadline": "", "event": "confirmation",
+                                "summary": "", "body": "Data Analyst. Please check the box below."})
+    assert row["state"] == "unmatched" and db.get_job("b:1")["status"] == "new" and row["link"] == ""
+    # an older interview email matched late doesn't reopen a rejected job
+    db.execute("UPDATE jobs SET status='closed', status_changed_at='2026-10-10T00:00:00+00:00' WHERE id='g:1'")
+    mailsync.apply_event({"account": "a", "msg_id": "<old@x>", "received_at": "2026-10-01T00:00:00+00:00", "sender": "s",
+                          "subject": "Interview", "company": "Stripe", "role": "Software Engineer, New Grad", "link": "",
+                          "deadline": "", "event": "interview", "summary": "", "body": ""}, job=db.get_job("g:1"))
+    assert db.get_job("g:1")["status"] == "closed"
+    # an assessment for a job that's since been rejected isn't a to-do anymore
+    mailsync.apply_event({"account": "a", "msg_id": "<oa9@x>", "received_at": "2026-10-11T00:00:00+00:00", "sender": "s",
+                          "subject": "Assessment", "company": "Stripe", "role": "Data Engineer", "link": "", "deadline": "2026-12-01",
+                          "event": "assessment", "summary": "", "body": ""}, job=db.get_job("g:2"))
+    db.execute("UPDATE jobs SET status='closed' WHERE id='g:2'")
+    assert all(a["job_id"] != "g:2" for a in assessments.pending())
+    # one interview process isn't counted twice (an unmatched email plus a matched one, same company)
+    for mid, job in (("<i1@x>", None), ("<i2@x>", db.get_job("g:3"))):
+        mailsync.apply_event({"account": "a", "msg_id": mid, "received_at": "2026-10-12T00:00:00+00:00", "sender": "s@nowhere.example",
+                              "subject": "Interview", "company": "Acme Corp" if job else "Acme Corp", "role": "", "link": "",
+                              "deadline": "", "event": "interview", "summary": "", "body": ""}, job=job)
+    assert sum(1 for i in interviews.history() if i["company"] == "Acme Corp") == 1
+
+
+def test_failed_sorting_keeps_emails_for_next_time(jobs_db, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    monkeypatch.setattr(mailsync, "accounts", lambda: {"gmail": {"address": "me@example.com"}})
+    before = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(timespec="seconds")
+    db.kv_set("mail_last:gmail", before)
+    monkeypatch.setattr(mailsync, "fetch_gmail", lambda addr, since: [{"account": addr, "msg_id": "<m@x>", "sender": "s",
+                        "subject": "Your application", "received_at": before, "body": ""}])
+    def down(items):
+        raise RuntimeError("Overloaded")
+    monkeypatch.setattr(mailsync, "classify", down)
+    with pytest.raises(RuntimeError):
+        mailsync._sync(lambda *a: None)
+    assert db.kv_get("mail_last:gmail")["v"] == before                  # not advanced: read again next check

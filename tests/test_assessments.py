@@ -98,7 +98,8 @@ def test_dashboard_tile_and_card(data, monkeypatch):
     assert "Open assessment" in html and "Globex Analytics" in html
     assert c.post(f"/assessments/{a}/done").status_code == 302
     assert 'id="assessments"' not in c.get("/").get_data(as_text=True)
-    assert c.post(f"/assessments/{a}/done").status_code == 404
+    assert c.post(f"/assessments/{a}/done").status_code == 302          # already done: harmless, no 404 page
+    assert c.post("/assessments/999999/done").status_code == 404           # not an assessment at all
 
 
 def test_map_shows_assessments_as_their_own_pins(data, monkeypatch):

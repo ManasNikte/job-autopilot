@@ -51,7 +51,7 @@
       {% if e.summary %}<div class="reason">{{ e.summary }}</div>{% endif %}
       {% if focus and e.snippet %}<div class="email-text">{{ e.snippet }}{% if e.snippet|length >= 600 %}…{% endif %}</div>
         <div class="sub small">The first part of the email, as saved. The full message is in {{ e.account or 'your inbox' }}.</div>{% endif %}
-      {% if e.link %}<div class="small"><a href="{{ e.link }}" target="_blank" rel="noopener noreferrer">Open link ↗</a>{% if e.deadline %} · due {{ e.deadline }}{% endif %}</div>{% endif %}</td>
+      {% if e.link|safeurl %}<div class="small"><a href="{{ e.link|safeurl }}" target="_blank" rel="noopener noreferrer">Open link ↗</a>{% if e.deadline %} · due {{ e.deadline }}{% endif %}</div>{% endif %}</td>
     <td class="nowrap"><span class="badge {{ 'no' if e.event == 'rejection' else 'apply' if e.event in ('interview', 'offer') else 'risk' if e.event == 'assessment' else '' }}">{{ events.get(e.event, e.event) }}</span>
       {% if e.event in ('assessment', 'interview') %}
         {% if e.job_status == 'offer' or e.marked_offer %}<span class="badge apply" title="This led to an offer">🎉 Offer</span>

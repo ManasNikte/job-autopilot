@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -232,12 +233,29 @@ def claim(job_id: str, from_status: str, to_status: str) -> bool:
         return cur.rowcount == 1
 
 
+def headless_run_alive() -> bool:
+    """A scheduled run started without the dashboard (python -m app.cli run) and still going?"""
+    lock = DB_PATH.parent / "headless.lock"
+    try:
+        pid = int(lock.read_text(encoding="utf-8").strip() or 0)
+        if pid <= 0 or pid == os.getpid():
+            return False
+        os.kill(pid, 0)
+        return True
+    except (OSError, ValueError):
+        return False
+
+
 def recover_interrupted() -> None:
-    """Jobs that were mid-flight when the app stopped go back in the queue."""
+    """Jobs that were mid-flight when the app stopped go back in the queue (but not while a headless run in
+    another process is working on them: resetting those would build the same documents twice)."""
+    if headless_run_alive():
+        return
     with _lock, connect() as c:
-        c.execute("UPDATE jobs SET status='to_tailor' WHERE status='tailoring'")
-        c.execute("UPDATE jobs SET status='to_screen' WHERE status='screening'")
-        c.execute("UPDATE runs SET status='interrupted', finished_at=? WHERE status='running'", (now(),))
+        t = now()
+        c.execute("UPDATE jobs SET status='to_tailor', updated_at=? WHERE status='tailoring'", (t,))
+        c.execute("UPDATE jobs SET status='to_screen', updated_at=? WHERE status='screening'", (t,))
+        c.execute("UPDATE runs SET status='interrupted', finished_at=? WHERE status='running'", (t,))
 
 
 def kv_set(k: str, v: str) -> None:

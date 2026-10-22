@@ -17,7 +17,7 @@
     const inline = (s) => esc(s)
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
-      .replace(/\[([^\]]+)\]\(((?:\/(?!\/)[^\s)]*)|https:\/\/github\.com\/[^\s)]*)\)/g, (m, label, href) =>
+      .replace(/\[([^\]]+)\]\(((?:\/(?![\/\\])[^\s)\\]*)|https:\/\/github\.com\/[^\s)]*)\)/g, (m, label, href) =>
         `<a href="${href}"${href.startsWith("http") ? ' target="_blank" rel="noopener noreferrer"' : ""}>${label}</a>`);
     const out = []; let list = null;
     for (const raw of text.split("\n")) {

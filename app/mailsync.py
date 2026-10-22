@@ -476,6 +476,24 @@ GENERIC_DOMAINS = {"gmail", "outlook", "hotmail", "yahoo", "greenhouse", "greenh
 STAGE = {"confirmation": 1, "assessment": 2, "interview": 3, "offer": 4, "rejection": 5}
 
 
+CORP_WORDS = {"inc", "incorporated", "llc", "ltd", "limited", "corp", "corporation", "co", "company", "group", "holdings",
+              "technologies", "technology", "tech", "labs", "plc", "the", "usa", "us", "na", "global", "international"}
+
+
+def _name_in_sender(flat: str, word: str) -> bool:
+    """The company's name inside a sender word ('peak6' in 'peak6group', 'chime' == 'chime'), or a sender word that's
+    nearly the whole name ('stripe' for 'stripeinc'); never a short word inside a long name ('apple' in
+    'applehospitalityreit')."""
+    return flat in word or (len(word) > 4 and word in flat and len(word) >= len(flat) - 3)
+
+
+def _same_company(a: str, b: str) -> bool:
+    """'stripe' and 'stripe inc' are the same company; 'apple' and 'apple hospitality reit' are not."""
+    a_w, b_w = a.split(), b.split()
+    short, long_ = (a_w, b_w) if len(a_w) <= len(b_w) else (b_w, a_w)
+    return bool(short) and long_[:len(short)] == short and all(w in CORP_WORDS for w in long_[len(short):])
+
+
 def match_job(company: str, role: str, sender: str) -> dict | None:
     """The job this email is about: same company (by name, or the sender's domain), closest title, most recent."""
     key = company_norm(company or "")
@@ -487,9 +505,9 @@ def match_job(company: str, role: str, sender: str) -> dict | None:
     for r in rows:
         ck = company_norm(r["company"])
         flat = ck.replace(" ", "")
-        if key and (ck == key or ck.startswith(key + " ") or key.startswith(ck + " ") or flat == key.replace(" ", "")):
+        if key and (ck == key or flat == key.replace(" ", "") or _same_company(key, ck)):
             cands.append(r)
-        elif (dom_word and len(dom_word) > 3 and len(flat) > 3 and (dom_word in flat or flat in dom_word)
+        elif (dom_word and len(dom_word) > 3 and len(flat) > 3 and _name_in_sender(flat, dom_word)
               and dom_word not in GENERIC_DOMAINS):
             cands.append(r)
     if not cands:
@@ -535,12 +553,10 @@ def candidate_jobs(ev: dict, text: str, limit: int = 8) -> list[dict]:
         if len(ck) < 2:
             continue
         flat, score = ck.replace(" ", ""), 0
-        if said and (ck == said or ck.startswith(said + " ") or said.startswith(ck + " ") or flat == said.replace(" ", "")):
-            score += 3
-        elif len(ck) >= 3 and f" {ck} " in blob:
-            score += 3
-        if len(flat) > 3 and any(flat in b or (len(b) > 4 and b in flat) for b in sender_bits):
-            score += 3
+        by_name = bool(said and (ck == said or flat == said.replace(" ", "") or _same_company(said, ck)))
+        by_sender = bool(len(flat) > 3 and any(_name_in_sender(flat, b) for b in sender_bits))
+        by_body = bool(not by_name and len(ck) >= 3 and f" {ck} " in blob)
+        score += (3 if by_name or by_body else 0) + (3 if by_sender else 0)
         if not score:
             continue
         req = _req_id(j["id"])
@@ -549,7 +565,9 @@ def candidate_jobs(ev: dict, text: str, limit: int = 8) -> list[dict]:
         by_title = bool(title and f" {title} " in blob) or bool(
             ev.get("role") and SequenceMatcher(None, ev["role"].lower(), (j["title"] or "").lower()).ratio() > 0.85)
         score += (6 if by_req else 0) + (3 if by_title else 0) + (1 if j["status"] in TRACKED else 0)
-        out.append({**j, "score": score, "sure": by_req or by_title})
+        # sure = the email itself says which job (title or requisition number) AND who sent it agrees on the company;
+        # a company word that merely appears in the text ("check the box below") is never enough on its own
+        out.append({**j, "score": score, "sure": (by_req or by_title) and (by_name or by_sender) and j["status"] in TRACKED})
     out.sort(key=lambda r: (r["score"], r["applied_at"] or r["updated_at"] or ""), reverse=True)
     return out[:limit]
 
@@ -590,17 +608,22 @@ def auto_match(ev: dict, text: str, use_claude: bool = True) -> dict | None:
     return db.get_job(job["id"])
 
 
-def apply_event(ev: dict, job: dict | None = None) -> dict:
-    """Update the matched job for one classified email (auto mode, or `job` when you picked it by hand)."""
+def apply_event(ev: dict, job: dict | None = None, force: bool = False) -> dict:
+    """Update the matched job for one classified email (auto mode, or `job` when you picked it by hand).
+    force=True: you just said what happened (Fix type → Rejected/Offer), so it applies even if older."""
     picked = job is not None
     job = job or match_job(ev.get("company", ""), ev.get("role", ""), ev.get("sender", ""))
     if not picked and (not job or job.get("_ambiguous")) and ev.get("event") not in ("not_application", None):
+        guess = job
         try:
-            job = auto_match(ev, ev.get("body") or "") or job
+            job = auto_match(ev, ev.get("body") or "")
         except Exception:
-            pass
+            job = guess                          # Claude unavailable: fall back to the closest company match
+        # several jobs at the company and nothing told them apart: leave it for you rather than guess
     row = {k: ev.get(k, "") for k in ("account", "msg_id", "received_at", "sender", "subject", "company", "role",
                                      "event", "link", "deadline", "summary")}
+    if row["link"] and not re.match(r"^https?://", str(row["link"]).strip(), re.I):
+        row["link"] = ""                         # only web links (an email could try to plant a javascript: link)
     row["snippet"] = (ev.get("body") or "")[:3000]       # enough to match it again later from the whole email
     row["created_at"] = db.now()
     if ev.get("event") == "assessment":
@@ -615,6 +638,10 @@ def apply_event(ev: dict, job: dict | None = None) -> dict:
     else:
         row["job_id"], row["prev_status"] = job["id"], job["status"]
         new = _new_status(job["status"], ev["event"])
+        changed = job.get("status_changed_at") or ""
+        if (new and not force and job["status"] in ("interviewing", "offer", "closed") and changed
+                and ev.get("received_at") and ev["received_at"] < changed):
+            new = None                           # an older email arriving late never undoes a later outcome
         fields = {}
         if new and new != job["status"]:
             fields["status"] = new
@@ -705,7 +732,7 @@ def mark_outcome(event_id: int, outcome: str = "rejection") -> dict | None:
         except (TypeError, ValueError):
             when = ev["received_at"]
         job = db.get_job(ev["job_id"]) if ev["job_id"] else None
-        apply_event({"account": ev["account"], "msg_id": mid, "received_at": when, "sender": ev["sender"],
+        apply_event(force=True, ev={"account": ev["account"], "msg_id": mid, "received_at": when, "sender": ev["sender"],
                      "subject": ev["subject"], "company": ev["company"], "role": ev["role"], "link": "", "deadline": "",
                      "event": outcome, "body": "",
                      "summary": (f"You marked this application as rejected (from the {ev['event']} email)." if outcome == "rejection"
@@ -815,7 +842,7 @@ def _sync(log=print) -> dict:
     acc = accounts()
     days = env_int("MAIL_LOOKBACK_DAYS", 14)
     stats = {"fetched": 0, "classified": 0, "applied": 0, "unmatched": 0, "errors": []}
-    fresh = []
+    fresh, cursors = [], {}
     for kind in ("gmail", "microsoft", "applemail"):
         a = acc.get(kind)
         if not a:
@@ -838,7 +865,7 @@ def _sync(log=print) -> dict:
             stats["errors"].append(f"{kind}: {e}"[:300])
             log(f"  ✗ email ({kind}): {e}")
             continue
-        db.kv_set(f"mail_last:{kind}", started.isoformat(timespec="seconds"))
+        cursors[kind] = started.isoformat(timespec="seconds")
         seen = {r["msg_id"] for r in db.fetchall("SELECT msg_id FROM email_events")}
         new = [m for m in msgs if m["msg_id"] not in seen]
         stats["fetched"] += len(new)
@@ -847,16 +874,31 @@ def _sync(log=print) -> dict:
     if fresh:
         fresh.sort(key=lambda m: m["received_at"])            # oldest first, so statuses move forward in order
         _status(step=f"Claude is sorting {len(fresh)} application email(s)")
-        results = classify(fresh)
+        try:
+            results = classify(fresh)
+        except Exception as e:
+            # Claude is down, at its limit, or signed out: keep the read-up-to marker where it was, so these
+            # emails are read again next time instead of being skipped for good.
+            stats["errors"].append(f"sorting: {e}"[:300])
+            db.kv_set("mail_last_sync", json.dumps(stats))
+            log(f"  ✗ email sorting failed; will try these {len(fresh)} email(s) again next check: {e}")
+            raise
         _status(step="Matching emails to your jobs and updating statuses")
         stats["classified"] = len(results)
         for ev in results:
-            row = apply_event(ev)
+            try:
+                row = apply_event(ev)
+            except Exception as e:
+                stats["errors"].append(f"{ev.get('company') or 'an email'}: {e}"[:200])
+                log(f"  ✗ couldn't apply an email from {ev.get('company')}: {e}")
+                continue
             if row["state"] == "applied":
                 stats["applied"] += 1
                 log(f"  ✉ {ev['event']}: {ev.get('company')} · {ev.get('role') or ''} → {row.get('new_status')}")
             elif row["state"] == "unmatched":
                 stats["unmatched"] += 1
+    for kind, when in cursors.items():
+        db.kv_set(f"mail_last:{kind}", when)
     db.kv_set("mail_last_sync", json.dumps(stats))
     log(f"Email check: {stats['fetched']} new application email(s), {stats['applied']} matched to jobs, "
         f"{stats['unmatched']} unmatched" + (f", errors: {'; '.join(stats['errors'])}" if stats["errors"] else ""))

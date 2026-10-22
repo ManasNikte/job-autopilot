@@ -40,6 +40,17 @@ def history() -> list[dict]:
             items[k] = {"key": k, "job_id": j["id"], "company": j["company"], "role": j["title"], "job_status": j["status"],
                         "first_at": j["status_changed_at"] or j["applied_at"], "email_id": None, "offer": False,
                         "offer_at": None, "offer_email_id": None, "rejected": False, "rejected_at": None, "emails": 0, "link": ""}
+    for k in [k for k in items if k.startswith("co:")]:       # an unmatched email for a job you also have matched
+        co = items[k]
+        target = next((x for kk, x in items.items() if kk.startswith("job:") and company_norm(x["company"] or "") == k[3:]), None)
+        if target:
+            target["emails"] += co["emails"]
+            target["first_at"] = min(filter(None, [target["first_at"], co["first_at"]]), default=None)
+            target["link"] = target["link"] or co["link"]
+            if co["offer"]:
+                target.update(offer=True, offer_at=target["offer_at"] or co["offer_at"],
+                              offer_email_id=target["offer_email_id"] or co["offer_email_id"])
+            del items[k]
     for it in items.values():
         if it["job_status"] == "offer" and not it["offer"]:
             it["offer"] = True

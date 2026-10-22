@@ -364,12 +364,13 @@ def screen_job(job_id: str, log: Log = _print) -> dict | None:
         )
         timer.stop()
     except llm.BackendUnavailable:
-        db.update_job(job_id, status="to_screen")
+        db.claim(job_id, "screening", "to_screen")        # back in line, unless you skipped it meanwhile
         progress.clear(job_id)
         raise
     except Exception as e:
-        db.update_job(job_id, status="error", status_reason=f"screen failed: {e}"[:500])
-        db.add_intervention(job_id, "error", "Screening failed", str(e)[:1000])
+        if db.claim(job_id, "screening", "error"):
+            db.update_job(job_id, status_reason=f"screen failed: {e}"[:500])
+            db.add_intervention(job_id, "error", "Screening failed", str(e)[:1000])
         progress.clear(job_id)
         log(f"  ✗ screen failed: {e}")
         return None
@@ -645,13 +646,14 @@ def tailor_job(job_id: str, log: Log = _print) -> bool:
             if len(out2["checks"]["problems"]) <= len(probs):
                 data, out = data2, out2
     except llm.BackendUnavailable:
-        db.update_job(job_id, status="to_tailor")
+        db.claim(job_id, "tailoring", "to_tailor")        # back in line, unless you skipped it meanwhile
         progress.clear(job_id)
         raise
     except Exception as e:
         progress.clear(job_id)
-        db.update_job(job_id, status="error", status_reason=f"tailor failed: {e}"[:500])
-        db.add_intervention(job_id, "error", "Tailoring failed", f"{e}\n\n{traceback.format_exc()[-1500:]}")
+        if db.claim(job_id, "tailoring", "error"):
+            db.update_job(job_id, status_reason=f"tailor failed: {e}"[:500])
+            db.add_intervention(job_id, "error", "Tailoring failed", f"{e}\n\n{traceback.format_exc()[-1500:]}")
         log(f"  ✗ tailor failed: {e}")
         return False
 
@@ -849,6 +851,11 @@ def run(log: Log = _print, fetch: bool = True, enqueue=None, source: str = "manu
             with cf.ThreadPoolExecutor(lanes) as ex:
                 stats["tailored"] = sum(1 for r in ex.map(lambda j: tailor_job(j["id"], L), to_tailor) if r)
         status = "done"
+        try:
+            from . import worker
+            worker.state["signin_needed"] = None             # Claude works again
+        except Exception:
+            pass
     except llm.BackendUnavailable as e:
         if e.retry_at:                         # usage limit: the worker pauses and resumes this run automatically
             L(f"⏸ {e}; pausing until {datetime.fromtimestamp(e.retry_at):%I:%M %p}.")
@@ -858,6 +865,11 @@ def run(log: Log = _print, fetch: bool = True, enqueue=None, source: str = "manu
             raise
         L(f"✗ Claude backend problem: {e}")
         db.add_intervention(None, "error", "Claude backend needs setup", str(e))
+        try:
+            from . import worker
+            worker.state["signin_needed"] = str(e)[:300]   # stop automatic batches until you fix it and press Run
+        except Exception:
+            pass
         status = "failed"
     except llm.LLMError as e:
         L(f"✗ Claude backend problem: {e}")

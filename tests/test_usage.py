@@ -101,6 +101,8 @@ def test_screening_backlog_does_not_block_updates(monkeypatch):
     monkeypatch.setattr(progress, "snapshot", lambda: {"run": None, "active": [], "queued": [{"status": "to_screen"}] * 102})
     assert updater._busy() == ""
     monkeypatch.setattr(progress, "snapshot", lambda: {"run": None, "active": [], "queued": [{"status": "to_tailor"}]})
+    assert updater._busy() == ""                      # waiting for documents (e.g. during a usage pause) doesn't block
+    monkeypatch.setattr(progress, "snapshot", lambda: {"run": None, "active": [{"id": "x"}], "queued": []})
     assert "still being worked on" in updater._busy()
 
 
@@ -128,3 +130,41 @@ def test_other_cli_errors_still_fail_the_job(monkeypatch, tmp_path):
     with pytest.raises(llm.LLMError) as e:
         llm._via_cli("sys", "u", {}, "m", "low")
     assert not isinstance(e.value, llm.BackendUnavailable)
+
+
+def test_signed_out_stops_automatic_batches_until_you_press_run(monkeypatch):
+    import queue
+    from app import db
+    monkeypatch.setattr(worker, "_q", queue.Queue())                  # nothing left over from other tests
+    monkeypatch.setenv("AUTO_CONTINUE_SCREENING", "1")
+    monkeypatch.setattr(db, "count", lambda *a, **k: 5)              # jobs waiting to be screened
+    submitted = []
+    monkeypatch.setattr(worker, "submit", lambda kind, arg=None: submitted.append(kind) or True)
+    worker.state.update(paused_until=None, active={}, signin_needed="Claude needs you to sign in again")
+    assert worker.backlog_tick() is False and not submitted
+    worker.resume()                                                   # you pressed Run
+    assert worker.state["signin_needed"] is None and worker.backlog_tick() is True
+
+
+def test_one_pipeline_run_at_a_time(monkeypatch):
+    from app import updater
+    monkeypatch.setattr(updater, "PROGRESS", {"lock": False}); monkeypatch.setattr(updater, "STATE", {"updating": False})
+    worker._pending.clear(); worker.state["active"] = {"w1": "process auto"}
+    assert worker.submit("run", "schedule") is False                 # a batch is running: no second run on top
+    worker.state["active"] = {}
+    monkeypatch.setattr(updater, "PROGRESS", {"lock": True})
+    assert worker.submit("tailor", "j1") is False                    # updating: no new work the restart would cut off
+    worker._pending.clear()
+
+
+def test_server_overload_retries_instead_of_failing(monkeypatch, tmp_path):
+    import json
+    import subprocess
+    monkeypatch.setattr(llm, "find_claude_cli", lambda: "/bin/claude")
+    monkeypatch.setattr(llm, "DATA_DIR", tmp_path)
+    for msg, retry in (("API Error: 529 Overloaded", True), ("OAuth token refresh: fetch failed", True)):
+        out = json.dumps({"is_error": True, "result": msg})
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 1, out, ""))
+        with pytest.raises(llm.BackendUnavailable) as e:
+            llm._via_cli("sys", "u", {}, "m", "low")
+        assert bool(e.value.retry_at) is retry and "sign in" not in str(e.value)

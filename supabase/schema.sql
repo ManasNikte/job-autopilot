@@ -240,9 +240,11 @@ grant execute on function public.delete_my_account() to authenticated;
 -- Applications in the last N days on one machine, from its snapshot's 14-day series (counts only).
 create or replace function public.applied_in_days(snap jsonb, days int) returns int
 language sql stable set search_path = public as $$
-  select coalesce(sum((e->>'n')::int), 0)::int
-  from jsonb_array_elements(coalesce(snap->'series', '[]'::jsonb)) e
-  where (e->>'day')::date > current_date - days
+  -- values come from each user's own snapshot: check the format before casting, so one bad row can't break
+  -- the operator views for everyone
+  select coalesce(sum(case when e->>'n' ~ '^\d{1,6}$' then (e->>'n')::int else 0 end), 0)::int
+  from jsonb_array_elements(case when jsonb_typeof(snap->'series') = 'array' then snap->'series' else '[]'::jsonb end) e
+  where e->>'day' ~ '^\d{4}-\d{2}-\d{2}$' and (e->>'day')::date > current_date - days
 $$;
 
 -- Site-wide counts for the person who runs the site ("active" = applied in the last 14 days), shown in the footer of their local dashboard.
@@ -263,8 +265,9 @@ begin
     -- confirmed accounts, not counting extra sign-in emails (the same person)
     'users', (select count(*) from auth.users u
               where u.email_confirmed_at is not null
-                and not exists (select 1 from public.account_emails a
-                                where a.email = lower(u.email) and a.owner_id <> u.id)),
+                and not (exists (select 1 from public.account_emails a
+                                     where a.email = lower(u.email) and a.owner_id <> u.id)
+                         and not exists (select 1 from public.machines m where m.user_id = u.id))),
     -- active: applied to at least one job in the last 14 days
     'active', (select count(distinct s.user_id) from public.snapshots s
                where public.applied_in_days(s.data, 14) > 0),
@@ -293,7 +296,8 @@ begin
              order by m.last_seen desc nulls last limit 1) as city,
            (select count(*) from public.machines m where m.user_id = u.id) as computers,
            (select max(m.last_seen) from public.machines m where m.user_id = u.id) as last_seen,
-           coalesce((select sum((s.data->'kpis'->>'applied_total')::int) from public.snapshots s where s.user_id = u.id), 0) as applied_total,
+           coalesce((select sum(case when s.data->'kpis'->>'applied_total' ~ '^\d{1,7}$' then (s.data->'kpis'->>'applied_total')::int else 0 end)
+                     from public.snapshots s where s.user_id = u.id), 0) as applied_total,
            coalesce((select sum(public.applied_in_days(s.data, 7)) from public.snapshots s where s.user_id = u.id), 0) as applied_week,
            coalesce((select sum(public.applied_in_days(s.data, 14)) from public.snapshots s where s.user_id = u.id), 0) as applied_14d,
            (select count(*) from public.commands c where c.user_id = u.id and c.created_at > now() - interval '30 days') as requests_30d,
@@ -303,7 +307,7 @@ begin
                'last_seen', m.last_seen, 'connected', m.created_at, 'synced', s.updated_at,
                'kpis', s.data->'kpis', 'pipeline', s.data->'pipeline', 'series', s.data->'series',
                'families', (select coalesce(jsonb_agg(jsonb_build_object('fam', f->>'fam', 'n', f->'n', 'pct', f->'pct')), '[]'::jsonb)
-                              from jsonb_array_elements(coalesce(s.data->'families'->'slices', '[]'::jsonb)) f),
+                              from jsonb_array_elements(case when jsonb_typeof(s.data->'families'->'slices') = 'array' then s.data->'families'->'slices' else '[]'::jsonb end) f),
                'time_saved_hours', s.data->'time_saved'->'hours',
                'last_run', case when s.data ? 'last_run' and jsonb_typeof(s.data->'last_run') = 'object' then jsonb_build_object(
                    'status', s.data->'last_run'->'status', 'started_at', s.data->'last_run'->'started_at',
@@ -316,7 +320,8 @@ begin
              where m.user_id = u.id) as machines
     from auth.users u left join public.profiles p on p.id = u.id
     where u.email_confirmed_at is not null
-      and not exists (select 1 from public.account_emails a where a.email = lower(u.email) and a.owner_id <> u.id)
+      and not (exists (select 1 from public.account_emails a where a.email = lower(u.email) and a.owner_id <> u.id)
+                    and not exists (select 1 from public.machines m where m.user_id = u.id))
   ) x), '[]'::jsonb);
 end $$;
 revoke all on function public.operator_users() from public, anon;

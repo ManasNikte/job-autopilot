@@ -100,8 +100,9 @@ def _busy() -> str:
     snap = progress.snapshot()
     if snap.get("run"):
         return "A run is in progress. Update when it finishes."
-    building = [q for q in snap.get("queued") or [] if q.get("status") != "to_screen"]   # a screening backlog can wait
-    if snap.get("active") or building:
+    # Only work that's happening right now blocks an update; jobs waiting in line (to screen, or for documents
+    # during a usage pause) pick up again after the restart.
+    if snap.get("active"):
         return "Jobs are still being worked on. Update when the Background page shows nothing running."
     try:
         from . import mailsync
@@ -171,7 +172,14 @@ def apply(progress=None) -> dict:
                 r = subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-r", str(ROOT / "requirements.txt")],
                                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
                 if r.returncode != 0:
-                    raise RuntimeError("The code updated, but installing new packages failed: "
+                    # Put the old code back so the app keeps working, and the next try installs again
+                    # (otherwise git is already "up to date" and the missing packages are never installed).
+                    try:
+                        _git("reset", "--hard", "--quiet", before)
+                    except RuntimeError:
+                        pass
+                    raise RuntimeError("Installing new components failed, so the update was undone and your app is "
+                                       "unchanged. Try again later. Details: "
                                        + (r.stderr.strip().splitlines() or ["pip error"])[-1][:200])
             m = re.search(r'VERSION\s*=\s*"([^"]+)"', (ROOT / "app" / "version.py").read_text(encoding="utf-8"))
             STATE.update(behind=0, notes=[], commits=[])
@@ -234,7 +242,13 @@ def restart_soon(delay: float = 1.5) -> None:
             except OSError:
                 pass
         flags = ["-X", "utf8"] if sys.flags.utf8_mode else []     # keep Windows' UTF-8 mode across the restart
-        os.execv(sys.executable, [sys.executable, *flags, "-m", "app.cli", "serve"])
+        try:
+            os.execv(sys.executable, [sys.executable, *flags, "-m", "app.cli", "serve"])
+        except OSError as e:
+            # Couldn't restart in place: unlock the pages and say so, instead of "updating" forever.
+            STATE["updating"] = False
+            PROGRESS.update(stage="error", lock=False,
+                            error=f"The update is installed but the app couldn't restart itself ({e}). Restart it to finish.")
     threading.Thread(target=go, daemon=True).start()
 
 

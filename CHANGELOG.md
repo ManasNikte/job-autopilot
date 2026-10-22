@@ -3,6 +3,15 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.15.1 (2026-10-23)
+A full review of the app, with fixes:
+- **Security:** the dashboard only answers requests addressed to this computer, so a website can't use a DNS trick to read your data or press buttons. Links taken from emails are only shown if they're ordinary web links. Help-chat links and map labels can't carry hidden code.
+- **Email:** if Claude can't sort emails (busy, at its limit, or signed out), they're read again at the next check instead of being skipped for good, and one bad email no longer stops the rest. An unclear match is left for you instead of guessed. An older email can't reopen a job that was already rejected. Company names are matched more strictly ("Apple" isn't "Apple Hospitality"), and a common word like "box" in an email no longer marks a job applied. An assessment for a rejected job stops reminding you. One interview process isn't counted twice. Due dates ignore words like "Marketing 2026".
+- **Background work:** a full run and a screening batch never run at the same time. Skipping a job while Claude works on it sticks. When you're signed out of Claude, automatic batches wait for you instead of failing every few minutes. Claude being busy is retried instead of failing the job. A dashboard that starts during a headless scheduled run leaves that run's jobs alone.
+- **Updates:** if installing a new component fails, the update is undone so the app keeps working. A failed restart no longer leaves every page on "updating". Jobs waiting for documents don't block updates, and no new work starts while an update is installing.
+- **Online dashboard:** disconnecting a computer while offline no longer silently leaves its data online. List pages reset when you switch computers and don't get stuck on an empty page.
+- Smaller fixes: the dashboard's assessment count matches its list, Done works on older assessments, the top search keeps your text, a settings link with a section no longer errors, and a fresh install creates its database on the first page load.
+
 ## 3.15 (2026-10-22)
 - **Interviews are kept for good.** A new Interviews page (sidebar, under Jobs) lists every interview you've had, from your inbox and from jobs you marked Interviewing, including applications you sent outside the app. An interview that later ends in a rejection stays, flagged **Rejected**. An offer is flagged **Offer** and listed on top.
 - The dashboard tile now counts **interviews ever**, with how many became offers or were rejected. Before, it dropped an interview once that job was rejected.

@@ -243,14 +243,18 @@ def _attach(res: dict, email: str, machine_name: str, city_name: str | None) -> 
     return state()
 
 
-def disconnect() -> None:
+def disconnect(force: bool = False) -> None:
+    """Delete this computer's data online, then forget the connection here. If the online delete fails (offline),
+    raise and keep the connection, so you can try again; force=True forgets it anyway."""
     from .mailsync import delete_secret
     st = state()
     try:
         if st.get("machine_id"):
             _rest("DELETE", "machines", params={"id": f"eq.{st['machine_id']}"})   # cascades its rows
-    except Exception:
-        pass
+    except Exception as e:
+        if not force:
+            raise RuntimeError(f"Couldn't reach the online dashboard to delete this computer's data there ({str(e)[:120]}). "
+                               "Check your internet and try again.") from e
     delete_secret(KEY)
     _token.update(access="", exp=0)
     _reset_cursors()

@@ -26,7 +26,8 @@ TZ = {"PT": "America/Los_Angeles", "PST": "America/Los_Angeles", "PDT": "America
 _TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s*m\.?(?:\s*\(?\s*(PT|PST|PDT|MT|MST|MDT|CT|CST|CDT|ET|EST|EDT|UTC|GMT)\b)?",
                    re.I)
 _MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
-_DATE = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?", re.I)
+_DATE = re.compile(r"\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|"
+                   r"oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b(?:,?\s*(\d{4}))?", re.I)
 
 
 _HEADER_LINE = re.compile(r"^[ \t>*]*(date|sent|from|to|cc|subject)\s*:.*$", re.I | re.M)
@@ -108,19 +109,24 @@ def pending(now: datetime | None = None) -> list[dict]:
     now = now or datetime.now(timezone.utc)
     rows = db.fetchall(
         "SELECT e.id, e.company, e.role, e.link, e.deadline, e.due_at, e.received_at, e.summary, e.job_id, e.state, "
-        "coalesce(j.company, e.company) AS shown_company, coalesce(j.title, e.role) AS shown_role "
+        "coalesce(j.company, e.company) AS shown_company, coalesce(j.title, e.role) AS shown_role, j.status AS job_status "
         "FROM email_events e LEFT JOIN jobs j ON j.id = e.job_id "
         "WHERE e.event='assessment' AND e.state NOT IN ('ignored','undone') AND e.done_at IS NULL "
         "ORDER BY e.received_at")
-    later = {}
-    for r in db.fetchall("SELECT company, received_at FROM email_events WHERE event IN ('interview','offer','rejection') "
+    later, later_job = {}, {}
+    for r in db.fetchall("SELECT company, job_id, received_at FROM email_events WHERE event IN ('interview','offer','rejection') "
                          "AND state NOT IN ('ignored','undone')"):
         k = company_norm(r["company"] or "")
         later[k] = max(later.get(k, ""), r["received_at"] or "")
+        if r["job_id"]:
+            later_job[r["job_id"]] = max(later_job.get(r["job_id"], ""), r["received_at"] or "")
     by_company: dict[str, dict] = {}
     for r in rows:
         k = company_norm(r["shown_company"] or r["company"] or "") or f"#{r['id']}"
-        if later.get(k, "") > (r["received_at"] or ""):
+        if r["job_status"] == "closed":
+            continue                                    # the application was rejected: nothing left to do
+        if max(later.get(k, ""), later.get(company_norm(r["company"] or ""), ""),
+               later_job.get(r["job_id"], "") if r["job_id"] else "") > (r["received_at"] or ""):
             continue                                    # they've since invited you to interview, offered, or declined
         by_company[k] = {**r, "ids": by_company.get(k, {}).get("ids", []) + [r["id"]]}
     out = []
