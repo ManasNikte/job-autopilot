@@ -191,6 +191,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.10.3** | The day's first run looks back an extra day (and to the last successful run) so overnight postings aren't missed; the log shows each screen's outcome |
 | **v3.10.1** | Windows fixes (dates, time zones, UTF-8, no console pop-ups), "&"/"and" H-1B employer matching, a Windows-tested setup guide |
 | **v3.10** | Weekly applications chart (Sun–Sat, week picker, a number on every day), Time saved card, role-family donut, shaded pipeline, paged map list, sidebar slide arrows |
 | **v3.9** | Settings split into separate pages; an Assessments page; sidebar search for pages and individual settings (⌘K) |
@@ -229,6 +230,8 @@ assessment surfaced with its deadline, and eight confirmations recorded.
   lookup** on public H-1B disclosure data, once per company, cached for 90 days and capped per run.
   Employers that say they don't sponsor are filtered out. Wording like "unable to offer visa sponsorship"
   counts as a refusal, never as a signal.
+- **No overnight gaps.** The day's first run looks back an extra day, and at least to the last successful run (up to a
+  week if the computer was off). Postings that went up after yesterday's last run are still caught.
 - **Rule prefilter before any LLM call.** Drops stale postings, senior titles, roles outside the US,
   4+ years asked, explicit "no sponsorship / citizens only / clearance" wording, and **listed pay below
   your floor** (default $100K a year; ranges are parsed from ATS fields or the description, and hourly pay

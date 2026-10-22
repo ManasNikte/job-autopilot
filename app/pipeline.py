@@ -33,6 +33,33 @@ def _print(msg: str) -> None:
 
 # ----------------------------------------------------------------------------- fetch + prefilter
 
+CATCHUP_MAX_HOURS = 7 * 24      # never look back further than a week, even after a long time away
+
+
+def lookback_hours(now: datetime | None = None) -> tuple[int, str]:
+    """How far back this run fetches postings. Normally POSTED_WITHIN_HOURS (Settings → Look back). The first run
+    of the day looks back a day further and at least to the last successful fetch, so postings that went up after
+    yesterday's last run (or while the computer was off) aren't missed. Returns (hours, log line or "")."""
+    base = env_int("POSTED_WITHIN_HOURS", 24)
+    if env("FIRST_RUN_CATCHUP", "1") != "1":
+        return base, ""
+    now = now or datetime.now(timezone.utc)
+    midnight = datetime.combine(now.astimezone().date(), datetime.min.time()).astimezone()
+    last = None
+    for r in db.fetchall("SELECT started_at, stats_json FROM runs WHERE status='done' ORDER BY id DESC LIMIT 50"):
+        if '"fetch"' in (r["stats_json"] or ""):            # a run that actually fetched (not just a screening batch)
+            last = datetime.fromisoformat(r["started_at"].replace("Z", "+00:00"))
+            break
+    if last and last >= midnight:
+        return base, ""                                    # not the first fetch today
+    since = (now - last).total_seconds() / 3600 + 1 if last else 0
+    hours = int(min(CATCHUP_MAX_HOURS, max(base + 24, since)))
+    if hours <= base:
+        return base, ""
+    when = f"since the last run {last.astimezone():%a %I:%M %p}".replace(" 0", " ") if last else "for the first run"
+    return hours, f"First run today: looking back {hours} hours ({when}) instead of {base}, so nothing posted overnight is missed."
+
+
 def fetch_all(log: Log = _print) -> dict:
     """Company boards in two passes: a cheap title/date/location check on every posting, then full descriptions
     only for the survivors (directory boards list titles first), then pay floor and H-1B signal."""
@@ -41,7 +68,9 @@ def fetch_all(log: Log = _print) -> dict:
     from .sources.feeds import SPONSOR_OFFERED
 
     cfg = search_config()
-    within = env_int("POSTED_WITHIN_HOURS", 24)
+    within, why = lookback_hours()
+    if why:
+        log(why)
     floor = env_int("MIN_SALARY", 100000)
     fcfg = feeds_config()
     dcfg = fcfg.get("board_directory") or {}
@@ -54,7 +83,7 @@ def fetch_all(log: Log = _print) -> dict:
         except Exception as e:
             log(f"  ✗ board directory refresh: {e}")
     comps = [c for c in companies() if dcfg.get("enabled") or not c.get("directory")]
-    stats = {"companies": 0, "fetched": 0, "new": 0, "passed": 0, "errors": 0, "low_pay": 0, "details": 0}
+    stats = {"companies": 0, "fetched": 0, "new": 0, "passed": 0, "errors": 0, "low_pay": 0, "details": 0, "lookback_hours": within}
     progress.set_run("fetch", f"Checking {len(comps):,} company job boards", 0, len(comps))
     norm = lambda x: re.sub(r"[^a-z0-9]", "", (x or "").lower())
     recent, batch, pending, deferred = db.recent_job_keys(), set(), [], []

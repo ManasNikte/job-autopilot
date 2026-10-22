@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.10.3 (2026-10-22)
+- **The first run of the day catches up.** It looks back a day further than usual (48 hours with the default 24), and at least to the last successful run, so jobs posted after yesterday's last run, overnight, or while your computer was off aren't missed (up to 7 days). Later runs that day use your normal window. The activity log says when it's catching up. Turn it off in Settings → Pipeline and limits.
+
 ## 3.10.2 (2026-10-21)
 - The activity log now says what happens after each screen, not just Claude's verdict: "APPLY WITH RISK (6/10), held: below your 7/10 threshold (no documents)", "APPLY (8/10), building documents", or "DON'T APPLY (3/10), skipped". A job under your threshold no longer looks like it's getting documents.
 

@@ -1198,6 +1198,7 @@ TUNABLES = [
     # key, label, kind, help, choices/range
     ("MIN_SALARY", "Minimum pay (USD per year)", "int", "Jobs whose listed pay tops out below this are skipped before Claude sees them (hourly pay counts as 2,080 hours a year). Jobs that list no pay are kept. 0 turns it off.", (0, 500000)),
     ("POSTED_WITHIN_HOURS", "Look back (hours)", "int", "Only postings newer than this are fetched each run.", (1, 336)),
+    ("FIRST_RUN_CATCHUP", "Catch up on the first run of the day", "bool", "The day's first run looks back a day further, and at least to the last run, so postings that went up overnight or while the computer was off aren't missed (up to 7 days).", None),
     ("MAX_SCREEN_PER_RUN", "Screens per batch", "int", "How many new jobs Claude scores per batch. Batches keep going on their own until none are left.", (1, 300)),
     ("USAGE_PAUSE_AT", "Pause at Claude usage (%)", "int", "Background work pauses when your Claude session or weekly limit reaches this, and resumes after it resets. 100 turns the check off.", (50, 100)),
     ("MAX_TAILOR_PER_RUN", "Documents per run", "int", "How many tailored resume + cover letter packages are built per run.", (0, 100)),
@@ -1211,7 +1212,7 @@ TUNABLES = [
     ("MAIL_LOOKBACK_DAYS", "Email look-back on first check (days)", "int", "How far back the first check of a newly connected inbox reads.", (1, 90)),
     ("SCREEN_UNKNOWN_SPONSOR", "Screen jobs when sponsorship is unknown", "bool", "On = jobs from companies with no H-1B signal yet still go to Claude (its visa gate judges the posting); uses more screens. Off = they wait under Filtered out. Importing the USCIS H-1B data on Sources covers most companies either way.", None),
 ]
-DEFAULTS = {"USAGE_PAUSE_AT": 95, "MIN_MATCH_FOR_DOCS": 7, "MIN_SALARY": 100000, "POSTED_WITHIN_HOURS": 24, "MAX_SCREEN_PER_RUN": 60, "MAX_TAILOR_PER_RUN": 15, "PARALLEL_JOBS": 3,
+DEFAULTS = {"USAGE_PAUSE_AT": 95, "MIN_MATCH_FOR_DOCS": 7, "MIN_SALARY": 100000, "POSTED_WITHIN_HOURS": 24, "FIRST_RUN_CATCHUP": "1", "MAX_SCREEN_PER_RUN": 60, "MAX_TAILOR_PER_RUN": 15, "PARALLEL_JOBS": 3,
             "MAX_REVISIONS": 2, "EFFORT_TAILOR": "medium", "EFFORT_SCREEN": "low", "AUTO_TAILOR_RISK": "1", "SCREEN_UNKNOWN_SPONSOR": "0", "SPONSOR_WEB_CHECKS": 25,
             "MAIL_CHECK_MINUTES": 60, "MAIL_LOOKBACK_DAYS": 14}
 

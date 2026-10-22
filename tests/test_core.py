@@ -300,3 +300,37 @@ def test_screen_log_says_what_happens_next(tmp_path, monkeypatch, verdict, score
     pipeline.screen_job("s:1", lines.append)
     assert db.get_job("s:1")["status"] == status
     assert says in lines[-1], lines
+
+
+def test_first_run_of_the_day_looks_back_further(tmp_path, monkeypatch):
+    """Postings that went up after yesterday's last run must not fall outside today's first fetch window."""
+    import json as _json
+    from datetime import datetime as _dt, timedelta as _td
+    from app import db, pipeline
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    monkeypatch.setenv("POSTED_WITHIN_HOURS", "24")
+    now = _dt.now().astimezone().replace(hour=12, minute=0, second=0, microsecond=0)
+
+    def run(at, status="done", fetched=True):
+        db.execute("INSERT INTO runs (started_at, status, stats_json) VALUES (?,?,?)",
+                   (at.astimezone().isoformat(), status, _json.dumps({"fetch": {"new": 1}} if fetched else {"screened": 5})))
+
+    hours, why = pipeline.lookback_hours(now)
+    assert hours == 48 and "First run today" in why                    # never run: a day extra
+    run(now.replace(hour=23, minute=15) - _td(days=1))                  # last night's run
+    hours, why = pipeline.lookback_hours(now)
+    assert hours == 48 and "since the last run" in why                  # first run today: 24 + 24
+    run(now.replace(hour=9), fetched=False)                             # a screening-only batch this morning
+    run(now.replace(hour=10), status="failed")                          # and a failed run: neither counts
+    assert pipeline.lookback_hours(now)[0] == 48
+    run(now.replace(hour=11))                                           # a real fetch today: back to normal
+    assert pipeline.lookback_hours(now) == (24, "")
+    db.execute("DELETE FROM runs")
+    run(now - _td(days=3, hours=2))                                     # computer off for three days
+    assert pipeline.lookback_hours(now)[0] == 75
+    db.execute("DELETE FROM runs")
+    run(now - _td(days=30))
+    assert pipeline.lookback_hours(now)[0] == pipeline.CATCHUP_MAX_HOURS
+    monkeypatch.setenv("FIRST_RUN_CATCHUP", "0")
+    assert pipeline.lookback_hours(now) == (24, "")

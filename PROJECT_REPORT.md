@@ -46,7 +46,9 @@ The pipeline runs on a schedule, by default 8:00 AM and 3:00 PM Eastern, with ti
    drops mid-run pauses the work and retries every 5 minutes. On **Windows and Linux** the same schedule is
    driven by a clock inside the dashboard, which is autostarted at login by Task Scheduler or systemd and
    optionally woken by a wake timer. A run missed while the machine slept (up to 90 minutes) still starts on wake.
-3. **About 4,000 company job boards are swept.** That's roughly 160,000 postings, checked in about 4 minutes.
+3. **About 4,000 company job boards are swept.** The day's first run looks back an extra day, and at least to the last
+   successful run, so nothing posted overnight or while the computer was off slips through.
+   The sweep covers roughly 160,000 postings in about 4 minutes.
 4. **Rules remove most postings before any AI call.** The rules drop stale postings, senior titles, roles
    outside the US, 4+ years of experience required, citizenship or clearance language, explicit "no
    sponsorship" wording, and listed pay below $100K.
