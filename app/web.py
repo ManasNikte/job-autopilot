@@ -101,6 +101,7 @@ def nav_index(operator: bool = False) -> list[dict]:
     S = lambda sec, anchor="": url_for("settings_page", section=sec) + (f"#{anchor}" if anchor else "")
     items = [
         ("Dashboard", "Overview", url_for("dashboard"), "home overview kpi numbers greeting maps chart"),
+        ("How it works", "Overview", url_for("how_it_works"), "help explain guide steps what does it do faq questions"),
         ("Needs you", "Overview", url_for("inbox"), "to-do todo inbox decisions referral missing facts submit review"),
         ("Background", "Overview", url_for("background"), "progress queue runs activity log working screening"),
         ("All jobs", "Jobs", url_for("jobs"), "jobs postings roles search list"),
@@ -122,6 +123,8 @@ def nav_index(operator: bool = False) -> list[dict]:
         ("Profile: master prompt", "Setup", url_for("profile_page"), "profile resume rules background experience prompt"),
         ("Profile: confirmed facts", "Setup", url_for("profile_page", f="answers"), "answers facts"),
         ("Profile: form presets", "Setup", url_for("profile_page", f="applicant"), "autofill phone address linkedin eeo applicant email"),
+        ("Resume template", "Setup › Profile", url_for("resume_template_page"), "resume layout template ats classic compact projects experience format look overlap"),
+        ("Resume rules in my prompt", "Setup › Profile", url_for("resume_template_page") + "#rules", "upgrade prompt rules achievements empty sections fit one page"),
         ("Sources", "Setup", url_for("sources_page"), "feeds boards greenhouse lever ashby workday uscis h-1b import csv"),
         ("Run times", "Settings › Schedule", S("schedule", "schedule"), "schedule daily time when runs start 8 am"),
         ("Lid closed / asleep", "Settings › Schedule", S("schedule", "wake"), "wake sleep pmset overnight laptop"),
@@ -1477,8 +1480,13 @@ def tour_steps(name: str | None) -> list[dict]:
          "text": "Run times, minimum pay, how many documents to build at once, email, the phone dashboard, and app updates."},
         {"title": "You're all set 🚀", "cta": "Let's go",
          "text": "Click Run now to start your first search. It takes a few minutes and you can watch it on this page. "
-                 "Replay this tour anytime from Settings."},
+                 "For the whole picture in six steps, open How it works in the sidebar. Replay this tour anytime from Settings."},
     ]
+
+
+@app.route("/how-it-works")
+def how_it_works():
+    return render_template("how_it_works.html")
 
 
 @app.route("/assessments")
@@ -1585,9 +1593,13 @@ def _profile_path(name: str) -> Path:
 def _versions(name: str) -> list[dict]:
     hist = PROFILE_DIR / "history"
     out = []
-    for f in sorted(hist.glob(f"{name}__*"), reverse=True)[:30]:
-        ts = f.stem.split("__", 1)[1]
-        out.append({"file": f.name, "label": strf(datetime.strptime(ts, "%Y%m%d-%H%M%S"), "%b %d, %-I:%M %p"), "size": f.stat().st_size})
+    for f in sorted(hist.glob(f"{name}__*"), key=lambda f: f.stat().st_mtime, reverse=True)[:30]:
+        ts = f.stem.split("__", 1)[1][:15]          # "20261022-021807" (a "-2" suffix means a second save that second)
+        try:
+            label = strf(datetime.strptime(ts, "%Y%m%d-%H%M%S"), "%b %d, %-I:%M:%S %p")
+        except ValueError:
+            continue
+        out.append({"file": f.name, "label": label, "size": f.stat().st_size})
     return out
 
 
@@ -1606,12 +1618,101 @@ def profile_page():
                            versions=_versions(name), restoring=restore)
 
 
+def _save_profile_file(name: str, text: str) -> None:
+    """Write a profile file, keeping the previous version in profile/history (any change can be undone)."""
+    path = _profile_path(name)
+    hist = PROFILE_DIR / "history"
+    hist.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        stamp, n = f"{datetime.now():%Y%m%d-%H%M%S}", 1
+        backup = hist / f"{name}__{stamp}{path.suffix}"
+        while backup.exists():                       # two saves in one second must not overwrite a backup
+            n += 1
+            backup = hist / f"{name}__{stamp}-{n}{path.suffix}"
+        backup.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+        for old in sorted(hist.glob(f"{name}__*"), reverse=True)[30:]:
+            old.unlink()
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
+
+
+def _latest_resume_data() -> tuple[dict, str]:
+    """The newest tailored resume (your real content), else the built-in sample."""
+    row = db.fetchone("SELECT company, tailor_json FROM jobs WHERE tailor_json IS NOT NULL ORDER BY updated_at DESC LIMIT 1")
+    if row:
+        try:
+            return json.loads(row["tailor_json"]), f"your latest tailored resume ({row['company']})"
+        except ValueError:
+            pass
+    return json.loads((ROOT / "tests/fixtures/sample_tailor.json").read_text(encoding="utf-8")), "the built-in sample"
+
+
+@app.route("/profile/resume-template")
+def resume_template_page():
+    from . import resume_rules
+    from .pipeline import resume_template
+    from .render import pdfgen
+    prompt_path = _profile_path("system_prompt")
+    prompt = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
+    _, source = _latest_resume_data()
+    return render_template("resume_template.html", templates=pdfgen.TEMPLATES, current=resume_template(), source=source,
+                           rules_have=resume_rules.status(prompt), rules_version=resume_rules.RULES_VERSION)
+
+
+@app.post("/profile/resume-template")
+def resume_template_save():
+    from .render import pdfgen
+    t = request.form.get("template", "")
+    if t not in pdfgen.TEMPLATES:
+        abort(400)
+    path = _profile_path("applicant")
+    data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    data["resume_template"] = t
+    _save_profile_file("applicant", json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    flash(f"Resume template set to {pdfgen.TEMPLATES[t]['label']}. New resumes use it; use Regenerate on a job to redo one.")
+    return redirect(url_for("resume_template_page"))
+
+
+@app.get("/profile/resume-preview")
+def resume_preview():
+    """A real PDF of your latest tailored resume drawn with the chosen template (nothing is saved to a job)."""
+    from .render import pdfgen
+    t = request.args.get("t", "")
+    if t not in pdfgen.TEMPLATES:
+        abort(404)
+    data, _ = _latest_resume_data()
+    data["_template"] = t
+    fits = [L for L in pdfgen.LAYOUTS if pdfgen.resume_fits(data, L)[0]]
+    out = DATA_DIR / "previews"
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"resume-{t}.pdf"
+    pdfgen.build_resume(data, str(path), fits[-1] if fits else pdfgen.LAYOUTS[0], f"Preview — {pdfgen.TEMPLATES[t]['label']}")
+    return send_file(path, mimetype="application/pdf")
+
+
+@app.post("/profile/resume-rules")
+def resume_rules_apply():
+    """Add (or refresh) the app's resume rules in the master prompt. The previous prompt stays in history."""
+    from . import resume_rules
+    path = _profile_path("system_prompt")
+    if not path.exists():
+        flash("No master prompt yet; set it up on Profile first.")
+        return redirect(url_for("resume_template_page"))
+    before = path.read_text(encoding="utf-8")
+    had = resume_rules.status(before)
+    _save_profile_file("system_prompt", resume_rules.apply(before))
+    flash(("Updated the resume rules in your prompt." if had else "Added the resume rules to your prompt.")
+          + " Your previous prompt is saved; restore it from Profile → Master prompt → Earlier versions anytime.")
+    return redirect(url_for("resume_template_page"))
+
+
 @app.post("/profile/save")
 def profile_save():
     import json as _json
     body = request.get_json(force=True)
     name = body.get("name", "")
-    path = _profile_path(name)
+    _profile_path(name)                  # rejects unknown file names
     text = body.get("text", "")
     if name == "system_prompt" and len(text.strip()) < 2000:
         return jsonify({"ok": False, "error": "The master prompt looks almost empty; not saved (it would break every run)."}), 400
@@ -1620,15 +1721,7 @@ def profile_save():
             _json.loads(text)
         except ValueError as e:
             return jsonify({"ok": False, "error": f"Not valid JSON: {e}"}), 400
-    hist = PROFILE_DIR / "history"
-    hist.mkdir(parents=True, exist_ok=True)
-    if path.exists():   # keep the previous version so any edit can be undone
-        (hist / f"{name}__{datetime.now():%Y%m%d-%H%M%S}{path.suffix}").write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
-        for old in sorted(hist.glob(f"{name}__*"), reverse=True)[30:]:
-            old.unlink()
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
-    tmp.replace(path)
+    _save_profile_file(name, text)   # keeps the previous version so any edit can be undone
     return jsonify({"ok": True, "saved": strf(datetime.now(), "%-I:%M:%S %p"), "chars": len(text)})
 
 

@@ -88,11 +88,28 @@ def resume_line_checks(data: dict, body_pt: float) -> list[str]:
             lw += (text_width_pt(item["date"], body_pt, "bold") or 0) + 12   # right-aligned date plus a gap
         if lw > OBJECTIVE_WIDTH_PT:
             problems.append(f"Leadership & Achievements line '{item['label']}' wraps ({lw / OBJECTIVE_WIDTH_PT:.0%} of a line); shorten it")
-    if len(data["skills"]) != 4:
-        problems.append(f"Technical Skills has {len(data['skills'])} rows; needs exactly 4")
+    if not 3 <= len(data["skills"]) <= 5:
+        problems.append(f"Technical Skills has {len(data['skills'])} rows; use 3 to 5")
     for p in data["projects"]:
-        if len(p["bullets"]) != 3:
-            problems.append(f"Project '{p['title']}' has {len(p['bullets'])} bullets; needs exactly 3")
+        if not 2 <= len(p["bullets"]) <= 3:
+            problems.append(f"Project '{p['title']}' has {len(p['bullets'])} bullets; use 2 or 3")
+    # Entry rows that can't share one line with their dates (they'd wrap onto a second line)
+    from .pdfgen import entry_row_fits
+    small = round(body_pt - 0.5, 1)
+    for ex in data["experience"]:
+        if not entry_row_fits([(ex["company"], "B", body_pt), (" | ", "R", small), (ex.get("location") or "", "I", small)],
+                              (ex["title"], "BI", body_pt), ex.get("dates") or "", body_pt):
+            problems.append(f"Experience row '{ex['company']} · {ex['title']}' is too long for one line with its dates; "
+                            "shorten the location (City, ST) or the title")
+    for pr in data["projects"]:
+        if not entry_row_fits([(pr["title"], "B", body_pt), (" | ", "R", body_pt), (pr.get("stack") or "", "I", body_pt)],
+                              None, pr.get("dates") or "", body_pt):
+            problems.append(f"Project row '{pr['title']}' is too long for one line with its dates; "
+                            "keep the 3–4 most JD-relevant tools in the stack")
+    for ed in data["education"]:
+        if not entry_row_fits([(ed["degree"], "B", body_pt), (" | ", "B", body_pt), (ed["institution"], "BI", body_pt),
+                               (" | ", "R", small), (ed.get("location") or "", "I", small)], None, ed.get("dates") or "", body_pt):
+            problems.append(f"Education row '{ed['degree']}' is too long for one line with its dates; abbreviate the degree")
     return problems
 
 

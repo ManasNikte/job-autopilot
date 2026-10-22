@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}How it works · Job Autopilot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 style="margin-bottom:2px">How Job Autopilot works</h1>
+  <span class="sub">It does the searching, reading, and writing. You make the decisions and press Submit.</span>
+</div>
+
+<ol class="how-steps">
+  <li><span class="how-n">1</span><div><b>Finds new jobs</b><p>At your run times (Settings → Schedule) it checks about 4,000 company job boards and job feeds for roles posted since the last run. The day's first run looks back an extra day so nothing posted overnight is missed.</p></div></li>
+  <li><span class="how-n">2</span><div><b>Filters out the obvious no's</b><p>Simple rules, no AI: too senior, outside the US, pay below your floor, "no visa sponsorship", or not one of your role families. Most postings stop here, for free.</p></div></li>
+  <li><span class="how-n">3</span><div><b>Claude reads the rest</b><p>Each remaining job description is compared with your profile (your master prompt). You get a verdict and a match score out of 10, with the reasons. This is the reading you'd otherwise do by hand.</p></div></li>
+  <li><span class="how-n">4</span><div><b>Writes your documents</b><p>For jobs at or above your threshold (default 7/10), it writes a tailored one-page resume, in the <a href="{{ url_for('resume_template_page') }}">template</a> you chose, and a cover letter, then checks them and fixes anything that doesn't fit.</p></div></li>
+  <li><span class="how-n">5</span><div><b>You apply</b><p>Open <a href="{{ url_for('inbox') }}">Needs you</a>: review, then open the application. The Chrome extension fills the form and attaches the documents. You check everything and click Submit yourself.</p></div></li>
+  <li><span class="how-n">6</span><div><b>It keeps track</b><p>Replies from employers are read from your inbox (read-only): rejections, interviews, offers, and <a href="{{ url_for('assessments_page') }}">online assessments</a> with their due dates and reminders. The dashboard shows your week and the time you've saved.</p></div></li>
+</ol>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>What it does for you</h2>
+    <ul class="how-list">
+      <li>Searches every run, even while your computer is asleep (it wakes it).</li>
+      <li>Reads job descriptions and explains each score.</li>
+      <li>Writes tailored resumes and cover letters, one page each.</li>
+      <li>Sorts application emails and updates each job's status.</li>
+      <li>Pauses on its own near your Claude usage limit, and resumes after the reset.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>What only you do</h2>
+    <ul class="how-list">
+      <li>Keep your <a href="{{ url_for('profile_page') }}">profile</a> accurate. Claude never invents experience.</li>
+      <li>Decide on borderline matches and answer questions on <a href="{{ url_for('inbox') }}">Needs you</a>.</li>
+      <li>Review each application and click Submit.</li>
+      <li>Complete assessments and interviews.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Common questions</h2>
+  <details><summary>Why didn't a job get documents?</summary><p class="sub">Its match score was below your threshold (Settings → Pipeline and limits), or Claude said don't apply. The activity log says which, for example "held: below your 7/10 threshold".</p></details>
+  <details><summary>My resume looks crowded, or a section is empty.</summary><p class="sub">Pick a template that suits your profile on <a href="{{ url_for('resume_template_page') }}">Profile → Resume template</a> (Compact for a lot of material), and add the latest resume rules to your prompt there. Empty sections are left off automatically.</p></details>
+  <details><summary>Where does my data go?</summary><p class="sub">Everything runs on this computer. Claude sees your profile and each job description. The optional online dashboard stores only summaries (counts, job titles, statuses), never your resumes, prompt, or email text.</p></details>
+  <details><summary>Does it apply for me?</summary><p class="sub">No. It prepares everything and fills the form, but you always press Submit. Applications carry legal statements that should come from you.</p></details>
+</div>
+{% endblock %}

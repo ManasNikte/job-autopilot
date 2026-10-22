@@ -146,26 +146,85 @@ def wrap(text: str, face: str, size: float, w: float) -> list[str]:
     return lines or [""]
 
 
+# Resume templates: all single-column, standard headings, real text in reading order (ATS-friendly).
+# The app arranges the sections; the master prompt supplies the content. Chosen in Profile → Resume template.
+TEMPLATES = {
+    "classic": {"label": "Classic", "order": ["summary", "education", "skills", "experience", "projects", "leadership"],
+                "for": "New grads and students: education first, then skills, experience, and projects."},
+    "projects_first": {"label": "Projects first", "order": ["summary", "education", "skills", "projects", "experience", "leadership"],
+                       "for": "Little or no work experience, strong projects: projects come before experience."},
+    "experienced": {"label": "Experience first", "order": ["summary", "experience", "skills", "projects", "education", "leadership"],
+                    "for": "Two or more years of work: experience leads, education moves down."},
+    "compact": {"label": "Compact", "order": ["summary", "education", "skills", "experience", "projects", "leadership"],
+                "compact": True, "for": "A lot to say: one contact line, smaller headings, and tighter spacing."},
+}
+DEFAULT_TEMPLATE = "classic"
+SECTION_TITLES = {"education": "Education", "skills": "Technical Skills", "experience": "Professional Experience",
+                  "projects": "Projects", "leadership": "Leadership & Achievements"}
+
+
+def template_of(data: dict) -> dict:
+    return TEMPLATES.get(data.get("_template") or DEFAULT_TEMPLATE, TEMPLATES[DEFAULT_TEMPLATE])
+
+
+def entry_row_fits(left: list[tuple[str, str, float]], middle: tuple[str, str, float] | None, date: str, body: float) -> bool:
+    """Does an entry row (left parts, optional role title at ROLE_COL, date flush right) fit on one line without
+    anything touching? Shared by the renderer and the checks."""
+    date_w = width(date, "B", body) + 10 if date else 0
+    left_w = sum(width(t, f, s) for t, f, s in left)
+    room = R_TEXT_W - date_w
+    if not middle:
+        return left_w <= room
+    return left_w + 8 <= ROLE_COL and ROLE_COL + width(*middle) <= room
+
+
+def _fit_lines(items: list[dict], w: float, size: float) -> list[list[dict]]:
+    """Split header contact items into centered lines that each fit the page width (never run off the edge)."""
+    sep = width(" | ", "R", size)
+    lines, cur, cur_w = [], [], 0.0
+    for it in items:
+        iw = width(it["text"], "R", size)
+        if cur and cur_w + sep + iw > w:
+            lines.append(cur)
+            cur, cur_w = [], 0.0
+        cur_w += (sep if cur else 0) + iw
+        cur.append(it)
+    if cur:
+        lines.append(cur)
+    return lines
+
+
 def _resume_pass(c, data: dict, L: Layout) -> float:
-    """Draw (or measure when c is None). Returns the y of the last baseline + descent."""
+    """Draw (or measure when c is None). Returns the y of the last baseline + descent.
+
+    Nothing can overlap: header contact lines, entry rows, coursework, and skills wrap when they're too long
+    (the checks still flag them so the content gets trimmed), and empty sections are left off entirely."""
+    tpl = template_of(data)
+    compact = tpl.get("compact", False)
+    title_size = 11 if compact else 12
+    before_title = max(6, L.before_title - 4) if compact else L.before_title
     pg = _Page(c, R_TOP, R_SIDE, R_TEXT_W)
     y = R_TOP
     h = data["header"]
 
-    # Header (IX-V.3): name line exactly 26pt, contact lines 13.8pt, centered.
-    y += 26
+    # Header (IX-V.3): name line exactly 26pt, contact lines 13.8pt, centered; wrapped instead of running off.
+    y += 24 if compact else 26
     name = h["name"].upper()
     nx = (R_TEXT_W - width(name, "B", 14)) / 2
     pg.runs(nx, y - 7, [(name, "B", 14)])
-    for line in (h["line2"], h["line3"]):
-        y += 13.8
+    contact = [it for it in (h.get("line2") or []) + (h.get("line3") or []) if it.get("text")] if compact else None
+    size = 10.5 if compact else 11
+    rows = _fit_lines(contact, R_TEXT_W, size) if compact else \
+        [ln for line in (h.get("line2") or [], h.get("line3") or []) for ln in _fit_lines([i for i in line if i.get("text")], R_TEXT_W, size)]
+    for line in rows:
+        y += 13.2 if compact else 13.8
         parts = []
         for i, item in enumerate(line):
             if i:
-                parts.append((" | ", "R", 11, ""))
-            parts.append((item["text"], "R", 11, item.get("url") or ""))
+                parts.append((" | ", "R", size, ""))
+            parts.append((item["text"], "R", size, item.get("url") or ""))
         total = sum(width(t, f, s) for t, f, s, _ in parts)
-        x = (R_TEXT_W - total) / 2
+        x = max(0, (R_TEXT_W - total) / 2)
         pg.runs(x, y - 3, [(t, f, s) for t, f, s, _ in parts])
         for t, f, s, url in parts:
             w = width(t, f, s)
@@ -181,10 +240,10 @@ def _resume_pass(c, data: dict, L: Layout) -> float:
 
     def title(text: str):
         nonlocal y
-        page_break_if_needed(L.before_title + 13.8 + L.line)
-        y += L.before_title + 13.8
+        page_break_if_needed(before_title + 13.8 + L.line)
+        y += before_title + (13 if compact else 13.8)
         base = y - 3.5
-        pg.runs(0, base, [(text.upper(), "B", 12)])
+        pg.runs(0, base, [(text.upper(), "B", title_size)])
         if c:
             c.setLineWidth(0.75)
             c.line(R_SIDE, PAGE_H - (base + 3.2), R_SIDE + R_TEXT_W, PAGE_H - (base + 3.2))
@@ -196,32 +255,33 @@ def _resume_pass(c, data: dict, L: Layout) -> float:
         y += extra_before + L.line
         return y - L.line * 0.27
 
-    # Summary (title from the package, e.g. "SUMMARY"): distributed, both lines flush (IX-V.4)
-    from .pdf import summary_text, summary_title
-    title(summary_title(data))
-    obj_lines = wrap(summary_text(data), "R", L.body, R_TEXT_W)
-    for j, ln in enumerate(obj_lines):
-        last_short = j == len(obj_lines) - 1 and width(ln, "R", L.body) < 0.92 * R_TEXT_W
-        pg.justified(0, body_line(), ln, "R", L.body, R_TEXT_W, stretch=not last_short)
-
-    # Education
-    title("Education")
-    for i, ed in enumerate(data["education"]):
+    def entry_row(left: list[tuple[str, str, float]], middle: tuple[str, str, float] | None, date: str):
+        """One entry line: left parts, an optional middle part at ROLE_COL, and the date flush right. If they
+        would collide, the middle part (and then the rest of the left parts) moves to the next line."""
         b = body_line(3)
-        pg.runs(0, b, [(ed["degree"], "B", L.body), (" | ", "B", L.body), (ed["institution"], "BI", L.body),
-                       (" | ", "R", L.small), (ed["location"], "I", L.small)])
-        pg.right(b, ed["dates"], "B", L.body)
-        if ed.get("coursework"):
-            b = body_line()
-            pg.runs(0, b, [("Coursework:", "I", L.small)])
-            pg.runs(COURSE_COLS[min(i, 1)], b, [(", ".join(ed["coursework"]), "I", L.small)])
-
-    # Technical skills (4 rows)
-    title("Technical Skills")
-    for row in data["skills"]:
-        b = body_line()
-        pg.runs(0, b, [(row["label"].rstrip(":"), "B", L.body)])
-        pg.runs(SKILL_COL, b, [(row["items"], "R", L.body)])
+        room = R_TEXT_W - (width(date, "B", L.body) + 10 if date else 0)
+        if entry_row_fits(left, middle, date, L.body):
+            pg.runs(0, b, left)
+            if middle:
+                pg.runs(ROLE_COL, b, [middle])
+        else:
+            first, rest, used = [], [], 0.0
+            for part in left:                      # keep what fits on the first line, the rest goes below
+                pw = width(part[0], part[1], part[2])
+                if not rest and used + pw <= room:
+                    first.append(part); used += pw
+                else:
+                    rest.append(part)
+            while first and first[-1][0].strip() in ("|", ""):
+                rest.insert(0, first.pop())
+            pg.runs(0, b, first or left[:1])
+            below = [p for p in rest if p[0].strip() != "|"]
+            if middle:
+                below += ([(" · ", "R", L.small)] if below else []) + [middle]
+            if below:
+                pg.runs(0, body_line(), below)
+        if date:
+            pg.right(b, date, "B", L.body)
 
     def bullets(items: list[str]):
         for text in items:
@@ -235,35 +295,86 @@ def _resume_pass(c, data: dict, L: Layout) -> float:
                 # Distributed alignment for full lines; the tail of a (flagged) wrapped bullet stays left aligned.
                 pg.justified(BULLET_TEXT_X, b, ln, "R", L.body, BULLET_W, stretch=(j < len(parts) - 1 or len(parts) == 1))
 
-    # Professional experience
-    title("Professional Experience")
-    for ex in data["experience"]:
-        b = body_line(3)
-        pg.runs(0, b, [(ex["company"], "B", L.body), (" | ", "R", L.small), (ex["location"], "I", L.small)])
-        pg.runs(ROLE_COL, b, [(ex["title"], "BI", L.body)])
-        pg.right(b, ex["dates"], "B", L.body)
-        bullets(ex["bullets"])
-
-    # Projects
-    title("Projects")
-    for pr in data["projects"]:
-        b = body_line(3)
-        pg.runs(0, b, [(pr["title"], "B", L.body), (" | ", "R", L.body), (pr["stack"], "I", L.body)])
-        pg.right(b, pr["dates"], "B", L.body)
-        bullets(pr["bullets"])
-
-    # Leadership & achievements
-    title("Leadership & Achievements")
-    for item in data["leadership"]:
-        label = item["label"].rstrip(":") + ": "
-        indent = width(label, "B", L.body)
-        date = (item.get("date") or "").strip()
-        room = R_TEXT_W - indent - (width(date, "B", L.body) + 12 if date else 0)
-        for j, ln in enumerate(wrap(item["text"], "R", L.body, room)):
+    def hanging(col: float, label: list[tuple[str, str, float]], text: str, face: str, size: float):
+        """A label, then text that wraps under itself at `col` (or after the label, if the label is wider)."""
+        start = max(col, sum(width(t, f, s) for t, f, s in label) + 6)
+        for j, ln in enumerate(wrap(text, face, size, R_TEXT_W - start)):
             b = body_line()
-            pg.runs(0 if j == 0 else indent, b, ([(label, "B", L.body)] if j == 0 else []) + [(ln, "R", L.body)])
-            if j == 0 and date:
-                pg.right(b, date, "B", L.body)          # bold, flush right, like every other date
+            if j == 0:
+                pg.runs(0, b, label)
+            pg.runs(start, b, [(ln, face, size)])
+
+    from .pdf import summary_text, summary_title
+
+    def section_summary():
+        text = summary_text(data)
+        if not text.strip():
+            return
+        title(summary_title(data))
+        obj_lines = wrap(text, "R", L.body, R_TEXT_W)
+        for j, ln in enumerate(obj_lines):
+            last_short = j == len(obj_lines) - 1 and width(ln, "R", L.body) < 0.92 * R_TEXT_W
+            pg.justified(0, body_line(), ln, "R", L.body, R_TEXT_W, stretch=not last_short)
+
+    def section_education():
+        eds = data.get("education") or []
+        if not eds:
+            return
+        title(SECTION_TITLES["education"])
+        for i, ed in enumerate(eds):
+            entry_row([(ed["degree"], "B", L.body), (" | ", "B", L.body), (ed["institution"], "BI", L.body),
+                       (" | ", "R", L.small), (ed.get("location") or "", "I", L.small)], None, ed.get("dates") or "")
+            if ed.get("coursework"):
+                hanging(COURSE_COLS[min(i, 1)], [("Coursework:", "I", L.small)], ", ".join(ed["coursework"]), "I", L.small)
+
+    def section_skills():
+        rows = [r for r in data.get("skills") or [] if (r.get("items") or "").strip()]
+        if not rows:
+            return
+        title(SECTION_TITLES["skills"])
+        for row in rows:
+            hanging(SKILL_COL, [(row["label"].rstrip(":"), "B", L.body)], row["items"], "R", L.body)
+
+    def section_experience():
+        exps = data.get("experience") or []
+        if not exps:
+            return
+        title(SECTION_TITLES["experience"])
+        for ex in exps:
+            entry_row([(ex["company"], "B", L.body), (" | ", "R", L.small), (ex.get("location") or "", "I", L.small)],
+                      (ex["title"], "BI", L.body), ex.get("dates") or "")
+            bullets(ex.get("bullets") or [])
+
+    def section_projects():
+        prs = data.get("projects") or []
+        if not prs:
+            return
+        title(SECTION_TITLES["projects"])
+        for pr in prs:
+            entry_row([(pr["title"], "B", L.body), (" | ", "R", L.body), (pr.get("stack") or "", "I", L.body)], None,
+                      pr.get("dates") or "")
+            bullets(pr.get("bullets") or [])
+
+    def section_leadership():
+        items = [i for i in data.get("leadership") or [] if (i.get("text") or "").strip()]
+        if not items:                              # nothing to show: no empty LEADERSHIP & ACHIEVEMENTS heading
+            return
+        title(SECTION_TITLES["leadership"])
+        for item in items:
+            label = item["label"].rstrip(":") + ": "
+            indent = width(label, "B", L.body)
+            date = (item.get("date") or "").strip()
+            room = R_TEXT_W - indent - (width(date, "B", L.body) + 12 if date else 0)
+            for j, ln in enumerate(wrap(item["text"], "R", L.body, room)):
+                b = body_line()
+                pg.runs(0 if j == 0 else indent, b, ([(label, "B", L.body)] if j == 0 else []) + [(ln, "R", L.body)])
+                if j == 0 and date:
+                    pg.right(b, date, "B", L.body)      # bold, flush right, like every other date
+
+    sections = {"summary": section_summary, "education": section_education, "skills": section_skills,
+                "experience": section_experience, "projects": section_projects, "leadership": section_leadership}
+    for key in tpl["order"]:
+        sections[key]()
     return y
 
 

@@ -225,7 +225,10 @@ Then fill the profile in together with the user:
      **Selection Rule**.
    - Search for `[` to find the remaining placeholders. Use only facts the user gives you. Where a number is
      unknown, write `PENDING`; never invent one.
-   - Keep every section heading. The app refers to them (Section I, I-B, III-0, IX-V, XI, XV).
+   - Keep every section heading. The app refers to them (Section I, I-B, III-0, IX-V, XI, XV, RL).
+   - Fill Section I's achievements only with real items. If the user has no extracurriculars, awards, or
+     certifications, say so in the prompt; the resume then leaves that section off instead of showing an empty one
+     (rule RL.1 at the end of the template).
 2. **`profile/applicant.json`**: set `"preferred_name"` to the name from Step 0 (the dashboard greeting uses it),
    then fill the remaining fields: name, email, phone, location, links, school, start date, and the fixed form
    answers (work authorization, sponsorship, EEO). For EEO questions, use exactly what the user chooses,
@@ -233,7 +236,23 @@ Then fill the profile in together with the user:
 3. **Work authorization:** if the user does **not** need visa sponsorship, set `"require_h1b_signal": false` in
    `config/feeds.json`, and simplify GATE 1, WORK AUTHORIZATION, and SECTION XV in the prompt. The H-1B
    features then stay out of the way.
-4. **Search settings:** adjust `config/search.json` (role families, title exclusions, `max_years_required`) and
+4. **Resume template (show, then let them choose).** Four ATS-friendly, one-column templates ship with the app:
+   **Classic** (education first; new grads), **Projects first** (little work experience, strong projects),
+   **Experience first** (two or more years of work), and **Compact** (a lot of material; denser). To let the user
+   see their own resume in each:
+   - Write `data/previews/sample.json` in the shape of `tests/fixtures/sample_tailor.json`, using only facts from
+     their resume (it's just for previewing; nothing is sent anywhere). Leave a section's list empty if they have
+     nothing for it: for example `"leadership": []` when they have no extracurriculars, so the preview matches what
+     they'll really get.
+   - Build the previews: `.venv/bin/python -m app.cli preview-templates data/previews/sample.json`
+     (Windows: `.venv\Scripts\python.exe -X utf8 -m app.cli preview-templates data\previews\sample.json`). It writes
+     one PDF per template to `data/previews/` and says which fit one page.
+   - Open them for the user, recommend one for their profile, and set their choice as `"resume_template"` in
+     `profile/applicant.json` (`classic`, `projects_first`, `experienced`, or `compact`). If a template overflows
+     one page, prefer Compact, or trim the sample the way RL.2 in the master prompt describes.
+   They can switch later on the dashboard's **Profile → Resume template** page, which also previews each template
+   with their latest tailored resume.
+5. **Search settings:** adjust `config/search.json` (role families, title exclusions, `max_years_required`) and
    `config/companies.json` (curated company boards) to the user's targets. Pay floor, match threshold, and run
    times can be changed later on the dashboard's **Settings** page.
 

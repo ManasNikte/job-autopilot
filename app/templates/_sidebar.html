@@ -49,6 +49,7 @@
     {{ item(url_for('dashboard'), 'Dashboard', 'home', ep == 'dashboard') }}
     {{ item(url_for('inbox'), 'Needs you', 'inbox', ep == 'inbox', open_interventions or None, 'inbox') }}
     {{ item(url_for('background'), 'Background', 'activity', ep == 'background') }}
+    {{ item(url_for('how_it_works'), 'How it works', 'help', ep == 'how_it_works') }}
 
     <div class="sb-section">Jobs</div>
     {% set in_jobs = ep in ('jobs', 'job_detail') and st != 'applied_all' %}
@@ -75,9 +76,10 @@
 
     <div class="sb-section">Setup</div>
     {% set pf = request.args.get('f', 'system_prompt') %}
-    {% call group('profile', url_for('profile_page'), 'Profile', 'user', ep == 'profile_page' and pf == 'system_prompt', ep == 'profile_page', None, 'profile') %}
+    {% call group('profile', url_for('profile_page'), 'Profile', 'user', ep == 'profile_page' and pf == 'system_prompt', ep in ('profile_page', 'resume_template_page'), None, 'profile') %}
       {{ sub(url_for('profile_page', f='answers'), 'Confirmed facts', ep == 'profile_page' and pf == 'answers') }}
       {{ sub(url_for('profile_page', f='applicant'), 'Form presets', ep == 'profile_page' and pf == 'applicant') }}
+      {{ sub(url_for('resume_template_page'), 'Resume template', ep == 'resume_template_page') }}
     {% endcall %}
     {{ item(url_for('sources_page'), 'Sources', 'rss', ep == 'sources_page') }}
     {% set sec = request.view_args.get('section', 'schedule') if ep == 'settings_page' and request.view_args else 'schedule' %}

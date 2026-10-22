@@ -282,6 +282,24 @@ SYNC_STATUSES = ("needs_decision", "to_tailor", "tailoring", "ready", "below_thr
                  "applied", "interviewing", "offer", "closed")
 
 
+def _charts() -> dict:
+    """The dashboard's charts for the website: the last 8 Sunday-to-Saturday weeks, time saved, and the role-family
+    donut (counts only)."""
+    try:
+        from .web import donut_slices, time_saved, week_series
+        today = datetime.now().astimezone().date()
+        sunday = today - timedelta(days=(today.weekday() + 1) % 7)
+        weeks = [week_series(sunday - timedelta(days=7 * i)) for i in range(8)]
+        fams = db.fetchall("SELECT coalesce(role_family,'Other') AS fam, count(*) AS n FROM jobs "
+                           "WHERE status IN ('applied','interviewing','offer','closed') GROUP BY fam ORDER BY n DESC, fam")
+        saved = time_saved()
+        return {"weeks": weeks, "families": donut_slices(fams),
+                "time_saved": {"hours": saved["hours"], "days": saved["days"],
+                               "rows": [{k: r[k] for k in ("label", "verb", "n", "per", "hours", "pct")} for r in saved["rows"]]}}
+    except Exception:
+        return {}
+
+
 def _applied_this_week() -> int:
     """Applications since Sunday 00:00 local time (weeks run Sunday to Saturday)."""
     from .web import week_start_utc
@@ -339,6 +357,7 @@ def snapshot() -> dict:
         "pipeline": {k: counts.get(k, 0) for k in ("to_screen", "needs_decision", "to_tailor", "tailoring", "ready",
                                                   "applied", "interviewing", "offer", "closed")},
         "assessments": _assessment_list(),
+        **_charts(),
         "series": [{"day": (today - timedelta(days=i)).isoformat(), "n": per_day.get(today - timedelta(days=i), 0)}
                    for i in range(13, -1, -1)],
         "background": {

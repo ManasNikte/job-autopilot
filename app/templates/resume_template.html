@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Resume template · Job Autopilot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 style="margin-bottom:2px">Resume template</h1>
+  <span class="sub">How your tailored resumes are laid out. All four are one column with standard headings, so applicant
+    tracking systems (ATS) read them cleanly. Your content stays the same; the order and density change.</span>
+</div>
+
+<form method="post" class="tpl-grid">
+  {% for key, t in templates.items() %}
+  <label class="tpl-card{{ ' on' if key == current }}">
+    <input type="radio" name="template" value="{{ key }}" {{ 'checked' if key == current }}>
+    <span class="tpl-mini" aria-hidden="true">
+      <i class="h"></i>{% for sec in t.order %}<i class="s {{ sec }}{{ ' tight' if t.compact }}"><b>{{ {'summary':'Summary','education':'Education','skills':'Skills','experience':'Experience','projects':'Projects','leadership':'Achievements'}[sec] }}</b></i>{% endfor %}
+    </span>
+    <span class="tpl-name">{{ t.label }}{% if key == current %} <span class="badge apply">In use</span>{% endif %}</span>
+    <span class="sub small">{{ t.for }}</span>
+    <a class="btn small" href="{{ url_for('resume_preview', t=key) }}" target="_blank" rel="noopener">Preview with my resume ↗</a>
+  </label>
+  {% endfor %}
+  <div class="tpl-save"><button class="btn primary" type="submit">Use this template</button>
+    <span class="sub small">Previews use {{ source }}. Sections with nothing in them (no achievements, no projects) are left off automatically.</span></div>
+</form>
+
+<div class="card" id="rules">
+  <h2>Resume rules in your master prompt</h2>
+  {% if rules_have and rules_have >= rules_version %}
+    <p><span class="badge apply">Up to date</span> Your prompt has the latest resume rules (v{{ rules_have }}).</p>
+  {% else %}
+    <p class="sub" style="margin-top:0">{% if rules_have %}A newer version of the resume rules is available (you have v{{ rules_have }}, the latest is v{{ rules_version }}).
+      {% else %}New in this version: rules that make resumes fit every profile.{% endif %} They tell Claude to leave empty sections off instead of
+      padding them, to pick the most relevant material when there's too much (so nothing gets crowded), and to keep every entry row on one line.</p>
+  {% endif %}
+  <p class="sub">If your prompt already makes resumes you like, you can skip this. Adding the rules saves your current prompt first, so you
+    can go back anytime under <a href="{{ url_for('profile_page') }}">Profile → Master prompt</a> → Earlier versions.</p>
+  <form method="post" action="{{ url_for('resume_rules_apply') }}" data-busy="Saving…">
+    <button class="btn {{ '' if rules_have and rules_have >= rules_version else 'primary' }}" type="submit">
+      {{ 'Refresh the resume rules' if rules_have and rules_have >= rules_version else ('Update the resume rules' if rules_have else 'Add the new resume rules to my prompt') }}</button>
+  </form>
+</div>
+{% endblock %}

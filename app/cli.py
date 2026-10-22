@@ -32,6 +32,8 @@ def main(argv: list[str]) -> None:
         cloud_poll()
     elif cmd == "check":
         check()
+    elif cmd == "preview-templates":
+        preview_templates(argv[1] if len(argv) > 1 else None)
     elif cmd == "import-h1b":
         from .h1b import import_csv
         for p in argv[1:]:
@@ -39,6 +41,32 @@ def main(argv: list[str]) -> None:
                 print(f"{p}: {import_csv(f.read()):,} employers")
     else:
         print(__doc__)
+
+
+def preview_templates(source: str | None) -> None:
+    """Build one PDF per resume template from a tailored-resume JSON (default: your newest tailored resume, else the
+    built-in sample) into data/previews/, so you can compare them side by side."""
+    import json
+    from pathlib import Path
+    from .config import DATA_DIR, ROOT
+    from .render import pdfgen
+    if source:
+        data, label = json.loads(Path(source).read_text(encoding="utf-8")), source
+    else:
+        from . import db
+        db.init()
+        row = db.fetchone("SELECT tailor_json FROM jobs WHERE tailor_json IS NOT NULL ORDER BY updated_at DESC LIMIT 1")
+        data = json.loads(row["tailor_json"]) if row else json.loads((ROOT / "tests/fixtures/sample_tailor.json").read_text(encoding="utf-8"))
+        label = "your newest tailored resume" if row else "the built-in sample"
+    out = DATA_DIR / "previews"
+    out.mkdir(parents=True, exist_ok=True)
+    print(f"Previews from {label}:")
+    for key, t in pdfgen.TEMPLATES.items():
+        d = {**data, "_template": key}
+        fits = [L for L in pdfgen.LAYOUTS if pdfgen.resume_fits(d, L)[0]]
+        path = out / f"resume-{key}.pdf"
+        pdfgen.build_resume(d, str(path), fits[-1] if fits else pdfgen.LAYOUTS[0])
+        print(f"  {t['label']:17} {path}  {'fits one page' if fits else 'OVERFLOWS one page'}  — {t['for']}")
 
 
 def cloud_poll() -> None:

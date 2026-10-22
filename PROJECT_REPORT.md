@@ -7,7 +7,7 @@ including overnight with the laptop lid closed, so the candidate's time goes onl
 |---|---|
 | **Type** | Personal tool, built end to end (backend, LLM integration, PDF rendering, browser extension, scheduling) |
 | **Stack** | Python, Flask, SQLite, Claude (Claude Code CLI or Anthropic API, with web search), reportlab, Leaflet maps, Chrome extension (MV3), Playwright, macOS launchd/pmset · online dashboard on GitHub Pages + Supabase (Postgres, Auth, row-level security, realtime) |
-| **Size** | About 13,700 lines across the app, extension, website, and SQL · 124 automated tests |
+| **Size** | About 14,100 lines across the app, extension, website, and SQL · 143 automated tests |
 | **Platforms** | The app runs on a laptop or desktop: macOS (primary), Windows, Linux. A hosted online dashboard covers phone, tablet, and TV · one-command setup by Claude Code ([CLAUDE_SETUP.md](CLAUDE_SETUP.md)) · one-click in-app updates |
 | **Status** | In daily use since October 2026 |
 
@@ -59,7 +59,9 @@ The pipeline runs on a schedule, by default 8:00 AM and 3:00 PM Eastern, with ti
    APPLY WITH RISK / DON'T APPLY), a harsh match score, eligibility gates, and a recruiter's six-second read.
 7. **Claude writes the documents for strong matches** (7/10 and up, configurable): a tailored resume and cover
    letter rendered straight to PDF. The app measures every line and checks page fit, word limits, and style
-   rules. Failing lines go back to Claude as targeted patches.
+   rules. Failing lines go back to Claude as targeted patches. The resume uses one of four ATS-friendly,
+   single-column **templates** (Classic, Projects first, Experience first, Compact), chosen during setup from
+   previews built from the candidate's own resume.
 8. **The app drafts referral texts** for people the candidate knows at each company, plus LinkedIn notes.
 9. **If Claude's usage limit is hit mid-run**, all work pauses and resumes on its own at the reset time. Nothing
    is lost.
@@ -126,8 +128,8 @@ the company later invites the candidate to interview, makes an offer, or decline
 
 The app itself lives on the laptop (`127.0.0.1`). Its layout adapts from a narrow split-screen window to a 32-inch
 monitor, but it isn't meant to be opened on a phone. For that there's an optional **online dashboard** that works
-on a phone, tablet, or TV. It shows the same progress, jobs, email updates,
-and assessments. It can also start a run or an email check on the candidate's computer. Behind it:
+on a phone, tablet, or TV. It shows the same progress and charts (the week by day, time saved, role families,
+the pipeline), plus paged lists of jobs, email updates, and assessments. It can also start a run or an email check on the candidate's computer. Behind it:
 
 - **Free hosting:** GitHub Pages and Supabase.
 - **Sign-in:** email and password, confirmed with emailed 6-digit codes. The account is created during setup,
@@ -137,7 +139,8 @@ and assessments. It can also start a run or an email check on the candidate's co
 - **Outbound-only computer:** it fetches requests every 30 seconds; nothing on the internet can reach in.
 - **Sleeping Mac:** it can wake every 30 minutes to pick up requests from the phone.
 
-New users get a **guided tour** of the dashboard on first launch. When the maintainer pushes a release, every
+New users get a **guided tour** of the dashboard on first launch, and a **How it works** page explains the six
+steps in plain words, along with what the app does and what stays with the candidate. When the maintainer pushes a release, every
 install shows **Update available** with the release notes and updates itself in one click.
 
 ## 3. Time and mental energy saved
@@ -244,6 +247,19 @@ applied to within hours of going live, while applicant counts are still low.
   elsewhere, font discovery across macOS, Windows, and Linux folders (Liberation Serif as the metric-compatible
   fallback), OS-neutral date formatting, and guarded Unix-only signals. The Linux path was verified end to end
   in a clean Debian container: all tests pass, PDFs render, and the dashboard serves every page.
+- **Layouts that fit any profile, not just the author's.** The resume renderer was first tuned on one profile.
+  Other users exposed two failures: a candidate with no extracurriculars got an empty "Achievements" heading,
+  and a candidate with a lot of material got text running into the dates and past the margin. The fix had
+  three layers:
+  - **Renderer:** the renderer now leaves empty sections off. It wraps the contact line, skills, and coursework,
+    and it moves a title or tech stack to its own line rather than letting it collide with the dates.
+  - **Checks:** a shared row-fit test feeds the checks, so Claude is asked to shorten any row that doesn't fit.
+  - **Prompt:** a versioned rules block for the master prompt.
+  Existing users get the renderer fixes automatically, while the prompt upgrade is opt-in and reversible (the
+  previous prompt is saved to history), because some people's own prompts already work. A test renders an
+  overloaded resume and fails if any glyph passes the right margin. It reported x = 1,490pt on a 595pt page
+  for the old renderer. On the author's 246 existing resumes, the new renderer's output changed only where a
+  row had overlapped.
 - **Self-healing documents.** A bullet up to 3% too long stays on its line with about 0.03pt tighter letter
   spacing. Pages use the smaller sizes the prompt allows (down to 10pt) before overflowing. A **Fix it** button
   re-fits flagged documents with no model call. In practice that alone fixed every flagged resume so far.
@@ -253,6 +269,8 @@ applied to within hours of going live, while applicant counts are still low.
     write rows for a computer they don't own.
   - **Each computer:** connects only outward, keeps a refresh token in the OS keychain (never the password),
     and acts on four whitelisted requests only.
+  - **Paging:** the site pages jobs, email updates, and requests with counted range queries. Its charts are drawn
+    in plain SVG under a strict content-security policy (no inline styles, no chart library).
   - **Verification:** the rules were tested in a real Postgres with a second, hostile account before going live.
 - **Privacy by default for the operator view.** The site owner sees people's application **counts** and the city
   each person chose to share. Which companies people apply to never leaves their computer. The privacy note
@@ -279,13 +297,14 @@ applied to within hours of going live, while applicant counts are still low.
 - **~4,100** company boards and **~160,000** postings swept per run in about 4 minutes, across **44** runs
 - **42,984** USCIS sponsor records loaded, plus sponsors learned from feeds and verified online
 - **109** job locations geocoded and pinned on the dashboard maps
-- **124** automated tests, including:
+- **143** automated tests, including:
   - Chromium-driven form-fill tests
   - row-level security checked against a real Postgres
   - the updater checked against real git repositories
   - the usage guard and batch chaining
   - regression tests for real failures: sponsorship-refusal wording, pay parsing, PDF word-spacing leaks,
-    same-second sync cursors, an Email-search crash, and due times in PT and EDT
+    same-second sync cursors, an Email-search crash, due times in PT and EDT, resume text past the margin,
+    and backups overwritten by two saves in the same second
 - Runs on **macOS, Windows, and Linux**, with a phone dashboard. Anyone with a Claude seat can set it up with
   **one command**.
 
@@ -311,13 +330,15 @@ applied to within hours of going live, while applicant counts are still low.
   actionable. Keeping the time and time zone from the email turned a status into a reminder system.
 - **Count what the user actually has, not what the database happened to match.** An assessment from a company
   applied to outside the app was invisible until the list was built from the emails themselves.
+- **One good resume doesn't mean the layout works for everyone.** A layout tuned on one profile hid problems that
+  only sparse or very full profiles show. Testing with deliberately empty and overloaded content, and measuring
+  glyph positions instead of looking, caught them.
 - **Shipping updates is a feature too.** Once other people run the app, a safe, one-click update path (and a test
   for the conflict case) matters as much as any new screen.
 
 ## 8. Possible next steps
 
 - Track applicant counts and reply rates per source, and use them to rank boards
-- Run the Windows setup path on a real Windows machine and fold any fixes back into CLAUDE_SETUP.md
 - Color map pins by match score, and add a heat layer for the cities with the most open roles
 - An email follow-up draft (Outlook) with the tailored PDFs attached, for contacts the candidate already has
 - A weekly digest of rejection reasons, to show which profile gaps cost the most roles

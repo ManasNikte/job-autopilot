@@ -438,6 +438,12 @@ def _safe(s: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "", s) or "Role"
 
 
+def resume_template() -> str:
+    """The resume template chosen on the Profile page (stored in profile/applicant.json)."""
+    t = (applicant().get("resume_template") or pdfgen.DEFAULT_TEMPLATE).strip()
+    return t if t in pdfgen.TEMPLATES else pdfgen.DEFAULT_TEMPLATE
+
+
 def render(job: dict, data: dict) -> dict:
     """Draw the resume and cover letter straight to PDF, choosing the loosest spacing that fits one A4 page.
 
@@ -450,6 +456,7 @@ def render(job: dict, data: dict) -> dict:
     resume_pdf = outdir / f"{company}{position}.pdf"
     cover_pdf = outdir / f"{company}{position}_CoverLetter.pdf"
     problems: list[str] = []
+    data["_template"] = resume_template()            # Profile → Resume template (section order and density)
 
     fits = [(L, *pdfgen.resume_fits(data, L)) for L in pdfgen.LAYOUTS]
     ok = [(L, gap) for L, fit, gap in fits if fit]

@@ -28,7 +28,26 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 
 ## 🆕 What's new
 
-**v3.6–v3.10: a reorganized app that runs itself.**
+**v3.11: resumes that look good for every profile, and a clearer app.**
+
+- **Nothing empty, nothing overlapping.** Sections you have nothing for (say, no achievements) are left off instead
+  of showing a bare heading. Long contact lines, skill lists, coursework, and titles or tech stacks that ran into
+  their dates now wrap or get shortened, so a full profile never overlaps. Existing installs get this automatically.
+- **Four ATS-friendly templates** in **Profile → Resume template**: Classic (new grads), Projects first,
+  Experience first (2+ years), and Compact (a lot to say). Each is one column with standard headings, and
+  **Preview with my resume** shows each one with your own content. New users choose one during setup.
+- **Optional prompt upgrade for existing users.** One button adds the new resume rules to your master prompt.
+  If your prompt already makes resumes you like, skip it; adding the rules saves the current prompt first, and
+  **Profile → Earlier versions** restores it anytime.
+- **How it works:** a new page that explains the system in six plain steps (also [below](#how-it-works)).
+- **The online dashboard** has the new charts (week by day, Time saved, role-family donut, pipeline) and pages for
+  jobs, email updates, and requests.
+
+| Pick a template, previewed with your own resume | Same content: Classic vs Experience first |
+|---|---|
+| ![Resume template page](docs/screenshots/resume-template.png) | ![Two templates](docs/screenshots/resume-templates.png) |
+
+### v3.6–v3.10: a reorganized app that runs itself
 
 - **Sidebar navigation with search.**
   - Every page and sub-page sits in one compact list: job filters, email filters, profile files, and six separate
@@ -122,9 +141,11 @@ when the company later invites you to interview, makes an offer, or declines.
 - **Only summaries go online:** counts, job titles and statuses, and one-line email summaries. Resumes, cover
   letters, your prompt, and email text stay on your computer.
 
-| Online: sign in | Online: forgot password (emailed code) | Online: dashboard on a phone |
+| Online: sign in | Online: forgot password (emailed code) | Online: charts on a phone |
 |---|---|---|
 | ![Sign in](docs/screenshots/online-signin.png) | ![Reset](docs/screenshots/online-reset.png) | ![Online phone](docs/screenshots/online-phone.png) |
+
+Online dashboard on a laptop: the same tiles, the week day by day, Time saved, role families, and the pipeline. Jobs, email updates, and requests are paged below.
 
 ![Online dashboard on a laptop](docs/screenshots/online-desktop.png)
 
@@ -191,6 +212,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.11** | Four ATS-friendly resume templates with previews; empty sections left off and long rows wrapped (no overlaps); an optional, reversible resume-rules upgrade for the master prompt; a How it works page; new charts and pagination on the online dashboard |
 | **v3.10.3** | The day's first run looks back an extra day (and to the last successful run) so overnight postings aren't missed; the log shows each screen's outcome |
 | **v3.10.1** | Windows fixes (dates, time zones, UTF-8, no console pop-ups), "&"/"and" H-1B employer matching, a Windows-tested setup guide |
 | **v3.10** | Weekly applications chart (Sun–Sat, week picker, a number on every day), Time saved card, role-family donut, shaded pipeline, paged map list, sidebar slide arrows |
@@ -287,6 +309,25 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 ## How it works
 
+**In plain words:**
+
+1. **It finds new jobs.** At your run times it checks about 4,000 company job boards and feeds. The day's first
+   run looks back an extra day, so nothing posted overnight is missed.
+2. **It drops the obvious no's** with simple rules and no AI: too senior, outside the US, pay below your floor,
+   "no sponsorship", or not one of your role families. Most postings stop here, at no cost.
+3. **Claude reads the rest** against your master prompt (your profile) and gives a verdict and a score out of 10.
+4. **It writes your documents** for jobs at or above your threshold: a one-page resume in the template you chose
+   and a cover letter, then checks them and fixes anything that doesn't fit.
+5. **You apply.** In **Needs you** you review each one; the Chrome extension fills the form, and you click Submit.
+6. **It keeps track.** Replies are read from your inbox (read-only), assessments get due dates and reminders, and
+   the dashboard shows your week and the time saved.
+
+The same explanation is in the app under **Overview → How it works**.
+
+![How it works page](docs/screenshots/how-it-works.png)
+
+**Under the hood:**
+
 ```
  ┌──────────────┐   ┌────────────┐   ┌──────────────┐   ┌────────────────────┐   ┌─────────────┐
  │ Job sources  │──▶│ Prefilter  │──▶│ Claude screen│──▶│ Claude tailor      │──▶│ Needs you   │
@@ -308,7 +349,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 | Platforms | macOS (primary), Windows, Linux; the Linux path was verified in a clean Debian container |
 | Maps | Leaflet with Esri gray canvas tiles (light and dark), OpenStreetMap Nominatim geocoding (cached) |
 | Email | Gmail IMAP (read-only, app password in the OS keychain via `keyring`), Microsoft Graph Mail.Read (MSAL device-code sign-in), Apple Mail through AppleScript on macOS |
-| Tests | pytest (71 tests, including Chromium-driven form-fill tests) |
+| Tests | pytest (143 tests, including Chromium-driven form-fill tests and resume-layout checks that no text runs past the margin) |
 
 ## Screenshots
 
@@ -471,6 +512,7 @@ dashboard's built-in clock at the times on the Settings page.
 | `config/companies.json` | Your curated company boards (`greenhouse`, `lever`, or `ashby` plus slug) |
 | `config/search.json` | Role families, title exclusions, visa-blocker phrases, location rules |
 | `config/feeds.json` | Aggregator feeds, the board directory's source lists, and the "require an H-1B signal" switch |
+| **Profile → Resume template** / `resume_template` in `profile/applicant.json` | `classic`, `projects_first`, `experienced`, or `compact`. `python -m app.cli preview-templates` writes a PDF of each to `data/previews/` |
 | `.env` | Claude backend, models, port (Settings overrides `.env`) |
 | **Settings → Email inboxes** | Connect Gmail, Outlook / Microsoft 365, or Apple Mail; check interval (`MAIL_CHECK_MINUTES`, default 60) and first-check look-back (`MAIL_LOOKBACK_DAYS`, default 14) |
 

@@ -615,3 +615,37 @@ html.sb-rail .sb-slide .ic { transform: scaleX(-1); }
 .wk-col:nth-child(-n+2) .wk-tip { left: 0; transform: none; }          /* edge days: keep the tooltip inside the card */
 .wk-col:nth-last-child(-n+2) .wk-tip { left: auto; right: 0; transform: none; }
 .wk-chart { overflow: visible; } #applied-week { overflow: hidden; }
+
+/* Resume template chooser */
+.tpl-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+@media (max-width: 1100px) { .tpl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .tpl-grid { grid-template-columns: 1fr; } }
+.tpl-card { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface); cursor: pointer; position: relative; }
+.tpl-card:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+.tpl-card.on, .tpl-card:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.tpl-card input { position: absolute; top: 14px; right: 14px; }
+.tpl-card .btn { align-self: flex-start; margin-top: auto; }
+.tpl-name { font-weight: 700; font-size: 15px; }
+.tpl-mini { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 8px; background: #fff; border: 1px solid var(--border);
+  aspect-ratio: 210 / 230; overflow: hidden; }
+.tpl-mini i { display: block; border-radius: 2px; }
+.tpl-mini .h { height: 10px; width: 50%; margin: 0 auto 4px; background: #9aa3b0; }
+.tpl-mini .s { flex: 1; border-top: 1.5px solid #4b5563; padding-top: 2px; background: repeating-linear-gradient(#fff 0 5px, #e5e7eb 5px 7px); }
+.tpl-mini .s b { display: inline-block; font-size: 8px; line-height: 1; color: #111; background: #fff; padding-right: 3px; letter-spacing: .02em; text-transform: uppercase; }
+.tpl-mini .s.summary { flex: .45; } .tpl-mini .s.skills { flex: .7; } .tpl-mini .s.leadership { flex: .5; } .tpl-mini .s.education { flex: .7; }
+.tpl-mini .s.experience { flex: 1.6; } .tpl-mini .s.projects { flex: 1.1; }
+.tpl-mini .s.tight { background: repeating-linear-gradient(#fff 0 4px, #e5e7eb 4px 5.5px); }
+.tpl-save { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* How it works */
+.how-steps { list-style: none; padding: 0; margin: 0 0 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; counter-reset: s; }
+@media (max-width: 1100px) { .how-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .how-steps { grid-template-columns: 1fr; } }
+.how-steps li { display: flex; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.how-steps b { font-size: 15px; } .how-steps p { margin: 6px 0 0; color: var(--text-2); font-size: 14px; line-height: 1.5; }
+.how-n { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700;
+  background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.how-list { margin: 0; padding-left: 20px; } .how-list li { margin: 6px 0; line-height: 1.45; }
+.card details { padding: 8px 0; border-top: 1px solid var(--border); } .card details:first-of-type { border-top: 0; }
+.card details summary { cursor: pointer; font-weight: 600; }

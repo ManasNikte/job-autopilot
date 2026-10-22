@@ -122,10 +122,36 @@
           <h2>Background work</h2>
           <div id="background"></div>
         </div>
+        <div class="card saved-card" id="saved-card" hidden>
+          <h2>Time saved</h2>
+          <div class="saved-hero"><span class="saved-num" id="saved-num"></span><span class="saved-unit">hours</span>
+            <span class="sub" id="saved-sub"></span></div>
+          <div class="saved-rows" id="saved-rows"></div>
+        </div>
+      </div>
+
+      <div class="card" id="week-card">
+        <div class="spread chart-head">
+          <div><h2 class="m0">Applications this week</h2><div class="sub small" id="wk-sub"></div></div>
+          <div class="wk-nav" role="group" aria-label="Choose a week">
+            <button type="button" class="btn small icon" id="wk-prev" aria-label="Previous week">‹</button>
+            <select id="wk-select" aria-label="Week"></select>
+            <button type="button" class="btn small icon" id="wk-next" aria-label="Next week">›</button>
+          </div>
+        </div>
+        <div class="wk-stats" id="wk-stats"></div>
+        <div class="wk-chart" id="wk-chart" role="img" aria-label="Applications per day this week"></div>
+        <details class="table-view"><summary>Table view</summary><table id="wk-table"></table></details>
+      </div>
+
+      <div class="grid g2">
+        <div class="card" id="family-card">
+          <h2>Applied by role family <span class="sub" id="fam-total"></span></h2>
+          <div class="donut-wrap" id="donut"></div>
+        </div>
         <div class="card">
-          <h2>Applications per day</h2>
-          <div class="bars" id="bars" role="img" aria-label="Applications submitted per day, last 14 days"></div>
-          <p class="sub small" id="bars-note"></p>
+          <h2>Pipeline</h2>
+          <div id="pipeline"></div>
         </div>
       </div>
 
@@ -133,12 +159,12 @@
         <div class="spread"><h2>Jobs</h2><input type="search" id="job-q" placeholder="Search company or title" aria-label="Search jobs"></div>
         <nav class="tabs" id="job-tabs" aria-label="Job status"></nav>
         <div id="jobs"></div>
-        <div class="pager"><button class="btn small" id="jobs-more" type="button" hidden>Show more</button></div>
+        <div class="pager" id="jobs-pager"></div>
       </div>
 
       <div class="grid g2">
-        <div class="card"><h2>Email updates</h2><div id="emails"></div></div>
-        <div class="card"><h2>Recent requests</h2><div id="commands"></div></div>
+        <div class="card"><h2>Email updates</h2><div id="emails"></div><div class="pager" id="emails-pager"></div></div>
+        <div class="card"><h2>Recent requests</h2><div id="commands"></div><div class="pager" id="commands-pager"></div></div>
       </div>
 
       <details class="card danger-zone">

@@ -3,6 +3,14 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.11 (2026-10-22)
+- **Resumes that look right for every profile, automatically.** Empty sections are left off (no bare "Achievements" heading when you have none), and long rows wrap instead of overlapping: the contact line, coursework, skills, and titles or tech stacks that ran into their dates. The checks also ask Claude to shorten any row that doesn't fit on one line.
+- **Pick an ATS-friendly resume template** in Profile → Resume template: Classic (new grads), Projects first, Experience first (2+ years), or Compact (a lot to say). All are one column with standard headings. "Preview with my resume" shows each one with your own content.
+- **Optional prompt upgrade.** The same page can add the new resume rules to your master prompt (leave empty sections off, pick the most relevant material when there's too much, keep rows on one line). If your prompt already works for you, skip it. Your current prompt is saved first, and Profile → Earlier versions brings it back anytime.
+- **How it works:** a new page (Overview → How it works) explains the six steps, what the app does for you, and what only you do.
+- **The online dashboard gets the new charts** (the week day by day with a week picker, Time saved, the role-family donut, the pipeline) and pages for jobs, email updates, and requests.
+- Saving a profile file twice in the same second no longer overwrites the earlier backup. Setup now asks new users to pick a template from previews of their own resume.
+
 ## 3.10.3 (2026-10-22)
 - **The first run of the day catches up.** It looks back a day further than usual (48 hours with the default 24), and at least to the last successful run, so jobs posted after yesterday's last run, overnight, or while your computer was off aren't missed (up to 7 days). Later runs that day use your normal window. The activity log says when it's catching up. Turn it off in Settings → Pipeline and limits.
 
