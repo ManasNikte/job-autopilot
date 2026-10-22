@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.11.2 (2026-10-22)
+- **An expired Claude sign-in no longer fails your jobs.** When Claude Code's sign-in expires ("OAuth session expired"), the app now pauses, keeps the jobs waiting, and puts one item in Needs you that says how to sign in again. Before, every job screened during that time was marked as an error. Sign in again with `claude` → `/login`, then click Run now.
+
 ## 3.11.1 (2026-10-22)
 - **The intro is now a complete walkthrough.** It visits every page in 25 short steps (the dashboard, Needs you, jobs, applied, assessments, email, people, your profile and resume template, sources, each settings page, search, and How it works), moving from page to page on its own. Back, Next, Skip, and the arrow keys work throughout. Already using the app? Replay it from **Settings → Getting started → Replay the tour**.
 

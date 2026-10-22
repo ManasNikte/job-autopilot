@@ -38,6 +38,10 @@ class BackendUnavailable(LLMError):
 
 NETWORK_RE = re.compile(r"can't reach the api|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network (is )?unreachable|"
                         r"getaddrinfo|socket hang up|fetch failed|connection (error|reset|refused)", re.I)
+# Signed out or an expired session ("Failed to authenticate: OAuth session expired and could not be refreshed"):
+# stop and ask the user to sign in again, instead of failing every job.
+AUTH_RE = re.compile(r"not logged in|logged out|please (run )?/?login|failed to authenticate|authentication (failed|error)|"
+                     r"oauth|session expired|invalid api key|unauthori[sz]ed|\b401\b|credentials", re.I)
 LIMIT_RE = re.compile(r"session limit|usage limit|hit your limit|rate limit|limit reached|out of (extra )?usage|quota", re.I)
 
 
@@ -302,8 +306,9 @@ def _via_cli(system: str, user: str, schema: dict, model: str, effort: str, web_
     if out.get("is_error"):
         msg = str(out.get("result", "unknown error"))
         low = msg.lower()
-        if "login" in low or "logged in" in low:
-            raise BackendUnavailable(f"Claude CLI is not logged in ({msg}). Run `claude` in a terminal and use /login with your Claude account.")
+        if AUTH_RE.search(msg) or "login" in low:
+            raise BackendUnavailable(f"Claude needs you to sign in again ({msg[:160]}). Run `claude` in a terminal, type /login, "
+                                     "and sign in with your Claude account; then click Run now.")
         if LIMIT_RE.search(msg):
             raise BackendUnavailable(f"Claude usage limit reached: {msg}", retry_at=_reset_time(msg))
         if NETWORK_RE.search(msg):           # Wi-Fi dropped or DNS failed: wait and retry, don't fail the job

@@ -212,6 +212,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.11.2** | An expired Claude sign-in pauses the work and asks you to sign in again, instead of marking every job as an error |
 | **v3.11.1** | The first-run intro became a complete walkthrough of every page (25 steps); the site operator's Users page shows every detail the privacy note allows |
 | **v3.11** | Four ATS-friendly resume templates with previews; empty sections left off and long rows wrapped (no overlaps); an optional, reversible resume-rules upgrade for the master prompt; a How it works page; new charts and pagination on the online dashboard |
 | **v3.10.3** | The day's first run looks back an extra day (and to the last successful run) so overnight postings aren't missed; the log shows each screen's outcome |

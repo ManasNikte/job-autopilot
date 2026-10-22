@@ -102,3 +102,29 @@ def test_screening_backlog_does_not_block_updates(monkeypatch):
     assert updater._busy() == ""
     monkeypatch.setattr(progress, "snapshot", lambda: {"run": None, "active": [], "queued": [{"status": "to_tailor"}]})
     assert "still being worked on" in updater._busy()
+
+
+@pytest.mark.parametrize("msg", ["Failed to authenticate: OAuth session expired and could not be refreshed",
+                                 "Not logged in · Please run /login", "Invalid API key · Please run /login"])
+def test_expired_login_stops_the_run_instead_of_failing_jobs(msg, monkeypatch, tmp_path):
+    import json
+    import subprocess
+    monkeypatch.setattr(llm, "find_claude_cli", lambda: "/bin/claude")
+    monkeypatch.setattr(llm, "DATA_DIR", tmp_path)
+    out = json.dumps({"is_error": True, "result": msg})
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 1, out, ""))
+    with pytest.raises(llm.BackendUnavailable) as e:
+        llm._via_cli("sys", "u", {}, "m", "low")
+    assert "sign in again" in str(e.value) and not getattr(e.value, "retry_at", None)
+
+
+def test_other_cli_errors_still_fail_the_job(monkeypatch, tmp_path):
+    import json
+    import subprocess
+    monkeypatch.setattr(llm, "find_claude_cli", lambda: "/bin/claude")
+    monkeypatch.setattr(llm, "DATA_DIR", tmp_path)
+    out = json.dumps({"is_error": True, "result": "Output did not match the JSON schema"})
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 1, out, ""))
+    with pytest.raises(llm.LLMError) as e:
+        llm._via_cli("sys", "u", {}, "m", "low")
+    assert not isinstance(e.value, llm.BackendUnavailable)
