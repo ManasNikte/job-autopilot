@@ -79,3 +79,23 @@ def test_family_donuts_share_colors():
     assert got["Data Engineer"] == slots["Data Engineer"]                    # same family, same color
     assert got["Other"] == "other" and "Quant" not in got                     # families not on the Applied donut fold into Other
     assert donut_slices([], slots=slots) == {"total": 0, "slices": []}
+
+
+def test_active_applications_by_family(tmp_path, monkeypatch):
+    from datetime import date
+    from app import db
+    from app.web import active_series
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    for jid, fam, st, applied, changed in [("a", "Software Engineer", "applied", "2026-10-12T15:00:00+00:00", "2026-10-12T15:00:00+00:00"),
+                                           ("b", "Software Engineer", "closed", "2026-10-13T15:00:00+00:00", "2026-10-15T15:00:00+00:00"),
+                                           ("c", "Data Analyst", "applied", "2026-10-14T15:00:00+00:00", "2026-10-14T15:00:00+00:00"),
+                                           ("d", "Quant", "applied", "2026-10-14T15:00:00+00:00", None)]:
+        db.upsert_job({"id": jid, "company": "X", "title": "T", "status": st, "role_family": fam})
+        db.execute("UPDATE jobs SET applied_at=?, status_changed_at=? WHERE id=?", (applied, changed, jid))
+    out = active_series({"Software Engineer": "1", "Data Analyst": "2"}, today=date(2026, 10, 16))
+    assert [d["iso"] for d in out["days"]][0] == "2026-10-12" and len(out["days"]) == 5
+    by = {s["fam"]: s["points"] for s in out["series"]}
+    assert by["Software Engineer"] == [1, 2, 2, 1, 1]                          # rejected on the 15th: no longer active
+    assert by["Data Analyst"] == [0, 0, 1, 1, 1] and by["Other"] == [0, 0, 1, 1, 1]   # Quant folds into Other
+    assert out["total"] == 3

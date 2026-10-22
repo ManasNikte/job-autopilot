@@ -296,6 +296,39 @@ def donut_slices(rows: list[dict], top: int = 6, slots: dict | None = None) -> d
     return {"total": total, "slices": out}
 
 
+def active_series(slots: dict, days: int = 60, today=None) -> dict:
+    """Active applications per role family for each day: applied by then and not yet rejected (status_changed_at
+    of a rejection is the day it closed). Starts at your first application, at most `days` back. Families keep
+    their donut colors; the rest fold into Other."""
+    today = today or datetime.now().astimezone().date()
+    rows = db.fetchall("SELECT coalesce(role_family,'Other') AS fam, status, applied_at, status_changed_at FROM jobs "
+                       "WHERE applied_at IS NOT NULL AND status IN ('applied','interviewing','offer','closed')")
+    spans = []
+    for r in rows:
+        start = _parse_dt(r["applied_at"])
+        if not start:
+            continue
+        end = _parse_dt(r["status_changed_at"]) if r["status"] == "closed" else None
+        fam = r["fam"] if r["fam"] in slots and slots[r["fam"]] != "other" else "Other"
+        spans.append((fam, start.astimezone().date(), end.astimezone().date() if end else None))
+    if not spans:
+        return {"days": [], "series": []}
+    first = max(min(sp[1] for sp in spans), today - timedelta(days=days - 1))
+    dates = [first + timedelta(days=i) for i in range((today - first).days + 1)]
+    fams = [f for f in slots if slots[f] != "other"] + ["Other"]
+    series = []
+    for fam in fams:
+        mine = [sp for sp in spans if sp[0] == fam]
+        if not mine:
+            continue
+        pts = [sum(1 for _, a, z in mine if a <= d and (z is None or z > d)) for d in dates]
+        series.append({"fam": fam, "slot": slots.get(fam, "other"), "points": pts, "now": pts[-1]})
+    series.sort(key=lambda x: -x["now"])
+    return {"days": [{"iso": d.isoformat(), "label": strf(datetime.combine(d, datetime.min.time()), "%b %-d"),
+                      "dow": strf(datetime.combine(d, datetime.min.time()), "%a")} for d in dates],
+            "series": series, "total": sum(x["now"] for x in series)}
+
+
 @app.get("/api/week")
 def week_json():
     try:
@@ -322,8 +355,17 @@ def dashboard():
         from . import updater
         from .version import VERSION
         try:
+            if db.kv_get("updated_from") is None:              # updated by an older version of the updater
+                prev = updater.version_before_update()
+                if prev:
+                    db.kv_set("updated_from", prev)
+            since = (db.kv_get("updated_from") or {}).get("v") or ""
             notes = updater.parse_changelog((updater.ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), "0")
-            just_updated = next((n for n in notes if n["version"] == VERSION), {"version": VERSION, "items": []})
+            mine = [n for n in notes if updater._vkey(n["version"]) <= updater._vkey(VERSION)
+                    and (not since or updater._vkey(n["version"]) > updater._vkey(since))] or \
+                   [n for n in notes if n["version"] == VERSION]
+            just_updated = {"version": VERSION, "since": since, "sections": mine,
+                            "items": [i for n in mine for i in n["items"]]}
         except OSError:
             just_updated = {"version": VERSION, "items": []}
     today = datetime.now().astimezone().date()
@@ -370,6 +412,7 @@ def dashboard():
                           "GROUP BY fam ORDER BY n DESC, fam")
     oa_outside = db.fetchone("SELECT count(DISTINCT lower(coalesce(company,''))) AS n FROM email_events WHERE event='assessment' "
                              "AND job_id IS NULL AND state NOT IN ('ignored','undone')")["n"]
+    active = active_series(slots)
     donuts = [
         {"id": "by-family", "title": "Applied by role family", "word": "applied", **donut, "link": url_for("jobs", status="applied_all")},
         {"id": "rejected-family", "title": "Rejected by role family", "word": "rejected", **donut_slices(rej_rows, slots=slots),
@@ -387,10 +430,11 @@ def dashboard():
     user_name = greeting.user_name()
     hello = greeting.greet(name=user_name) if user_name else None
     show_tour = bool(request.args.get("tour")) or (bool(user_name) and not db.kv_get("tour"))   # after the name box
+    new_tour = [] if show_tour else whats_new_steps((db.kv_get("updated_from") or {}).get("v"))
     from . import cloud
     cloud_prompt = (bool(cloud.config()) and not cloud.connected() and not db.kv_get("cloud_prompt") and bool(user_name)
                     and not show_tour)
-    return render_template("dashboard.html", cloud_prompt=cloud_prompt, assess=assess, tour=tour_steps(user_name) if show_tour else None, just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, week=week, weeks=weeks, saved=saved, donut=donut, donuts=donuts, funnel=funnel, fmax=fmax, ftotal=ftotal,
+    return render_template("dashboard.html", cloud_prompt=cloud_prompt, assess=assess, tour=tour_steps(user_name) if show_tour else (new_tour or None), tour_kind="" if show_tour else "new", just_updated=just_updated, hello=hello, user_name=user_name, kpis=kpis, week=week, weeks=weeks, saved=saved, donut=donut, donuts=donuts, active=active, funnel=funnel, fmax=fmax, ftotal=ftotal,
                            today_jobs=today_jobs, by_family=by_family, by_company=by_company, last_run=last_run, counts=counts,
                            today_page=today_page, family_page=family_page, company_page=company_page,
                            applied_total=sum(r["n"] for r in fam_rows))
@@ -1628,9 +1672,59 @@ def tour_steps(name: str | None) -> list[dict]:
     return out
 
 
+# What's new, shown as a walkthrough right after an update: steps for every version since the one you came from.
+# (page, data-tour target or None, title, text). Add steps here with each release that adds something visible.
+WHATS_NEW = {
+    "3.11": [("/profile/resume-template", "templates", "Pick a resume template",
+              "Four ATS-friendly layouts. Preview each one with your own resume and pick the one that fits your profile. "
+              "Empty sections are now left off, and long rows wrap instead of overlapping."),
+             ("/profile/resume-template", "rules", "Optional: new resume rules for your prompt",
+              "One click adds rules that help resumes fit any profile. If your prompt already works for you, skip it. "
+              "Your current prompt is saved first, so you can go back anytime."),
+             ("/how-it-works", "how", "How it works",
+              "The whole system in six plain steps, with answers to common questions.")],
+    "3.11.1": [("/settings/start", "replay", "A walkthrough of every page",
+                "The intro now visits every page. Replay it here anytime.")],
+    "3.11.3": [("/email", None, "Forward job emails to your inbox",
+                "An inbox the app can't read, like a school account? Forward job emails from it to your connected inbox, "
+                "and the app reads the original message inside.")],
+    "3.11.4": [("/email", "fix-type", "Fix type",
+                "If Claude labels an email wrong, pick what it really is. The job's status and Needs you follow. "
+                "Assessments get a Done button."),
+               ("/", "donuts", "Applied, rejected, and assessments by role family",
+                "Three donuts in one row, with each family in the same color on all three.")],
+    "3.12": [("/", "active-lines", "Active applications by role family",
+              "One line per family: applications you've sent that haven't been rejected yet, day by day. "
+              "Hover or tap for every family's count that day."),
+             (None, None, "Updates install together",
+              "When several updates are waiting, one click installs all of them, then this tour shows what's new.")],
+}
+
+
+def whats_new_steps(since: str | None) -> list[dict]:
+    """The tour after an update: every WHATS_NEW step for versions newer than `since`, up to this one."""
+    from .updater import _vkey
+    from .version import VERSION
+    if not since:
+        return []
+    versions = sorted((v for v in WHATS_NEW if _vkey(since) < _vkey(v) <= _vkey(VERSION)), key=_vkey)
+    steps = [{"page": page if page is not None else "", "title": title, "text": text, **({"target": f'[data-tour="{t}"]'} if t else {})}
+             for v in versions for page, t, title, text in WHATS_NEW[v]]
+    if not steps:
+        return []
+    home = url_for("dashboard")
+    return ([{"page": home, "title": f"What's new in v{VERSION} 🎉",
+              "text": f"You updated from v{since}. Here's a quick look at what changed, page by page. Skip anytime."}]
+            + steps
+            + [{"page": home, "title": "That's everything new", "cta": "Done",
+                "text": "The full notes are in the banner at the top of the dashboard."}])
+
+
 @app.get("/tour/steps")
 def tour_steps_api():
     """The steps for tour.js when the walkthrough continues on another page."""
+    if request.args.get("kind") == "new":
+        return jsonify(whats_new_steps((db.kv_get("updated_from") or {}).get("v")))
     from . import greeting
     return jsonify(tour_steps(greeting.user_name()))
 
@@ -1670,6 +1764,9 @@ def assessment_mark(event_id, how):
 def tour_finish(how):
     if how not in ("done", "skipped"):
         abort(404)
+    if request.args.get("kind") == "new":           # the what's-new tour: shown once per update
+        db.kv_set("updated_from", "")
+        return ("", 204)
     db.kv_set("tour", how)
     return ("", 204)
 

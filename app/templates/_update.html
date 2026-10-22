@@ -3,7 +3,7 @@
 <div class="update-banner" role="status">
   <span class="update-dot" aria-hidden="true"></span>
   <span class="grow"><b>Update available{% if app_update.remote_version %}: v{{ app_update.remote_version }}{% endif %}.</b>
-    <span class="sub">You're on v{{ app_version }}.</span></span>
+    <span class="sub">You're on v{{ app_version }}.{% if app_update.notes and app_update.notes|length > 1 %} {{ app_update.notes|length }} updates, installed together in one click.{% endif %}</span></span>
   <span class="update-actions">
     <button class="btn small" type="button" data-open="update-dialog">What's new</button>
     <button class="btn primary small" type="button" data-open="update-dialog">Update</button>
@@ -23,7 +23,7 @@
     {% elif app_update.commits %}
       <ul>{% for c in app_update.commits %}<li>{{ c }}</li>{% endfor %}</ul>
     {% else %}<p>Improvements and fixes.</p>{% endif %}
-    <p class="sub small">Your profile, resumes, job data, and settings stay as they are. The dashboard restarts by itself, which takes a few seconds.</p>
+    <p class="sub small">{% if app_update.notes and app_update.notes|length > 1 %}All {{ app_update.notes|length }} updates install together. {% endif %}Your profile, resumes, job data, and settings stay as they are. The dashboard restarts by itself in a few seconds, then a short tour shows what's new.</p>
   </div>
   <form class="modal-foot" method="post" action="{{ url_for('update_apply') }}" data-busy="Updating…">
     <button class="btn" type="button" data-close>Later</button>
@@ -33,9 +33,10 @@
 {% endif %}
 {% if just_updated %}
 <div class="update-banner done" role="status">
-  <span class="grow"><b>🎉 You're on v{{ just_updated.version }}.</b>
+  <span class="grow"><b>🎉 You're on v{{ just_updated.version }}{% if just_updated.since %} (from v{{ just_updated.since }}){% endif %}.</b>
     {% if just_updated["items"] %}<details class="update-notes"><summary>See what's new</summary>
-      <ul>{% for item in just_updated["items"] %}<li>{{ item|mdinline }}</li>{% endfor %}</ul></details>{% endif %}</span>
+      {% for sec in just_updated.sections or [] %}<h4 class="small">v{{ sec.version }}</h4>
+      <ul>{% for item in sec["items"] %}<li>{{ item|mdinline }}</li>{% endfor %}</ul>{% endfor %}</details>{% endif %}</span>
   <a class="btn small" href="{{ url_for('dashboard') }}">Dismiss</a>
 </div>
 {% endif %}

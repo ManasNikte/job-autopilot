@@ -119,7 +119,8 @@ the company later invites the candidate to interview, makes an offer, or decline
 - **The week at a glance:**
   - a chart of applications per day from Sunday to Saturday, with any past week available
   - a running estimate of time saved
-  - a role-family donut and a shaded pipeline
+  - applied, rejected, and assessment donuts by role family, and a line chart of active applications per family
+  - a shaded pipeline
   - eight tiles, including **applied this week** and **assessments to finish**
 
 ![Dashboard charts](docs/screenshots/charts-week.png)
@@ -141,7 +142,8 @@ the pipeline), plus paged lists of jobs, email updates, and assessments. It can 
 
 New users get a **guided walkthrough** on first launch that visits every page in 25 short steps, and a **How it works** page explains the six
 steps in plain words, along with what the app does and what stays with the candidate. When the maintainer pushes a release, every
-install shows **Update available** with the release notes and updates itself in one click.
+install shows **Update available** with the release notes and installs every waiting update in one click, then walks
+the user through what's new, page by page.
 
 ## 3. Time and mental energy saved
 

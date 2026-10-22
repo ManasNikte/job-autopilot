@@ -71,3 +71,31 @@ def test_tour_continues_on_other_pages(client):
     assert "tour.js" not in client.get("/inbox").get_data(as_text=True)            # and stays out of the way otherwise
     html = client.get("/?tour_at=3").get_data(as_text=True)
     assert html.count("tour.js") == 1                                              # never loaded twice on the dashboard
+
+
+def test_whats_new_tour_after_an_update(client):
+    from app.web import WHATS_NEW, whats_new_steps
+    with client.application.test_request_context():
+        steps = whats_new_steps("3.11.3")
+        assert steps[0]["title"].startswith("What's new in v") and "3.11.3" in steps[0]["text"]
+        titles = [s["title"] for s in steps]
+        assert "Fix type" in titles and "Active applications by role family" in titles
+        assert "Pick a resume template" not in titles                         # older than where you came from
+        assert whats_new_steps(None) == [] and whats_new_steps("99.0") == []
+        every = whats_new_steps("3.0")
+    for st in every:                                                          # each step's element is on its page
+        name = st.get("target", "").split('"')[1] if st.get("target") else None
+        if name and name not in ("fix-type",):                                # fix-type needs an email; else a centered card
+            page = st["page"] or "/"
+            html = client.get(page + ("&" if "?" in page else "?") + "tour=1").get_data(as_text=True)
+            assert f'data-tour="{name}"' in html, (page, name)
+    assert all(v.count(".") <= 2 for v in WHATS_NEW)
+
+    db.kv_set("tour", "done")
+    db.kv_set("updated_from", "3.11.3")
+    html = client.get("/?updated=1").get_data(as_text=True)
+    assert 'data-kind="new"' in html and "What\\u0027s new in v" in html and "(from v3.11.3)" in html
+    assert client.get("/tour/steps?kind=new").get_json()[0]["title"].startswith("What's new")
+    assert client.post("/tour/done?kind=new").status_code == 204
+    assert db.kv_get("tour")["v"] == "done"                                  # the first-run tour state is untouched
+    assert 'id="tour-steps"' not in client.get("/").get_data(as_text=True)   # shown once per update

@@ -58,7 +58,7 @@
         {% if e.done_at %}<div class="sub small">✓ {{ 'done' if e.done_how == 'done' else 'dismissed' }} {{ e.done_at|ago }}</div>
         {% else %}<form class="inline" method="post" action="{{ url_for('assessment_mark', event_id=e.id, how='done') }}"><button class="btn small" title="You finished it: stop the reminders">Done</button></form>{% endif %}
       {% endif %}
-      <form class="inline fix-type" method="post" action="{{ url_for('email_reclassify', eid=e.id) }}">
+      <form class="inline fix-type" method="post"{% if loop.first %} data-tour="fix-type"{% endif %} action="{{ url_for('email_reclassify', eid=e.id) }}">
         <select name="event" class="small" aria-label="Fix what this email is" title="Claude got it wrong? Pick what this email really is; the job's status follows.">
           <option value="" selected disabled>Fix type…</option>
           {% for k, label in [('confirmation', 'Received'), ('rejection', 'Rejected'), ('assessment', 'Assessment'), ('interview', 'Interview'), ('offer', 'Offer'), ('not_application', 'Not about a job')] %}

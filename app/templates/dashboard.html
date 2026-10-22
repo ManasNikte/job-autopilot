@@ -227,7 +227,7 @@
   </div>
 </div>
 
-<div class="grid g3 charts donut-row">
+<div class="grid g3 charts donut-row" data-tour="donuts">
   {% for dn in donuts %}
   <div class="card" id="{{ dn.id }}">
     <h2 style="margin:0 0 10px">{{ dn.title }} <span class="muted">({{ dn.total }})</span></h2>
@@ -288,7 +288,89 @@
 })();
 </script>
 
-<div class="grid g2 today-row">
+<div class="grid g2 charts">
+  <div class="card" id="active-family" data-tour="active-lines">
+    <div class="spread chart-head"><div><h2 style="margin:0">Active applications by role family</h2>
+      <div class="sub small">Applied and not rejected yet, day by day{% if active.days %} · {{ active.days[0].label }} to today{% endif %}</div></div>
+      {% if active.total %}<div class="ln-now"><b>{{ active.total }}</b><span class="sub small">active now</span></div>{% endif %}</div>
+    {% if active.series %}
+    <ul class="legend ln-legend">{% for s in active.series %}<li><i class="sw s{{ s.slot }}"></i><span>{{ s.fam }}</span><b>{{ s.now }}</b></li>{% endfor %}</ul>
+    <div class="ln-wrap"><svg class="ln" id="ln-chart" role="img" aria-label="Active applications by role family per day"></svg>
+      <div class="ln-tip" id="ln-tip" hidden></div></div>
+    <details class="table-view"><summary>Table view</summary><div class="table-scroll"><table id="ln-table"></table></div></details>
+    <script type="application/json" id="ln-data">{{ active|tojson }}</script>
+    {% else %}<p class="muted">No applications yet.</p>{% endif %}
+  </div>
+  <div class="card" id="pipeline">
+    <h2>Pipeline</h2>
+    {% for f in funnel %}
+    <a class="funnel-row" href="{{ url_for('jobs', status=f.status) }}" title="{{ f.label }}: {{ f.n }}">
+      <span class="lbl">{{ f.label }}</span>
+      <span class="funnel-track"><span class="funnel-fill t{{ f.tone }}" style="width: {{ (f.n / fmax * 100)|round(1) }}%"></span></span>
+      <span class="n">{{ f.n }}<span class="sub"> {{ (f.n / ftotal * 100)|round|int }}%</span></span>
+    </a>
+    {% endfor %}
+    <p class="muted" style="margin:10px 0 0">Filtered out by rules: {{ counts.get('filtered_out', 0) }} · Claude said don't apply: {{ counts.get('rejected', 0) }} · Errors: {{ counts.get('error', 0) }}</p>
+  </div>
+</div>
+
+<script>
+(() => {   // active applications by role family: one 2px line per family, hover for every family's count that day
+  const data = document.getElementById("ln-data"); if (!data) return;
+  const d = JSON.parse(data.textContent), svg = document.getElementById("ln-chart"), tip = document.getElementById("ln-tip");
+  const NS = "http://www.w3.org/2000/svg", W = 640, H = 230, L = 34, R = 12, T = 12, B = 26;
+  const mk = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const n = d.days.length, peak = Math.max(1, ...d.series.flatMap((s) => s.points));
+  const step = peak <= 5 ? 1 : Math.pow(10, Math.floor(Math.log10(peak / 4))) * ([1, 2, 5].find((m) => peak / 4 <= m * Math.pow(10, Math.floor(Math.log10(peak / 4)))) || 10);
+  const top = Math.ceil(peak / step) * step;
+  const x = (i) => L + (n === 1 ? (W - L - R) / 2 : i * (W - L - R) / (n - 1)), y = (v) => T + (1 - v / top) * (H - T - B);
+  for (let v = 0; v <= top; v += step) {
+    svg.appendChild(mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: "ln-grid" }));
+    const t = mk("text", { x: L - 6, y: y(v) + 4, class: "ln-axis", "text-anchor": "end" }); t.textContent = v; svg.appendChild(t);
+  }
+  const every = Math.max(1, Math.ceil(n / 7));
+  d.days.forEach((day, i) => { if (i % every === 0 || i === n - 1) {
+    const t = mk("text", { x: x(i), y: H - 8, class: "ln-axis", "text-anchor": i === 0 ? "start" : i === n - 1 ? "end" : "middle" });
+    t.textContent = i === n - 1 ? "Today" : day.label; svg.appendChild(t); } });
+  [...d.series].reverse().forEach((s) => {      // largest drawn last, on top
+    svg.appendChild(mk("polyline", { points: s.points.map((v, i) => `${x(i)},${y(v)}`).join(" "), class: `ln-line s${s.slot}` }));
+    svg.appendChild(mk("circle", { cx: x(n - 1), cy: y(s.points[n - 1]), r: 4, class: `ln-end s${s.slot}` }));
+  });
+  const cross = mk("line", { y1: T, y2: H - B, class: "ln-cross", visibility: "hidden" }); svg.appendChild(cross);
+  const dots = d.series.map((s) => { const c = mk("circle", { r: 4.5, class: `ln-dot s${s.slot}`, visibility: "hidden" }); svg.appendChild(c); return c; });
+  const hit = mk("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" }); svg.appendChild(hit);
+  function show(i) {
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+    d.series.forEach((s, k) => { dots[k].setAttribute("cx", x(i)); dots[k].setAttribute("cy", y(s.points[i])); dots[k].setAttribute("visibility", "visible"); });
+    tip.replaceChildren();
+    const h = document.createElement("b"); h.textContent = `${d.days[i].dow} ${d.days[i].label}`; tip.appendChild(h);
+    [...d.series].sort((a, b) => b.points[i] - a.points[i]).forEach((s) => {
+      const row = document.createElement("div"), sw = document.createElement("i"), lab = document.createElement("span"), v = document.createElement("b");
+      sw.className = `sw s${s.slot}`; lab.textContent = s.fam; v.textContent = s.points[i]; row.append(sw, lab, v); tip.appendChild(row);
+    });
+    tip.hidden = false;
+    const box = svg.getBoundingClientRect(), px = x(i) / W * box.width;
+    tip.style.left = Math.min(Math.max(0, px + 12), box.width - tip.offsetWidth) + "px";
+    if (px + 12 + tip.offsetWidth > box.width) tip.style.left = Math.max(0, px - 12 - tip.offsetWidth) + "px";
+  }
+  function hide() { cross.setAttribute("visibility", "hidden"); dots.forEach((c) => c.setAttribute("visibility", "hidden")); tip.hidden = true; }
+  const at = (e) => { const b = svg.getBoundingClientRect(), vx = (e.clientX - b.left) / b.width * W;
+    return Math.max(0, Math.min(n - 1, Math.round(n === 1 ? 0 : (vx - L) / ((W - L - R) / (n - 1))))); };
+  hit.addEventListener("pointermove", (e) => show(at(e)));
+  hit.addEventListener("pointerdown", (e) => show(at(e)));
+  svg.addEventListener("pointerleave", hide);
+  const table = document.getElementById("ln-table"), hr = document.createElement("tr");
+  hr.appendChild(Object.assign(document.createElement("th"), { textContent: "Day" }));
+  d.series.forEach((s) => hr.appendChild(Object.assign(document.createElement("th"), { textContent: s.fam, className: "num" })));
+  table.appendChild(hr);
+  d.days.forEach((day, i) => { const r = document.createElement("tr");
+    r.appendChild(Object.assign(document.createElement("td"), { textContent: `${day.dow} ${day.label}` }));
+    d.series.forEach((s) => r.appendChild(Object.assign(document.createElement("td"), { textContent: s.points[i], className: "num" })));
+    table.appendChild(r); });
+})();
+</script>
+
 <div class="card flush" id="today">
   <div class="spread" style="padding:14px 16px 0"><h2 style="margin:0">Posted today <span class="muted">({{ today_page.total }})</span></h2><a href="{{ url_for('jobs', sort='posted') }}">All jobs →</a></div>
   {% if today_jobs %}
@@ -308,18 +390,6 @@
   <div style="padding:6px 16px 0">{{ pager(today_page, "jobs") }}</div>
   {% else %}<p class="muted" style="padding:0 16px 16px">Nothing relevant posted today yet. Runs pick up new postings each time.</p>{% endif %}
 </div>
-  <div class="card" id="pipeline">
-    <h2>Pipeline</h2>
-    {% for f in funnel %}
-    <a class="funnel-row" href="{{ url_for('jobs', status=f.status) }}" title="{{ f.label }}: {{ f.n }}">
-      <span class="lbl">{{ f.label }}</span>
-      <span class="funnel-track"><span class="funnel-fill t{{ f.tone }}" style="width: {{ (f.n / fmax * 100)|round(1) }}%"></span></span>
-      <span class="n">{{ f.n }}<span class="sub"> {{ (f.n / ftotal * 100)|round|int }}%</span></span>
-    </a>
-    {% endfor %}
-    <p class="muted" style="margin:10px 0 0">Filtered out by rules: {{ counts.get('filtered_out', 0) }} · Claude said don't apply: {{ counts.get('rejected', 0) }} · Errors: {{ counts.get('error', 0) }}</p>
-  </div>
-</div>
 
 <div class="grid g2">
   <div class="card" id="by-company"><h2>Applied by company <span class="muted">({{ company_page.total }})</span></h2>
@@ -328,7 +398,7 @@
   <div class="card"><h2>Activity</h2><pre class="log" id="activity-log">Loading…</pre></div>
 </div>
 {% if tour %}
-<script type="application/json" id="tour-steps" data-finish="{{ url_for('tour_finish', how='__how__') }}">{{ tour|tojson }}</script>
+<script type="application/json" id="tour-steps" data-kind="{{ tour_kind }}">{{ tour|tojson }}</script>
 <script src="{{ url_for('static', filename='tour.js') }}" defer></script>
 {% endif %}
 {% endblock %}

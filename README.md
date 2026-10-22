@@ -28,6 +28,15 @@ and Linux**, and **[one command](CLAUDE_SETUP.md) lets Claude Code set it all up
 
 ## 🆕 What's new
 
+**v3.12: more charts, and updates that show you what's new.**
+
+- **Charts by role family:** applied, rejected, and assessments as three donuts in one row, plus a line chart of
+  active applications (sent and not rejected yet) for each family, day by day.
+- **Fix type** on every email: if Claude labels one wrong, pick what it really is and the job follows.
+- **Updates install together** in one click, then a short walkthrough shows each new feature on its page.
+
+![Role-family charts and the pipeline](docs/screenshots/charts-family.png)
+
 **v3.11: resumes that look good for every profile, and a clearer app.**
 
 - **Nothing empty, nothing overlapping.** Sections you have nothing for (say, no achievements) are left off instead
@@ -212,6 +221,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.12** | Active applications by role family (line chart); updates install together and end with a walkthrough of what's new |
 | **v3.11.4** | Fix type on emails (replaces Undo/Ignore); applied, rejected, and assessment donuts by role family; Apple Mail inboxes read in full; screening questionnaires recognized |
 | **v3.11.3** | Emails you forward from your own address are read (e.g. from a school inbox); assessment-game invitations recognized; more accurate due dates |
 | **v3.11.2** | An expired Claude sign-in pauses the work and asks you to sign in again, instead of marking every job as an error |
@@ -392,7 +402,7 @@ for this role.
 |---|---|
 | ![Profile](docs/screenshots/profile.png) | ![Light theme](docs/screenshots/dashboard-light.png) |
 
-| This week, day by day, and time saved | Applied by role family and the pipeline |
+| This week, day by day, and time saved | Role-family donuts, active applications, and the pipeline |
 |---|---|
 | ![Weekly chart and time saved](docs/screenshots/charts-week.png) | ![Role-family donut and pipeline](docs/screenshots/charts-family.png) |
 

@@ -694,3 +694,23 @@ html.sb-rail .sb-slide .ic { transform: scaleX(-1); }
 .donut-row .legend { min-width: 0; }
 .today-row { align-items: start; }
 .today-row #today .jobs-table td.role .meta { white-space: normal; }
+/* Active applications by role family (line chart) */
+.ln-now { text-align: right; } .ln-now b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+.ln-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 6px; }
+.ln-legend li { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.ln-legend li b { color: var(--muted); font-weight: 600; }
+.ln-wrap { position: relative; }
+.ln { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.ln-grid { stroke: var(--border); stroke-width: 1; }
+.ln-axis { fill: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.ln-line { fill: none !important; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ln-line.s1 { stroke: var(--c1); } .ln-line.s2 { stroke: var(--c2); } .ln-line.s3 { stroke: var(--c3); }
+.ln-line.s4 { stroke: var(--c4); } .ln-line.s5 { stroke: var(--c5); } .ln-line.s6 { stroke: var(--c6); } .ln-line.sother { stroke: var(--c-other); }
+.ln-end, .ln-dot { stroke: var(--surface); stroke-width: 2; }
+.ln-cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.ln-tip { position: absolute; top: 4px; min-width: 170px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2);
+  border: 1px solid var(--border); box-shadow: 0 6px 20px rgba(0,0,0,.25); font-size: 12.5px; pointer-events: none; z-index: 2; }
+.ln-tip > b { display: block; margin-bottom: 4px; }
+.ln-tip div { display: grid; grid-template-columns: 10px 1fr auto; gap: 7px; align-items: center; padding: 1px 0; }
+.ln-tip .sw { width: 10px; height: 10px; border-radius: 3px; }
+.table-scroll { overflow-x: auto; }

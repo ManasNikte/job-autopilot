@@ -4,9 +4,10 @@
 // The server remembers when it's finished or skipped (POST /tour/<done|skipped>), so it shows once; Settings can replay it.
 (function () {
   const data = document.getElementById("tour-steps");
-  const at = new URLSearchParams(location.search).get("tour_at");
+  const params = new URLSearchParams(location.search), at = params.get("tour_at");
   if (!data && at === null) return;
-  const FINISH = "/tour/__how__";
+  const kind = (data && data.dataset.kind) || params.get("tour_kind") || "";      // "new" = the what's-new tour after an update
+  const FINISH = "/tour/__how__" + (kind ? "?kind=" + kind : "");
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let steps = [], i = 0, target = null, openedNav = false;
 
@@ -34,6 +35,7 @@
   function goTo(n) {
     const u = new URL(steps[n].page, location.href);
     u.searchParams.set("tour_at", n);
+    if (kind) u.searchParams.set("tour_kind", kind);
     location.href = u.pathname + u.search;
   }
 
@@ -126,7 +128,7 @@
     steps = list;
     if (!steps.length) return;
     steps.forEach(() => $(".tour-dots").appendChild(document.createElement("i")));
-    if (at !== null) history.replaceState(null, "", location.pathname + location.search.replace(/([?&])tour_at=\d+&?/, "$1").replace(/[?&]$/, "") + location.hash);
+    if (at !== null) history.replaceState(null, "", location.pathname + location.search.replace(/([?&])tour_at=\d+&?/, "$1").replace(/([?&])tour_kind=\w+&?/, "$1").replace(/[?&]$/, "") + location.hash);
     document.body.appendChild(root);
     document.body.classList.add("touring");
     document.addEventListener("keydown", onKey);
@@ -137,7 +139,7 @@
   function begin() {
     const from = Math.max(0, parseInt(at || "0", 10) || 0);
     if (data) start(JSON.parse(data.textContent), from);
-    else fetch("/tour/steps", { headers: { "X-Requested-With": "tour" } }).then((r) => r.json()).then((l) => start(l, from)).catch(() => {});
+    else fetch("/tour/steps" + (kind ? "?kind=" + kind : ""), { headers: { "X-Requested-With": "tour" } }).then((r) => r.json()).then((l) => start(l, from)).catch(() => {});
   }
   if (document.readyState === "complete") setTimeout(begin, 300);
   else window.addEventListener("load", () => setTimeout(begin, 300));

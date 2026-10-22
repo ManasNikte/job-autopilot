@@ -3,6 +3,10 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.12 (2026-10-22)
+- **Active applications by role family:** a new line chart, one line per family, showing applications you've sent that haven't been rejected yet, day by day. Hover or tap to see every family's count that day. It sits next to the pipeline, and Posted today has its own full row again.
+- **Updates install together, then show what's new.** When several updates are waiting, the banner says so and one click installs them all. After the restart, a short walkthrough visits each new feature on its page, and the banner lists the notes for every version you skipped.
+
 ## 3.11.4 (2026-10-22)
 - **Fix type instead of Undo and Ignore.** On the Email page, each email has a Fix type menu. If Claude got it wrong (say, an online screening marked as an interview), pick what it really is: received, rejected, assessment, interview, offer, or not about a job. The job's status and Needs you follow. Assessments also get a Done button.
 - **Three role-family donuts in one row:** applied, rejected, and assessments, with each family in the same color on all three. Posted today now sits beside the pipeline.

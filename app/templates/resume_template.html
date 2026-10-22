@@ -23,7 +23,7 @@
     <span class="sub small">Previews use {{ source }}. Sections with nothing in them (no achievements, no projects) are left off automatically.</span></div>
 </form>
 
-<div class="card" id="rules">
+<div class="card" id="rules" data-tour="rules">
   <h2>Resume rules in your master prompt</h2>
   {% if rules_have and rules_have >= rules_version %}
     <p><span class="badge apply">Up to date</span> Your prompt has the latest resume rules (v{{ rules_have }}).</p>

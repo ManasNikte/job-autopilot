@@ -150,6 +150,7 @@ def apply() -> dict:
             if after == before:
                 STATE.update(behind=0, updating=False)
                 return {"ok": True, "message": "Already up to date.", "restart": False}
+            db.kv_set("updated_from", VERSION)           # the "what's new" tour covers everything after this
             changed = _git("diff", "--name-only", before, after).splitlines()
             if "requirements.txt" in changed:
                 r = subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-r", str(ROOT / "requirements.txt")],
@@ -163,6 +164,16 @@ def apply() -> dict:
         except Exception as e:
             STATE["updating"] = False
             return {"ok": False, "message": str(e)[:300]}
+
+
+def version_before_update() -> str | None:
+    """The version you had before the last pull, from git's own history (for installs whose older updater didn't
+    record it). None if it can't be told."""
+    try:
+        m = re.search(r'VERSION\s*=\s*"([^"]+)"', _git("show", "HEAD@{1}:app/version.py"))
+        return m.group(1) if m and m.group(1) != VERSION else None
+    except Exception:
+        return None
 
 
 def restart_soon(delay: float = 1.5) -> None:

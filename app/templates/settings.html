@@ -107,7 +107,7 @@
 
 {% endif %}
 {% if section == 'start' %}
-<div class="card" id="tour">
+<div class="card" id="tour" data-tour="replay">
   <div class="spread"><div><h2 style="margin:0">Getting started</h2>
     <p class="sub" style="margin:4px 0 0">A one-minute walkthrough of the dashboard: running searches, Needs you, applying with the extension, and tracking replies.</p></div>
     <a class="btn small" href="{{ url_for('dashboard', tour=1) }}">Replay the tour</a></div>
