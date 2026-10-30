@@ -136,6 +136,9 @@ the pipeline), plus paged lists of jobs, email updates, and assessments. It can 
 - **Sign-in:** Google, LinkedIn (OpenID Connect), or GitHub (OAuth 2.0 through Supabase, PKCE), or email and password confirmed with emailed 6-digit codes. A computer can connect with an emailed code, so a Google account never needs a password. The account is created during setup,
   from the candidate's own computer, which connects it in the same step. On the site they only sign in, and the
   link lives on the GitHub repo page.
+- **Sign-in choices that were left out on purpose:** Microsoft (school email) sign-in needs an Azure directory,
+  which a personal account doesn't have, so students can use Google or their email instead. Passkeys were built
+  in v3.17 and removed in v3.17.1: on top of a Google or GitHub sign-in they added a step without adding much.
 - **Isolation:** row-level security, so each account sees only its own rows.
 - **Outbound-only computer:** it fetches requests every 30 seconds; nothing on the internet can reach in.
 - **Sleeping Mac:** it can wake every 30 minutes to pick up requests from the phone.
@@ -335,6 +338,10 @@ applied to within hours of going live, while applicant counts are still low.
 - **One good resume doesn't mean the layout works for everyone.** A layout tuned on one profile hid problems that
   only sparse or very full profiles show. Testing with deliberately empty and overloaded content, and measuring
   glyph positions instead of looking, caught them.
+- **Sign-in providers come with public footprints.** LinkedIn ties every sign-in app to a public company page
+  that can't be made private. The fix was a neutral page name ("Job Autopilot (open-source project)"), since
+  LinkedIn doesn't show who manages a page. Google's account chooser shows the Supabase domain until the
+  brand is verified or a custom domain is used.
 - **Shipping updates is a feature too.** Once other people run the app, a safe, one-click update path (and a test
   for the conflict case) matters as much as any new screen.
 

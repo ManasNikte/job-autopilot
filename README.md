@@ -224,6 +224,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.17.1** | Removed passkey sign-in; Google, LinkedIn, GitHub, and email stay |
 | **v3.17** | Sign in to the online dashboard with LinkedIn or GitHub |
 | **v3.16** | Sign in to the online dashboard with Google; connect a computer with an emailed code instead of a password |
 | **v3.15.2** | Only the Chrome extension you approve can use the app; extra sign-in emails on the online dashboard need the other person to accept |

@@ -65,7 +65,8 @@ Homepage URL: your site. Authorization callback URL: Supabase's callback URL. **
 Supabase's GitHub panel turn it on and paste the Client ID and secret.
 
 **Sign In / Providers → LinkedIn (OIDC)** (optional): LinkedIn ties every developer app to a LinkedIn company page, so
-create a small page first (use a name that's clearly yours). Then [LinkedIn Developers](https://www.linkedin.com/developers/apps/new)
+create a small page first. Every LinkedIn page is public and can't be made private, but it doesn't show who
+manages it, so a neutral name like "Job Autopilot (open-source project)" keeps your name off it. Then [LinkedIn Developers](https://www.linkedin.com/developers/apps/new)
 → Create app (that page, your privacy URL, a logo) → **Products → Sign In with LinkedIn using OpenID Connect → Request access**
 (instant) → **Auth → Authorized redirect URLs**: Supabase's callback URL. Paste the Client ID and Primary Client Secret into
 Supabase's LinkedIn (OIDC) panel.
