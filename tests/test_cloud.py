@@ -351,3 +351,35 @@ def test_settings_signup_form_and_dashboard_prompt(fake, tmp_path, monkeypatch):
     assert r.status_code == 302 and not cloud.pending_signup()                # mismatched passwords: nothing sent
     c.post("/cloud/prompt/dismiss")
     assert "Follow your job search from your phone" not in c.get("/").get_data(as_text=True)
+
+
+def test_connect_with_an_emailed_code_no_password(fake, tmp_path, monkeypatch):
+    """Accounts made with "Continue with Google" have no password: the computer connects with an emailed code."""
+    monkeypatch.setattr(cloud, "PENDING_FILE", tmp_path / "pending.json")
+    calls = []
+
+    def post(url, json=None, headers=None, timeout=None):
+        calls.append((url.split("/auth/v1/")[-1], json))
+        if url.endswith("/otp"):
+            return FakeResp(422, {"msg": "Signups not allowed for otp"}) if json["email"] == "nobody@example.com" else FakeResp(200, {})
+        if url.endswith("/verify"):
+            ok = json["token"] == "654321" and json["type"] == "email"
+            return FakeResp(200, {"access_token": "AT", "refresh_token": "RT", "expires_in": 3600, "user": {"id": "user-1"}}) \
+                if ok else FakeResp(403, {"msg": "Token has expired or is invalid"})
+        return fake.post(url, json=json, headers=headers, timeout=timeout)
+    monkeypatch.setattr(cloud.requests, "post", post)
+
+    with pytest.raises(RuntimeError, match="create one first"):
+        cloud.code_login("nobody@example.com", "Laptop")
+    p = cloud.code_login("Ava@Example.com", "Ava's Laptop")
+    assert p["mode"] == "login" and p["email"] == "ava@example.com"
+    assert ("otp", {"email": "ava@example.com", "create_user": False}) in calls        # never creates an account
+    cloud.resend_code()
+    assert sum(1 for u, _ in calls if u == "otp") == 3
+    with pytest.raises(RuntimeError, match="didn't work"):
+        cloud.verify("111111")
+    st = cloud.verify("654321")
+    assert cloud.connected() and st["email"] == "ava@example.com" and fake.secrets == {cloud.KEY: "RT"}
+    from app.web import app
+    html = app.test_client().get("/settings/online").get_data(as_text=True)
+    assert "Connected" in html or "Disconnect this computer" in html

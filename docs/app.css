@@ -146,3 +146,11 @@ code { font-size: 13px; background: var(--surface-2); padding: 1px 5px; border-r
 .table-view table { width: 100%; font-size: 13px; margin-top: 6px; } .table-view .num { text-align: right; }
 .m0 { margin: 0; }
 .invite { border-color: var(--accent, #2a78d6); } .invite .row { display: flex; gap: 8px; margin-top: 8px; }
+
+/* Continue with Google (Google's sign-in button guidance: white button, the G mark, plain label) */
+.btn.google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: #fff; color: #1f1f1f;
+  border: 1px solid #dadce0; font-weight: 600; padding: 10px 14px; }
+.btn.google:hover { background: #f8f9fa; } .btn.google:disabled { opacity: .6; }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted, #8a94a6); font-size: 12.5px; margin: 14px 0 6px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--border, #2a3140); }
+#google-msg:empty { display: none; }

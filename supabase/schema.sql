@@ -25,7 +25,9 @@ language plpgsql security definer set search_path = public as $$
 begin
   insert into public.profiles (id, display_name, marketing_opt_in, opt_in_at)
   values (new.id,
-          left(coalesce(new.raw_user_meta_data->>'display_name', ''), 60),
+          -- the sign-up form's name, or Google's when you used "Continue with Google"
+          left(coalesce(nullif(new.raw_user_meta_data->>'display_name', ''), new.raw_user_meta_data->>'full_name',
+                        new.raw_user_meta_data->>'name', ''), 60),
           coalesce((new.raw_user_meta_data->>'marketing_opt_in')::boolean, false),
           case when coalesce((new.raw_user_meta_data->>'marketing_opt_in')::boolean, false) then now() end)
   on conflict (id) do nothing;

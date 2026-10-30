@@ -178,10 +178,39 @@ def signup(name: str, email: str, password: str, machine_name: str, city_name: s
     return pending_signup()
 
 
+def code_login(email: str, machine_name: str, city_name: str = "") -> dict:
+    """Connect without a password (for example an account made with "Continue with Google"): Supabase emails a
+    6-digit sign-in code to an existing account; verify() finishes and connects this computer."""
+    if not config():
+        raise RuntimeError("The online dashboard isn't configured for this copy (config/cloud.json).")
+    email = email.strip().lower()
+    if "@" not in email:
+        raise RuntimeError("Enter a valid email.")
+    _send_login_code(email)
+    PENDING_FILE.write_text(json.dumps({"mode": "login", "email": email, "machine_name": machine_name[:80],
+                                        "city": " ".join(city_name.split())[:80], "at": db.now()}), encoding="utf-8")
+    return pending_signup()
+
+
+def _send_login_code(email: str) -> None:
+    c = config()
+    r = requests.post(f"{c['supabase_url']}/auth/v1/otp", headers=_headers(), timeout=30,
+                      json={"email": email, "create_user": False})
+    if r.status_code == 429:
+        raise RuntimeError("Too many codes requested. Wait a minute and try again.")
+    if r.status_code >= 400:
+        # Supabase says this when the email has no account; say it plainly (the site offers sign-up)
+        raise RuntimeError("Couldn't send a code to that email. If you haven't made an account yet, create one first "
+                           "(here, or on the website with Google).")
+
+
 def resend_code() -> None:
     p = pending_signup()
     if not p:
         raise RuntimeError("Start again: no sign-up is waiting for a code.")
+    if p.get("mode") == "login":
+        _send_login_code(p["email"])
+        return
     c = config()
     r = requests.post(f"{c['supabase_url']}/auth/v1/resend", headers=_headers(), timeout=30,
                       json={"type": "signup", "email": p["email"]})
@@ -197,7 +226,7 @@ def verify(code: str) -> dict:
     code = "".join(ch for ch in code if ch.isdigit())
     c = config()
     r = requests.post(f"{c['supabase_url']}/auth/v1/verify", headers=_headers(), timeout=30,
-                      json={"type": "signup", "email": p["email"], "token": code})
+                      json={"type": "email" if p.get("mode") == "login" else "signup", "email": p["email"], "token": code})
     if r.status_code >= 400 or not (r.json() if r.text else {}).get("refresh_token"):
         raise RuntimeError("That code didn't work or has expired. Check it, or send a new one.")
     st = _attach(r.json(), p["email"], p["machine_name"], p["city"])

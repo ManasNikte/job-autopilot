@@ -152,7 +152,7 @@
     <form method="post" action="{{ url_for('cloud_connect') }}"><button class="btn small danger" name="disconnect" value="1" onclick="return confirm('Disconnect this computer? Its data on the online dashboard is deleted.')">Disconnect this computer</button></form>
     <form method="post" action="{{ url_for('cloud_connect') }}"><input type="hidden" name="force" value="1"><button class="btn small ghost" name="disconnect" value="1" title="Use only if you're offline and want to disconnect now" onclick="return confirm('Disconnect without deleting its data online? Its data stays online until you delete your account on the site.')">Disconnect anyway</button></form>
   {% elif cloud_pending %}
-    <p style="margin-top:0">Almost done. We emailed a <b>6-digit code</b> to <b>{{ cloud_pending.email }}</b>. Enter it to confirm your account and connect this computer.</p>
+    <p style="margin-top:0">Almost done. We emailed a <b>6-digit code</b> to <b>{{ cloud_pending.email }}</b>. Enter it to {{ 'connect this computer' if cloud_pending.mode == 'login' else 'confirm your account and connect this computer' }}.</p>
     <form method="post" action="{{ url_for('cloud_verify') }}" class="row" style="gap:8px" data-busy="Confirming…">
       <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required style="width:140px;letter-spacing:.2em;font-size:18px">
       <button class="btn primary small" type="submit">Confirm and connect</button>
@@ -186,7 +186,15 @@
         <label>Name for this computer<input type="text" name="machine_name" value="{{ cloud_default_name }}" maxlength="80"></label>
         <button class="btn small" type="submit">Connect this computer</button>
       </form>
+      <h4 style="margin:16px 0 4px">Signed up with Google, or don't use a password?</h4>
+      <p class="sub small" style="margin:0 0 8px">We'll email a 6-digit code to your account's address.</p>
+      <form method="post" action="{{ url_for('cloud_code') }}" class="cloud-form" autocomplete="off" data-busy="Sending…">
+        <label>Email<input type="email" name="email" value="{{ cloud_email }}" required></label>
+        <label>Name for this computer<input type="text" name="machine_name" value="{{ cloud_default_name }}" maxlength="80"></label>
+        <button class="btn small" type="submit">Email me a code</button>
+      </form>
     </details>
+    <p class="sub small">Prefer Google? Create your account on <a href="{{ cloud_cfg.site_url }}" target="_blank" rel="noopener">the website</a> with "Continue with Google", then come back and use "Email me a code" above.</p>
   {% endif %}
 </div>
 

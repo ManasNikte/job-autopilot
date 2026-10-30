@@ -44,10 +44,25 @@ connects their computer in **Settings → Online dashboard**.
 - **Reset password**
   - Subject: `Reset your Job Autopilot password`
   - Body: `<p>Your password reset code is <b>{{ .Token }}</b>. It expires in 15 minutes. If you didn't ask for this, ignore this email.</p>`
+- **Magic link or OTP** (the desktop app's "Email me a code", for accounts without a password)
+  - Subject: `Your Job Autopilot sign-in code`
+  - Body: `<p>Your sign-in code is <b>{{ .Token }}</b>. It expires shortly and works once.</p>`
+
+**Sign In / Providers → Google** (optional: "Continue with Google" on the site)
+1. In [Google Cloud console](https://console.cloud.google.com/), create a project, then **Google Auth Platform →
+   Get started**: app name, support email, audience **External**, a contact email, and agree to the user-data policy.
+2. **Clients → Create client → Web application.** Authorized JavaScript origin: `https://YOUR-GITHUB-USERNAME.github.io`.
+   Authorized redirect URI: the **Callback URL** shown in Supabase's Google panel
+   (`https://YOUR-PROJECT.supabase.co/auth/v1/callback`).
+3. Copy the client secret while Google shows it. In Supabase's Google panel: turn it on, paste the **Client ID** and the
+   **Client secret**, and save. The site's button works right away; people who already have an account with the same
+   email land in that account.
+4. While the Google app is in "Testing", only test users you add (Google Auth Platform → Audience) can sign in.
+   Click **Publish app** there so anyone can; basic sign-in (name and email) needs no Google review.
 
 **URL Configuration**
 - **Site URL:** `https://YOUR-GITHUB-USERNAME.github.io/job-autopilot/`
-- **Redirect URLs:** add the same address.
+- **Redirect URLs:** add `https://YOUR-GITHUB-USERNAME.github.io/job-autopilot/**` (Google sign-in returns there).
 
 **Rate limits:** the defaults are fine. They cap how many codes and sign-ins one address can request.
 

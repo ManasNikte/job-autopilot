@@ -3,6 +3,10 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.16 (2026-10-30)
+- **Sign in with Google.** The online dashboard (the website you open on your phone) has a **Continue with Google** button for signing in and creating an account. If your Google email matches your existing account, you land in that same account. We get only your name and email from Google.
+- **Connect your computer without a password.** Settings → Online dashboard → I already have an account → **Email me a code**: type the 6-digit code from the email, and the computer is connected. Handy if you made your account with Google.
+
 ## 3.15.3 (2026-10-23)
 - **Windows: updates finish by themselves.** On Windows the app couldn't restart in place, so the old version kept running and the progress bar waited at 97%. It now restarts through its Task Scheduler task (or as a hidden process if there's no task). If the app still hasn't come back after about a minute, the progress page shows the exact restart command.
 - **Your own edits to the app's code no longer cancel an update's changes.** When an update and your local edit changed the same code file, the updater used to keep your whole old copy, silently dropping everything the update changed in it. Now the update's version goes in place and your edits are saved in git (`git stash show -p`), and the dashboard tells you which files. Your settings and profile files still always keep your version.

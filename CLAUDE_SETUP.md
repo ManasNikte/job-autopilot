@@ -427,7 +427,11 @@ afterwards they only ever sign in on the site.
    arrive; check spam). The card then says they're connected. Their progress appears online within a minute.
 4. Tell them the address, `site_url` in `config/cloud.json`, and that it's always linked at the top of the
    GitHub repo page and the README if they lose it. On their phone they just sign in with the same email and
-   password.
+   password, or tap **Continue with Google** if that Google account uses the same email.
+
+   **Prefer Google over a password?** They can instead create the account on the website with **Continue with
+   Google**, then on this computer open Settings → Online dashboard → **I already have an account** → **Email me a
+   code**, and type the 6-digit code from the email. No password is ever involved.
 5. Optional, macOS: in the same card, pick **Wake every 30 minutes** so a sleeping Mac picks up requests from the
    phone, then re-run `sudo scripts/install_wake.sh` so the wake helper books those wakes.
 

@@ -1562,6 +1562,19 @@ def cloud_signup():
     return redirect(url_for("settings_page", section="online"))
 
 
+@app.post("/settings/cloud/code")
+def cloud_code():
+    """Connect with an emailed code instead of a password (accounts made with Google have no password)."""
+    from . import cloud
+    f = request.form
+    try:
+        p = cloud.code_login(f.get("email", ""), (f.get("machine_name") or cloud.default_machine_name()).strip(), f.get("city", ""))
+        flash(f"We emailed a 6-digit sign-in code to {p['email']}. Enter it below to connect this computer.")
+    except Exception as e:
+        flash(str(e))
+    return redirect(url_for("settings_page", section="online"))
+
+
 @app.post("/settings/cloud/verify")
 def cloud_verify():
     from . import cloud
@@ -1853,6 +1866,9 @@ WHATS_NEW = {
               "Hover or tap for every family's count that day."),
              (None, None, "Updates install together",
               "When several updates are waiting, one click installs all of them, then this tour shows what's new.")],
+    "3.16": [(None, None, "Sign in with Google",
+              "The online dashboard has \"Continue with Google\" now. Same email as your account? You land in it. "
+              "To connect a computer without a password, use Settings → Online dashboard → Email me a code.")],
     "3.15.2": [(None, None, "Approve your Chrome extension",
                 "For safety, only the Chrome extension you approve can use Job Autopilot now. The next time you click "
                 "it, a banner at the top asks you to approve it; compare the ID with chrome://extensions.")],

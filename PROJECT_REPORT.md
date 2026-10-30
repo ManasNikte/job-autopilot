@@ -133,7 +133,7 @@ on a phone, tablet, or TV. It shows the same progress and charts (the week by da
 the pipeline), plus paged lists of jobs, email updates, and assessments. It can also start a run or an email check on the candidate's computer. Behind it:
 
 - **Free hosting:** GitHub Pages and Supabase.
-- **Sign-in:** email and password, confirmed with emailed 6-digit codes. The account is created during setup,
+- **Sign-in:** Google (OAuth 2.0 through Supabase, PKCE), or email and password confirmed with emailed 6-digit codes. A computer can connect with an emailed code, so a Google account never needs a password. The account is created during setup,
   from the candidate's own computer, which connects it in the same step. On the site they only sign in, and the
   link lives on the GitHub repo page.
 - **Isolation:** row-level security, so each account sees only its own rows.

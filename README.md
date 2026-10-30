@@ -131,7 +131,7 @@ when the company later invites you to interview, makes an offer, or declines.
     split-screen window gets a compact menu and stacked tables, and a 32-inch monitor gets wider layouts and
     larger type.
   - **The online dashboard** is the one for your phone, tablet, or TV.
-- **An online dashboard** you can host for free (GitHub Pages + Supabase). Sign in with your email and password
+- **An online dashboard** you can host for free (GitHub Pages + Supabase). Sign in with Google, or with your email and password
   to see:
   - your greeting, KPIs, and live background work
   - applications per day, and your jobs by status, with search
@@ -224,6 +224,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.16** | Sign in to the online dashboard with Google; connect a computer with an emailed code instead of a password |
 | **v3.15.2** | Only the Chrome extension you approve can use the app; extra sign-in emails on the online dashboard need the other person to accept |
 | **v3.15.1** | Fixes from a full review: security (DNS rebinding, email links), email matching and sync reliability, background work, updates |
 | **v3.15** | An Interviews page: every interview stays, flagged Rejected or Offer; offers on top; the dashboard counts interviews ever |

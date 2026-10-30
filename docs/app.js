@@ -22,6 +22,29 @@
     return s < 60 ? "just now" : s < 3600 ? Math.round(s / 60) + "m ago" : s < 86400 ? Math.round(s / 3600) + "h ago" : Math.round(s / 86400) + "d ago";
   };
 
+  // ------------------------------------------------------------------ Google sign-in (OAuth 2.0 through Supabase, PKCE)
+  // Google sends you back here with ?code=…; exchange it for a session once, then tidy the address bar.
+  async function finishGoogle() {
+    const q = new URLSearchParams(location.search);
+    const clean = () => history.replaceState(null, "", location.pathname + location.hash);
+    if (q.get("error_description") || q.get("error")) {
+      clean(); show("signin");
+      $("#google-msg").textContent = "Google sign-in didn't finish: " + (q.get("error_description") || q.get("error"));
+      return false;
+    }
+    if (!q.get("code")) return false;
+    const { error } = await sb.auth.exchangeCodeForSession(q.get("code"));
+    clean();
+    if (error) { show("signin"); $("#google-msg").textContent = "Google sign-in didn't finish. Try again."; return false; }
+    return true;
+  }
+  document.querySelectorAll("[data-google]").forEach((b) => b.addEventListener("click", async () => {
+    b.disabled = true;
+    const { error } = await sb.auth.signInWithOAuth({ provider: "google",
+      options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: "select_account" } } });
+    if (error) { b.disabled = false; $("#google-msg").textContent = "Couldn't open Google sign-in: " + error.message; }
+  }));
+
   // ------------------------------------------------------------------ routing
   async function route() {
     const { data: { session } } = await sb.auth.getSession();
@@ -415,5 +438,5 @@
     await sb.auth.signOut(); location.hash = "#signin";
   }
 
-  route();
+  finishGoogle().finally(route);
 })();
