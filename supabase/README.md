@@ -60,6 +60,20 @@ connects their computer in **Settings → Online dashboard**.
 4. While the Google app is in "Testing", only test users you add (Google Auth Platform → Audience) can sign in.
    Click **Publish app** there so anyone can; basic sign-in (name and email) needs no Google review.
 
+**Sign In / Providers → GitHub** (optional): on GitHub, **Settings → Developer settings → OAuth Apps → New OAuth App**.
+Homepage URL: your site. Authorization callback URL: Supabase's callback URL. **Generate a new client secret**, then in
+Supabase's GitHub panel turn it on and paste the Client ID and secret.
+
+**Sign In / Providers → LinkedIn (OIDC)** (optional): LinkedIn ties every developer app to a LinkedIn company page, so
+create a small page first (use a name that's clearly yours). Then [LinkedIn Developers](https://www.linkedin.com/developers/apps/new)
+→ Create app (that page, your privacy URL, a logo) → **Products → Sign In with LinkedIn using OpenID Connect → Request access**
+(instant) → **Auth → Authorized redirect URLs**: Supabase's callback URL. Paste the Client ID and Primary Client Secret into
+Supabase's LinkedIn (OIDC) panel.
+
+**Authentication → Passkeys** (optional, beta): turn it on. Relying Party ID: your site's host (for GitHub Pages,
+`YOUR-GITHUB-USERNAME.github.io`); origin: `https://YOUR-GITHUB-USERNAME.github.io`; display name: Job Autopilot. People add a
+passkey under Account on the site, then use "Sign in with a passkey". Changing the RP ID later invalidates existing passkeys.
+
 **URL Configuration**
 - **Site URL:** `https://YOUR-GITHUB-USERNAME.github.io/job-autopilot/`
 - **Redirect URLs:** add `https://YOUR-GITHUB-USERNAME.github.io/job-autopilot/**` (Google sign-in returns there).

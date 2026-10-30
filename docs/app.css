@@ -154,3 +154,4 @@ code { font-size: 13px; background: var(--surface-2); padding: 1px 5px; border-r
 .or { display: flex; align-items: center; gap: 10px; color: var(--muted, #8a94a6); font-size: 12.5px; margin: 14px 0 6px; }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--border, #2a3140); }
 #google-msg:empty { display: none; }
+.btn.google.more { margin-top: 8px; }

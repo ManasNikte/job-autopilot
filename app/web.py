@@ -1866,6 +1866,9 @@ WHATS_NEW = {
               "Hover or tap for every family's count that day."),
              (None, None, "Updates install together",
               "When several updates are waiting, one click installs all of them, then this tour shows what's new.")],
+    "3.17": [(None, None, "More ways to sign in",
+              "The online dashboard now also has Continue with LinkedIn, Continue with GitHub, and passkeys: add one under "
+              "Account on your phone, then sign in with Face ID or Touch ID.")],
     "3.16": [(None, None, "Sign in with Google",
               "The online dashboard has \"Continue with Google\" now. Same email as your account? You land in it. "
               "To connect a computer without a password, use Settings → Online dashboard → Email me a code.")],

@@ -3,6 +3,10 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.17 (2026-10-30)
+- **Sign in with LinkedIn or GitHub.** The online dashboard has **Continue with LinkedIn** and **Continue with GitHub** next to Google. If the email matches your existing account, you land in it.
+- **Passkeys (beta).** Sign in with Face ID, Touch ID, or your device's screen lock. Add one under **Account** on the site (once per device), then tap **Sign in with a passkey**. Passkeys are a beta feature of the sign-in service, so email, Google, LinkedIn, and GitHub stay available.
+
 ## 3.16 (2026-10-30)
 - **Sign in with Google.** The online dashboard (the website you open on your phone) has a **Continue with Google** button for signing in and creating an account. If your Google email matches your existing account, you land in that same account. We get only your name and email from Google.
 - **Connect your computer without a password.** Settings → Online dashboard → I already have an account → **Email me a code**: type the 6-digit code from the email, and the computer is connected. Handy if you made your account with Google.
