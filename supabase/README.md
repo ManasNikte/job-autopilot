@@ -70,9 +70,6 @@ create a small page first (use a name that's clearly yours). Then [LinkedIn Deve
 (instant) → **Auth → Authorized redirect URLs**: Supabase's callback URL. Paste the Client ID and Primary Client Secret into
 Supabase's LinkedIn (OIDC) panel.
 
-**Authentication → Passkeys** (optional, beta): turn it on. Relying Party ID: your site's host (for GitHub Pages,
-`YOUR-GITHUB-USERNAME.github.io`); origin: `https://YOUR-GITHUB-USERNAME.github.io`; display name: Job Autopilot. People add a
-passkey under Account on the site, then use "Sign in with a passkey". Changing the RP ID later invalidates existing passkeys.
 
 **URL Configuration**
 - **Site URL:** `https://YOUR-GITHUB-USERNAME.github.io/job-autopilot/`

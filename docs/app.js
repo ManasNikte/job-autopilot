@@ -11,8 +11,7 @@
   if (!cfg.supabaseUrl || !cfg.anonKey || !window.supabase) { $("#not-configured").hidden = false; return; }
 
   const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.anonKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, flowType: "pkce",
-            experimental: { passkey: true } },                      // passkeys are a Supabase beta (opt-in)
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, flowType: "pkce" },
   });
   const say = (form, text, ok) => { const m = $(".msg", form); m.textContent = text || ""; m.classList.toggle("ok", !!ok); };
   const busy = (form, on) => form.querySelectorAll("button, input").forEach((x) => { x.disabled = on; });
@@ -52,56 +51,6 @@
       options: { ...p.options, redirectTo: location.origin + location.pathname } });
     if (error) { b.disabled = false; $("#google-msg").textContent = `Couldn't open ${p.label} sign-in: ` + error.message; }
   }));
-
-  // ------------------------------------------------------------------ passkeys (Face ID / Touch ID; Supabase beta)
-  const canPasskey = !!(window.PublicKeyCredential && navigator.credentials && sb.auth.signInWithPasskey);
-  const passkeyWhy = (e) => {
-    const c = (e && (e.code || e.name)) || "", m = (e && e.message) || "";
-    if (/NotAllowedError|abort|cancel/i.test(c + m)) return "Cancelled.";
-    if (c === "webauthn_credential_not_found") return "No passkey for this site on this device. Sign in another way, then add one under Account.";
-    if (c === "webauthn_credential_exists") return "This device already has a passkey for your account.";
-    if (c === "too_many_passkeys") return "You've reached the passkey limit. Remove one first.";
-    if (c === "passkey_disabled") return "Passkeys aren't turned on for this site yet.";
-    if (c === "email_not_confirmed") return "Confirm your email first.";
-    return "Passkey didn't work: " + (m || c || "unknown error");
-  };
-  if (canPasskey) {
-    const b = $("#passkey-signin"); b.hidden = false;
-    b.addEventListener("click", async () => {
-      b.disabled = true; $("#google-msg").textContent = "";
-      const { error } = await sb.auth.signInWithPasskey();
-      b.disabled = false;
-      if (error) $("#google-msg").textContent = passkeyWhy(error);      // success fires SIGNED_IN, which routes
-    });
-  }
-
-  async function loadPasskeys() {
-    const box = $("#passkeys"), add = $("#passkey-add"), msg = $("#passkey-msg");
-    if (!canPasskey) { add.hidden = true; box.replaceChildren(el("p", "sub small", "This browser doesn't support passkeys.")); return; }
-    const { data, error } = await sb.auth.passkey.list();
-    box.replaceChildren();
-    if (error) { box.appendChild(el("p", "sub small", "Couldn't load your passkeys.")); return; }
-    const rows = Array.isArray(data) ? data : (data && data.passkeys) || [];
-    if (!rows.length) box.appendChild(el("p", "sub small", "None yet."));
-    rows.forEach((p) => {
-      const row = el("div", "job"), btn = el("button", "btn small", "Remove"); btn.type = "button";
-      btn.onclick = async () => {
-        if (!confirm("Remove this passkey? You can still sign in other ways.")) return;
-        btn.disabled = true; await sb.auth.passkey.delete({ passkeyId: p.id }); loadPasskeys();
-      };
-      const label = el("div", null, p.friendly_name || "Passkey");
-      label.appendChild(el("span", "sub small", " · added " + ago(p.created_at)));
-      row.append(label, btn); box.appendChild(row);
-    });
-    add.onclick = async () => {
-      add.disabled = true; msg.textContent = "";
-      const { error: e } = await sb.auth.registerPasskey();
-      add.disabled = false;
-      msg.textContent = e ? passkeyWhy(e) : "Passkey added. Next time, tap \"Sign in with a passkey\".";
-      msg.classList.toggle("ok", !e);
-      if (!e) loadPasskeys();
-    };
-  }
 
   // ------------------------------------------------------------------ routing
   async function route() {
@@ -208,7 +157,6 @@
     me = session.user;
     loadInvites();
     loadAliases();
-    loadPasskeys();
     $("#form-alias").addEventListener("submit", addAlias);
     $("#leave-shared").onclick = leaveShared;
     const prof = await sb.from("profiles").select("display_name").eq("id", me.id).maybeSingle();

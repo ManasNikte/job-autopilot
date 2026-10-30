@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.17.1 (2026-10-30)
+- Passkeys are gone from the online dashboard. Sign in with Google, LinkedIn, GitHub, or your email and password.
+
 ## 3.17 (2026-10-30)
 - **Sign in with LinkedIn or GitHub.** The online dashboard has **Continue with LinkedIn** and **Continue with GitHub** next to Google. If the email matches your existing account, you land in it.
 - **Passkeys (beta).** Sign in with Face ID, Touch ID, or your device's screen lock. Add one under **Account** on the site (once per device), then tap **Sign in with a passkey**. Passkeys are a beta feature of the sign-in service, so email, Google, LinkedIn, and GitHub stay available.
