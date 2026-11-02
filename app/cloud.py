@@ -510,7 +510,13 @@ def operator_here() -> bool:
 
 def session_lost() -> bool:
     """The saved sign-in was revoked (for example by signing out everywhere): only signing in again fixes it."""
-    return "Refresh Token" in (STATUS.get("error") or "")
+    if "Refresh Token" in (STATUS.get("error") or ""):
+        return True
+    try:
+        access_token()                               # no sync since the app started: ask the sign-in service
+        return False
+    except Exception as e:
+        return "Refresh Token" in str(e)
 
 
 def operator_stats() -> dict | None:
