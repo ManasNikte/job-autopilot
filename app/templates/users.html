@@ -6,6 +6,23 @@
   <span class="sub">Everyone on your online dashboard. Only you see this page. Click a person for everything the privacy note lets you see; which companies they apply to stays private to them.</span>
 </div>
 
+{% if rows is none %}
+<div class="card">
+  {% if session_lost %}
+  <h2>Sign in again to see your users</h2>
+  <p class="sub">This computer was signed out of the online dashboard (for example by a sign-out on another device), so it can't load the list or sync.
+    We'll email a 6-digit code to {{ cloud_state.email }}; it keeps this computer and its data online as they are.</p>
+  <form method="post" action="{{ url_for('cloud_code') }}" data-busy="Sending…">
+    <input type="hidden" name="email" value="{{ cloud_state.email }}"><input type="hidden" name="machine_name" value="{{ cloud_state.machine_name }}">
+    <input type="hidden" name="city" value="{{ cloud_state.city or '' }}">
+    <button class="btn primary small" type="submit">Email me a sign-in code</button>
+  </form>
+  {% else %}
+  <h2>Couldn't load your users</h2>
+  <p class="sub">The online dashboard didn't answer. Check your internet, then reload this page.</p>
+  {% endif %}
+</div>
+{% else %}
 <div class="grid kpis kpis-5 u-kpis">
   <button type="button" class="tile u-filter-tile" data-f="all"><div class="v">{{ stats.users }}</div><div class="k">Users</div></button>
   <button type="button" class="tile u-filter-tile" data-f="active"><div class="v">{{ stats.active }}</div><div class="k">Active · applied in 14 days</div></button>
@@ -184,4 +201,5 @@
   if (people.length === 1) toggle(people[0].querySelector(".u-row"));
 })();
 </script>
+{% endif %}
 {% endblock %}

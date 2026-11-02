@@ -224,7 +224,7 @@ def inject():
             ext_request = pend
     except Exception:
         ext_request = None
-    return {"ext_request": ext_request, "open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "operator_nav": bool(cloud.STATUS.get("operator")), "settings_nav": SETTINGS_SECTIONS, "nav_index": nav_index(bool(cloud.STATUS.get("operator"))), "app_update": upd, "app_version": VERSION, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
+    return {"ext_request": ext_request, "open_interventions": open_n, "unmatched_mail": unmatched_mail, "credits": _credits(), "operator_stats": op, "operator_nav": cloud.operator_here(), "settings_nav": SETTINGS_SECTIONS, "nav_index": nav_index(cloud.operator_here()), "app_update": upd, "app_version": VERSION, "worker": worker.state, "status_labels": STATUS_LABELS, "backend": backend}
 
 
 def _followups() -> None:
@@ -1715,7 +1715,11 @@ def users_page():
     from . import cloud
     rows = cloud.operator_users() if cloud.connected() else None
     if rows is None:
-        abort(404)
+        if not cloud.operator_here():
+            abort(404)
+        # Your computer, but the list can't be fetched right now (signed out elsewhere, or offline)
+        return render_template("users.html", rows=None, session_lost=cloud.session_lost() or not cloud.connected(),
+                               cloud_state=cloud.state())
     for r in rows:
         # This week = Sunday to Saturday on each person's computer (its own count), not the last 7 days. Computers
         # on versions too old to send it keep the database's 7-day figure.

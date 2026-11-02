@@ -342,6 +342,13 @@ applied to within hours of going live, while applicant counts are still low.
   that can't be made private. The fix was a neutral page name ("Job Autopilot (open-source project)"), since
   LinkedIn doesn't show who manages a page. Google's account chooser shows the Supabase domain until the
   brand is verified or a custom domain is used.
+- **"Sign out" means everywhere unless you say otherwise.** The sign-in library's default ends every session on
+  the account, so signing out on a phone also cut off the computer that syncs with it. Sign-out is now
+  browser-only. The owner's computer also remembers that it's the owner's, so the Users page offers to sign in
+  again instead of disappearing.
+- **Reading a live inbox is a race.** Mail's message IDs, senders, and subjects came back as separate lists. An
+  email arriving between reads shifted them, pairing one email's subject with another's ID. Reading the IDs
+  again at the end catches any shift, and the batch is simply read again.
 - **Shipping updates is a feature too.** Once other people run the app, a safe, one-click update path (and a test
   for the conflict case) matters as much as any new screen.
 

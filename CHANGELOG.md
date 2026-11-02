@@ -3,6 +3,11 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.17.2 (2026-11-02)
+- **Signing out on your phone no longer signs out your computer.** Sign out on the online dashboard used to end every session on the account, including the one your computer syncs with, so syncing quietly stopped. It now signs out only that browser.
+- **Easy to fix if your computer does get signed out.** Settings → Online dashboard says so plainly and has a **Sign in again with an emailed code** button. It keeps the same computer and its data online.
+- **No more doubled emails or to-dos.** If a new email arrived in Apple Mail while the app was reading the inbox, an email could be stored twice, and a second email about the same assessment could add a second item to Needs you. Both are fixed for new emails.
+
 ## 3.17.1 (2026-10-30)
 - Passkeys are gone from the online dashboard. Sign in with Google, LinkedIn, GitHub, or your email and password.
 

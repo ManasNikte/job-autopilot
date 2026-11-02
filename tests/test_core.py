@@ -318,7 +318,7 @@ def test_first_run_of_the_day_looks_back_further(tmp_path, monkeypatch):
 
     hours, why = pipeline.lookback_hours(now)
     assert hours == 48 and "First run today" in why                    # never run: a day extra
-    run(now.replace(hour=23, minute=15) - _td(days=1))                  # last night's run
+    run((now.replace(tzinfo=None, hour=23, minute=15) - _td(days=1)).astimezone())   # last night's run (its own UTC offset, for DST days)
     hours, why = pipeline.lookback_hours(now)
     assert hours == 48 and "since the last run" in why                  # first run today: 24 + 24
     run(now.replace(hour=9), fetched=False)                             # a screening-only batch this morning

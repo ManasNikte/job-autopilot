@@ -327,8 +327,10 @@ def fetch_applemail(account_name: str, since: datetime, batch: int = 50, cap: in
     The cap is high because a busy university inbox gets well over 600 messages in the first 14-day look-back.
     Full text is read only for likely application updates; one message Mail can't open doesn't stop the rest."""
     acct = _as_str(account_name)
-    out, start, now = [], 1, datetime.now(timezone.utc)
+    out, start, now, tries = [], 1, datetime.now(timezone.utc), 0
     while start <= cap:
+        # The four lists are separate reads. If mail arrives in between, the inbox shifts and an ID would pair with
+        # another message's subject (which once stored an email twice), so the IDs are read again at the end.
         raw = _osascript(f'''with timeout of 300 seconds
   tell application "Mail"{_FIND_INBOX.format(acct=acct)}
     set n to count of messages of mb
@@ -339,6 +341,7 @@ def fetch_applemail(account_name: str, since: datetime, batch: int = 50, cap: in
     set snds to sender of (messages {start} thru e of mb)
     set subs to subject of (messages {start} thru e of mb)
     set dts to date received of (messages {start} thru e of mb)
+    if (message id of (messages {start} thru e of mb)) is not ids then return "SHIFTED"
     set nowd to current date
     set r to ""
     repeat with i from 1 to count of ids
@@ -347,6 +350,12 @@ def fetch_applemail(account_name: str, since: datetime, batch: int = 50, cap: in
     return r
   end tell
 end timeout''', timeout=330)
+        if raw.strip() == "SHIFTED":
+            tries += 1
+            if tries > 5:
+                raise RuntimeError("Mail kept changing while it was being read. Try again in a minute.")
+            continue
+        tries = 0
         recs = [r.split(US) for r in raw.split(RS) if r.count(US) == 4]
         if not recs:
             break
@@ -657,8 +666,11 @@ def apply_event(ev: dict, job: dict | None = None, force: bool = False) -> dict:
         if ev["event"] in ("assessment", "interview", "offer"):
             title = {"assessment": "Online assessment", "interview": "Interview invite", "offer": "Offer"}[ev["event"]]
             due = f" · due {ev['deadline']}" if ev.get("deadline") else ""
-            db.add_intervention(job["id"], ev["event"], f"{title} from {job['company']}{due}",
-                                f"{ev.get('summary', '')}\n{ev.get('link') or ''}\nEmail: {ev['subject']} ({ev['received_at'][:10]})")
+            # One open item per job and kind: titles get rewritten later (due times), so a title match can't dedupe
+            if not db.fetchone("SELECT 1 FROM interventions WHERE job_id=? AND kind=? AND status='open'",
+                               (job["id"], ev["event"])):
+                db.add_intervention(job["id"], ev["event"], f"{title} from {job['company']}{due}",
+                                    f"{ev.get('summary', '')}\n{ev.get('link') or ''}\nEmail: {ev['subject']} ({ev['received_at'][:10]})")
     cols = ",".join(row)
     db.execute(f"INSERT OR IGNORE INTO email_events ({cols}) VALUES ({','.join('?' * len(row))})", tuple(row.values()))
     return row

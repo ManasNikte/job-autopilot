@@ -128,7 +128,8 @@
     } finally { busy(f, false); resetting = false; }
   });
 
-  $("#signout").addEventListener("click", async () => { location.hash = "#signin"; await sb.auth.signOut(); location.reload(); });
+  // "local": the default ("global") would also sign out the desktop app, which syncs with this same account
+  $("#signout").addEventListener("click", async () => { location.hash = "#signin"; await sb.auth.signOut({ scope: "local" }); location.reload(); });
 
   // ------------------------------------------------------------------ dashboard
   let me = null, machines = [], machineId = null, timer = null, channel = null, jobTab = "applied", jobPage = 0, emailPage = 0, cmdPage = 0, weekStart = null, started = false;

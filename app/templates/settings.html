@@ -133,10 +133,30 @@
   <h2>Online dashboard: check progress from your phone</h2>
   {% if not cloud_cfg %}
     <p class="sub" style="margin-top:0">This copy isn't linked to an online dashboard (no <code>config/cloud.json</code>). See <code>supabase/README.md</code> to host one.</p>
+  {% elif cloud_pending %}
+    <p style="margin-top:0">Almost done. We emailed a <b>6-digit code</b> to <b>{{ cloud_pending.email }}</b>. Enter it to {{ 'connect this computer' if cloud_pending.mode == 'login' else 'confirm your account and connect this computer' }}.</p>
+    <form method="post" action="{{ url_for('cloud_verify') }}" class="row" style="gap:8px" data-busy="Confirming…">
+      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required style="width:140px;letter-spacing:.2em;font-size:18px">
+      <button class="btn primary small" type="submit">Confirm and connect</button>
+    </form>
+    <div class="row small" style="gap:12px;margin-top:8px">
+      <span class="sub">No email? Check spam.</span>
+      <form method="post" action="{{ url_for('cloud_resend') }}"><button class="btn small ghost" type="submit">Send a new code</button></form>
+      <form method="post" action="{{ url_for('cloud_cancel') }}"><button class="btn small ghost" type="submit">Start over</button></form>
+    </div>
   {% elif cloud_connected %}
     <p><span class="badge apply">Connected</span> {{ cloud_state.email }} · this computer appears as <b>{{ cloud_state.machine_name }}</b>
       {% if cloud_status.last_sync %} · last sync {{ cloud_status.last_sync|ago }}{% endif %}
-      {% if cloud_status.error %}<br><span class="small" style="color:var(--critical)">Last sync problem: {{ cloud_status.error }}</span>{% endif %}</p>
+      {% if cloud_status.error and 'Refresh Token' in cloud_status.error %}{# signed out elsewhere: the saved sign-in no longer works #}
+      <br><span class="small" style="color:var(--critical)">This computer was signed out (for example by a sign-out on another device), so it can't sync.</span></p>
+    <form method="post" action="{{ url_for('cloud_code') }}" class="row" style="margin:6px 0 14px" data-busy="Sending…">
+      <input type="hidden" name="email" value="{{ cloud_state.email }}"><input type="hidden" name="machine_name" value="{{ cloud_state.machine_name }}">
+      <input type="hidden" name="city" value="{{ cloud_state.city or '' }}">
+      <button class="btn primary small" type="submit">Sign in again with an emailed code</button>
+      <span class="sub small">Keeps this computer and its data online as they are.</span>
+    </form>
+      {% elif cloud_status.error %}<br><span class="small" style="color:var(--critical)">Last sync problem: {{ cloud_status.error }}</span></p>
+      {% else %}</p>{% endif %}
     <p class="sub">Open <a href="{{ cloud_cfg.site_url }}" target="_blank" rel="noopener">{{ cloud_cfg.site_url }}</a> on your phone and sign in with the same account. It shows your progress and can start a run or an email check here.</p>
     <form method="post" action="{{ url_for('cloud_wake') }}" class="row" style="margin:10px 0">
       <label class="sub">When the lid is closed, wake up to check for phone requests
@@ -151,17 +171,6 @@
     {% if is_mac and remote_wake %}<p class="sub small">Wake-ups use the lid-closed helper; if you installed it before this option existed, run <code>sudo ~/job-autopilot/scripts/install_wake.sh</code> once. Keep the Mac plugged in.</p>{% endif %}
     <form method="post" action="{{ url_for('cloud_connect') }}"><button class="btn small danger" name="disconnect" value="1" onclick="return confirm('Disconnect this computer? Its data on the online dashboard is deleted.')">Disconnect this computer</button></form>
     <form method="post" action="{{ url_for('cloud_connect') }}"><input type="hidden" name="force" value="1"><button class="btn small ghost" name="disconnect" value="1" title="Use only if you're offline and want to disconnect now" onclick="return confirm('Disconnect without deleting its data online? Its data stays online until you delete your account on the site.')">Disconnect anyway</button></form>
-  {% elif cloud_pending %}
-    <p style="margin-top:0">Almost done. We emailed a <b>6-digit code</b> to <b>{{ cloud_pending.email }}</b>. Enter it to {{ 'connect this computer' if cloud_pending.mode == 'login' else 'confirm your account and connect this computer' }}.</p>
-    <form method="post" action="{{ url_for('cloud_verify') }}" class="row" style="gap:8px" data-busy="Confirming…">
-      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required style="width:140px;letter-spacing:.2em;font-size:18px">
-      <button class="btn primary small" type="submit">Confirm and connect</button>
-    </form>
-    <div class="row small" style="gap:12px;margin-top:8px">
-      <span class="sub">No email? Check spam.</span>
-      <form method="post" action="{{ url_for('cloud_resend') }}"><button class="btn small ghost" type="submit">Send a new code</button></form>
-      <form method="post" action="{{ url_for('cloud_cancel') }}"><button class="btn small ghost" type="submit">Start over</button></form>
-    </div>
   {% else %}
     <p class="sub" style="margin-top:0">See your progress, jobs, assessments, and email updates on your phone, and start a run from anywhere at
       <a href="{{ cloud_cfg.site_url }}" target="_blank" rel="noopener">{{ cloud_cfg.site_url }}</a>. Create your account right here: it's set up and this computer is connected in one step, so afterwards you just sign in on the site.

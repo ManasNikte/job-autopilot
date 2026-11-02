@@ -492,10 +492,25 @@ def sync_once(log=print, full: bool = True) -> dict:
         _rest("PATCH", "machines", params={"id": f"eq.{mid}"}, json={"last_seen": now, "app_version": APP_VERSION, "city": city()})
         STATUS["operator"] = operator_stats()
         if STATUS["operator"]:
+            db.kv_set("operator_user", uid)          # remember it, so Users stays in the menu if the sign-in lapses
             notify_operator(log)
     queued = _run_requests(mid, log)
     STATUS.update(connected=True, last_sync=now, error="")
     return {"queued": queued}
+
+
+def operator_here() -> bool:
+    """This computer's account has been confirmed as the site operator (by the site's operators table, at some
+    sync). Kept locally, so the Users page stays reachable while the sign-in has to be renewed."""
+    if STATUS.get("operator"):
+        return True
+    uid = state().get("user_id")
+    return bool(uid and (db.kv_get("operator_user") or {}).get("v") == uid)
+
+
+def session_lost() -> bool:
+    """The saved sign-in was revoked (for example by signing out everywhere): only signing in again fixes it."""
+    return "Refresh Token" in (STATUS.get("error") or "")
 
 
 def operator_stats() -> dict | None:

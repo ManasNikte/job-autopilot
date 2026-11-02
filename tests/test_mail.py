@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import pytest
 
 from app import db, mailsync
@@ -181,7 +183,7 @@ def test_marking_an_assessment_rejected_keeps_the_assessment(jobs_db):
     from app import assessments
     mailsync.apply_event({"account": "a", "msg_id": "<oa2@x>", "received_at": "2026-10-15T18:34:00+00:00", "sender": "s",
                           "subject": "You are invited to our screening process", "company": "Stripe",
-                          "role": "Software Engineer, New Grad", "link": "", "deadline": "2026-10-30",
+                          "role": "Software Engineer, New Grad", "link": "", "deadline": (date.today() + timedelta(days=14)).isoformat(),
                           "event": "assessment", "summary": "Screening", "body": ""})
     eid = db.fetchone("SELECT id FROM email_events WHERE msg_id='<oa2@x>'")["id"]
     assert [a["shown_company"] for a in assessments.pending()] == ["Stripe"]
@@ -317,3 +319,14 @@ def test_failed_sorting_keeps_emails_for_next_time(jobs_db, monkeypatch):
     with pytest.raises(RuntimeError):
         mailsync._sync(lambda *a: None)
     assert db.kv_get("mail_last:gmail")["v"] == before                  # not advanced: read again next check
+
+
+def test_a_second_assessment_email_adds_no_second_needs_you_item(jobs_db):
+    from app import assessments
+    base = {"account": "a", "sender": "s", "company": "Stripe", "role": "Software Engineer, New Grad", "link": "",
+            "deadline": "", "event": "assessment", "summary": "Screening", "body": "", "subject": "Take our assessment"}
+    mailsync.apply_event({**base, "msg_id": "<oa3@x>", "received_at": "2026-10-15T18:34:00+00:00"})
+    assessments.sync_todos()                           # renames the item to "… · no due date"
+    mailsync.apply_event({**base, "msg_id": "<oa4@x>", "received_at": "2026-10-15T18:35:00+00:00"})
+    rows = db.fetchall("SELECT title FROM interventions WHERE kind='assessment' AND status='open'")
+    assert len(rows) == 1

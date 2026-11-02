@@ -224,6 +224,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.17.2** | Signing out on your phone keeps your computer signed in; no more doubled emails or Needs you items |
 | **v3.17.1** | Removed passkey sign-in; Google, LinkedIn, GitHub, and email stay |
 | **v3.17** | Sign in to the online dashboard with LinkedIn or GitHub |
 | **v3.16** | Sign in to the online dashboard with Google; connect a computer with an emailed code instead of a password |

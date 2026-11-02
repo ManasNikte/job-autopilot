@@ -206,6 +206,24 @@ def test_users_page_is_operator_only_and_shows_no_companies(tmp_path, monkeypatc
     assert html.count("badge apply\">Active") == 1 and "Inactive" in html
 
 
+def test_users_page_stays_on_the_operators_computer_when_the_sign_in_lapses(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    from app.web import app
+    c = app.test_client()
+    monkeypatch.setattr(cloud, "connected", lambda: True)
+    monkeypatch.setattr(cloud, "operator_users", lambda: None)
+    monkeypatch.setattr(cloud, "state", lambda: {"user_id": "u-op", "email": "op@example.com", "machine_name": "Mac"})
+    monkeypatch.setitem(cloud.STATUS, "operator", None)
+    monkeypatch.setitem(cloud.STATUS, "error", "Invalid Refresh Token: Refresh Token Not Found")
+    db.kv_set("operator_user", "someone-else")
+    assert c.get("/users").status_code == 404                               # another account: still no page
+    db.kv_set("operator_user", "u-op")                                      # confirmed at an earlier sync
+    html = c.get("/users").get_data(as_text=True)
+    assert "Sign in again" in html and "op@example.com" in html
+    assert 'href="/users"' in c.get("/").get_data(as_text=True)             # and it stays in the menu
+
+
 def test_users_page_shows_every_detail_the_privacy_note_allows(tmp_path, monkeypatch):
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
     db.init()
