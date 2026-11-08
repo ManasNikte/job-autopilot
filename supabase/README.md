@@ -174,6 +174,22 @@ empty for every other account.
 
 ---
 
+## 8. Optional: block someone
+
+In the SQL editor (replace the email). It bans the account on every sign-in method, ends its sessions so their
+computer stops syncing at once, and refuses any new account with that email. Nothing on their computer can undo it.
+Their own copy of the app keeps working offline; this only closes your online dashboard to them.
+
+```sql
+insert into public.blocked_emails (email, reason) values ('person@example.com', 'misuse') on conflict do nothing;
+update auth.users set banned_until = '2999-12-31 00:00:00+00' where lower(email) = 'person@example.com';
+delete from auth.refresh_tokens where user_id in (select id::text from auth.users where lower(email) = 'person@example.com');
+delete from auth.sessions where user_id in (select id from auth.users where lower(email) = 'person@example.com');
+delete from public.account_emails where lower(email) = 'person@example.com';
+```
+
+To undo: `delete from public.blocked_emails where email = 'person@example.com';` and set `banned_until = null`.
+
 ## Security summary
 
 - **Passwords** are hashed by Supabase Auth (bcrypt). Sign-up and reset require a 6-digit code emailed to the

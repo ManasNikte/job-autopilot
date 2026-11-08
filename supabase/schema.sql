@@ -302,6 +302,27 @@ language sql stable set search_path = public as $$
   where e->>'day' ~ '^\d{4}-\d{2}-\d{2}$' and (e->>'day')::date > current_date - days
 $$;
 
+-- Blocking someone (see supabase/README.md): ban their account and add the email here. No API access to this table;
+-- the trigger refuses a new account, or an email change, to a blocked address with every sign-in method.
+create table if not exists public.blocked_emails (
+  email text primary key,
+  reason text,
+  blocked_at timestamptz not null default now()
+);
+alter table public.blocked_emails enable row level security;
+
+create or replace function public.refuse_blocked_email() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.email is not null and exists (select 1 from public.blocked_emails b where b.email = lower(new.email)) then
+    raise exception 'This account has been blocked.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists refuse_blocked_email on auth.users;
+create trigger refuse_blocked_email before insert or update of email on auth.users
+  for each row execute function public.refuse_blocked_email();
+
 -- Site-wide counts for the person who runs the site ("active" = applied in the last 14 days), shown in the footer of their local dashboard.
 -- The operators table has row-level security and no policies, so nobody can read or change it through
 -- the API; add yourself once in the SQL editor (see supabase/README.md). Everyone else gets null.
