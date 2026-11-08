@@ -325,7 +325,13 @@ alter table public.blocked_emails enable row level security;
 create or replace function public.refuse_blocked_email() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
+  -- No new account, and no email change TO, a blocked address (every sign-in method, including OAuth).
   if new.email is not null and exists (select 1 from public.blocked_emails b where b.email = lower(new.email)) then
+    raise exception 'This account has been blocked.';
+  end if;
+  -- A blocked account can't rename its email away from the denylist to escape.
+  if tg_op = 'UPDATE' and old.email is not null
+     and exists (select 1 from public.blocked_emails b where b.email = lower(old.email)) then
     raise exception 'This account has been blocked.';
   end if;
   return new;

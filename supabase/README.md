@@ -206,6 +206,16 @@ delete from auth.refresh_tokens where user_id in (select id::text from auth.user
 To undo either: `delete from public.blocked_emails where email = 'person@example.com';` and, if you banned them,
 `update auth.users set banned_until = null where lower(email) = 'person@example.com';`
 
+**What the denylist covers, and what it can't.** Once an email is on the list, the server refuses: a new sign-up
+with it (password or Google/LinkedIn/GitHub), an email change *to* it, an email change *away from* it by the blocked
+account (so they can't rename to escape), re-registering after deleting the account (the list is keyed by email and
+survives), and being invited to view someone else's dashboard. Matching is case-insensitive, and the guards check
+the list on every query, so a still-valid login token buys no access. What it **can't** stop: a brand-new account
+on a *different* email (block each one you learn, or make sign-up invite-only — ask and I'll set that up), and a
+local copy of this open-source app running on the person's own Claude (the gate only applies while their app talks
+to your server, and the check can be removed from their own copy — it's a gate you control, not a lock on their
+computer).
+
 ## Security summary
 
 - **Passwords** are hashed by Supabase Auth (bcrypt). Sign-up and reset require a 6-digit code emailed to the
