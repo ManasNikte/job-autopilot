@@ -216,6 +216,24 @@ local copy of this open-source app running on the person's own Claude (the gate 
 to your server, and the check can be removed from their own copy — it's a gate you control, not a lock on their
 computer).
 
+## 9. Optional: make sign-ups invite-only
+
+Closes the "new email" gap: with this on, no one can create an account on your dashboard unless you add their
+email first. Existing users keep working; only brand-new sign-ups are affected (every method, including
+Google/LinkedIn/GitHub). To turn it on, seed the allowlist with your current users, then create the trigger:
+
+```sql
+insert into public.invited_emails (email)
+  select lower(u.email) from auth.users u
+  where u.email is not null and not exists (select 1 from public.blocked_emails b where b.email = lower(u.email))
+  on conflict do nothing;
+create trigger refuse_uninvited_signup before insert on auth.users
+  for each row execute function public.refuse_uninvited_signup();
+```
+
+To invite someone afterwards: `insert into public.invited_emails (email) values ('new.person@example.com');`
+To turn it back off: `drop trigger refuse_uninvited_signup on auth.users;`
+
 ## Security summary
 
 - **Passwords** are hashed by Supabase Auth (bcrypt). Sign-up and reset require a 6-digit code emailed to the

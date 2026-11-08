@@ -371,6 +371,26 @@ do $$ declare t text; begin
   end loop;
 end $$;
 
+-- Optional invite-only sign-ups. The table and function are inert on their own; sign-ups stay open until you also
+-- create the trigger (see supabase/README.md). With it on, a new account — by any method, including Google/LinkedIn/
+-- GitHub — is refused unless its email is on invited_emails first. Existing accounts are unaffected.
+create table if not exists public.invited_emails (
+  email text primary key check (email = lower(email)),
+  invited_at timestamptz not null default now()
+);
+alter table public.invited_emails enable row level security;
+
+create or replace function public.refuse_uninvited_signup() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.email is not null and not exists (select 1 from public.invited_emails i where i.email = lower(new.email)) then
+    raise exception 'Sign-ups are invite-only. Ask the site operator for an invitation.';
+  end if;
+  return new;
+end $$;
+-- Turn it on:  create trigger refuse_uninvited_signup before insert on auth.users
+--                for each row execute function public.refuse_uninvited_signup();
+
 -- Site-wide counts for the person who runs the site ("active" = applied in the last 14 days), shown in the footer of their local dashboard.
 -- The operators table has row-level security and no policies, so nobody can read or change it through
 -- the API; add yourself once in the SQL editor (see supabase/README.md). Everyone else gets null.
