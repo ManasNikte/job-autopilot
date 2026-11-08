@@ -338,6 +338,10 @@ applied to within hours of going live, while applicant counts are still low.
 - **One good resume doesn't mean the layout works for everyone.** A layout tuned on one profile hid problems that
   only sparse or very full profiles show. Testing with deliberately empty and overloaded content, and measuring
   glyph positions instead of looking, caught them.
+- **A revocation gate is licensing, not sabotage.** To cut off an unwanted user without touching their machine, the
+  server is the authority: a denylisted account is refused at every data path and `license_status()` tells the app
+  to switch its AI features off. It's enforced server-side, applies the same rule to everyone, and (being open
+  source) can be removed from a local copy — a gate the operator controls, not a lock on someone else's computer.
 - **Sign-in providers come with public footprints.** LinkedIn ties every sign-in app to a public company page
   that can't be made private. The fix was a neutral page name ("Job Autopilot (open-source project)"), since
   LinkedIn doesn't show who manages a page. Google's account chooser shows the Supabase domain until the

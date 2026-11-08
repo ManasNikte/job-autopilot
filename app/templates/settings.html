@@ -129,6 +129,12 @@
 
 {% endif %}
 {% if section == 'online' %}
+{% if license_revoked %}
+<div class="card" style="border-color:var(--critical)">
+  <h2 style="color:var(--critical)">Account deactivated</h2>
+  <p class="sub" style="margin:0">{{ license_msg }}</p>
+</div>
+{% endif %}
 <div class="card" id="cloud" data-tour="online">
   <h2>Online dashboard: check progress from your phone</h2>
   {% if not cloud_cfg %}

@@ -1487,7 +1487,9 @@ def settings_page(section="schedule"):
                            cloud_status=cloud.STATUS, cloud_connected=cloud.connected(), upd_state=__import__('app.updater', fromlist=['STATE']).STATE, cloud_default_name=cloud.default_machine_name(), cloud_pending=cloud.pending_signup(), cloud_email=_profile_email(), cloud_city=cloud.city() if cloud.connected() else cloud.default_city(),
                            remote_wake=schedule.remote_wake(), mail_accounts=mailsync.accounts(), ms_client=ms_id, is_mac=sys.platform == "darwin",
                            ms_state=mailsync.ms_signin_state(ms_id) if ms_id else None, sched=schedule.status(), tunables=TUNABLES, current=current,
-                           feeds=feeds_config(), ampm=_ampm)
+                           feeds=feeds_config(), ampm=_ampm,
+                           license_revoked=__import__('app.license', fromlist=['revoked']).revoked(),
+                           license_msg=__import__('app.license', fromlist=['message']).message())
 
 
 def _ampm(t: str) -> str:

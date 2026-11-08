@@ -174,21 +174,37 @@ empty for every other account.
 
 ---
 
-## 8. Optional: block someone
+## 8. Optional: revoke or block an account
 
-In the SQL editor (replace the email). It bans the account on every sign-in method, ends its sessions so their
-computer stops syncing at once, and refuses any new account with that email. Nothing on their computer can undo it.
-Their own copy of the app keeps working offline; this only closes your online dashboard to them.
+The `blocked_emails` denylist is the switch. Adding an email there (via the SQL editor — the table has no API
+access) does three things to that account: `license_status()` reports `revoked`, so the app **turns off its AI
+features** (screening, tailoring, document generation) on the next sync with a clear message; every data path
+refuses it, so its **dashboard stops working**; and any **new account** with that email is refused. All of it is
+enforced by your server — it's a gate you control. The app is open source, so a determined person can delete the
+check from their own copy; it raises the bar, it isn't an unbreakable lock, and it can't (and doesn't) touch
+anything else on their computer.
+
+**Revoke (recommended).** Leave the account able to sign in, so its app can receive the `revoked` verdict and
+switch its AI features off. Its dashboard and data are still refused.
 
 ```sql
 insert into public.blocked_emails (email, reason) values ('person@example.com', 'misuse') on conflict do nothing;
-update auth.users set banned_until = '2999-12-31 00:00:00+00' where lower(email) = 'person@example.com';
-delete from auth.refresh_tokens where user_id in (select id::text from auth.users where lower(email) = 'person@example.com');
 delete from auth.sessions where user_id in (select id from auth.users where lower(email) = 'person@example.com');
 delete from public.account_emails where lower(email) = 'person@example.com';
 ```
 
-To undo: `delete from public.blocked_emails where email = 'person@example.com';` and set `banned_until = null`.
+**Hard ban (stronger dashboard lock, but the local AI can't be reached).** Also set `banned_until`. This stops the
+account authenticating at all — the surest way to keep it out of your dashboard — but because its app can then
+never reach your server, it never receives the `revoked` verdict, so its local AI keeps working offline. Choose
+this when cutting off your dashboard matters more than switching off their local AI.
+
+```sql
+update auth.users set banned_until = '2999-12-31 00:00:00+00' where lower(email) = 'person@example.com';
+delete from auth.refresh_tokens where user_id in (select id::text from auth.users where lower(email) = 'person@example.com');
+```
+
+To undo either: `delete from public.blocked_emails where email = 'person@example.com';` and, if you banned them,
+`update auth.users set banned_until = null where lower(email) = 'person@example.com';`
 
 ## Security summary
 

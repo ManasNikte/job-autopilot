@@ -401,3 +401,40 @@ def test_connect_with_an_emailed_code_no_password(fake, tmp_path, monkeypatch):
     from app.web import app
     html = app.test_client().get("/settings/online").get_data(as_text=True)
     assert "Connected" in html or "Disconnect this computer" in html
+
+
+def test_a_revoked_license_switches_off_the_ai_features(monkeypatch):
+    from app import llm, license
+    monkeypatch.setattr(license, "revoked", lambda: True)
+    monkeypatch.setattr(license, "message", lambda: "deactivated by the site operator")
+    with pytest.raises(llm.BackendUnavailable, match="deactivated"):      # the single choke point every call passes
+        llm.structured(user="hi", schema={"type": "object"}, model="claude-opus-5-5")
+
+
+def test_license_cache_is_sticky_until_the_server_says_otherwise(tmp_path, monkeypatch):
+    from app import license
+    monkeypatch.setattr(license, "CACHE", tmp_path / "license.json")
+    assert license.status() == "unknown" and not license.revoked()       # never checked: not gated
+    license.record({"status": "revoked", "reason": "misuse"})
+    assert license.revoked() and "misuse" in license.message()
+    license.record(None)                                                  # offline / transient: keep the last answer
+    assert license.revoked()
+    license.record({"status": "ok"})                                      # server lifts it: unlocked
+    assert not license.revoked()
+    license.clear()
+    assert license.status() == "unknown"
+
+
+def test_sync_stops_and_records_for_a_revoked_account(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    from app import license
+    monkeypatch.setattr(license, "CACHE", tmp_path / "license.json")
+    monkeypatch.setattr(cloud, "connected", lambda: True)
+    monkeypatch.setattr(cloud, "state", lambda: {"machine_id": "m-1", "user_id": "user-1"})
+    monkeypatch.setattr(cloud, "license_status", lambda: {"status": "revoked", "reason": "misuse"})
+    pushed = []
+    monkeypatch.setattr(cloud, "_rest", lambda *a, **k: pushed.append(a) or [])
+    out = cloud.sync_once(log=lambda *_: None, full=True)
+    assert out.get("revoked") and pushed == []                           # nothing the server would refuse was pushed
+    assert license.revoked()

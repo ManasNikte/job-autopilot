@@ -3,6 +3,9 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.18 (2026-11-08)
+- **The site operator can revoke an account.** If you host the online dashboard, you can deactivate an account you don't want to serve (see `supabase/README.md`). A revoked account is signed out of the dashboard and its AI features — screening, tailoring, and document generation — switch off on the next sync, with a clear message. This is enforced by your server; it is a gate you control, not a change to anyone's computer.
+
 ## 3.17.2 (2026-11-02)
 - **Signing out on your phone no longer signs out your computer.** Sign out on the online dashboard used to end every session on the account, including the one your computer syncs with, so syncing quietly stopped. It now signs out only that browser.
 - **Easy to fix if your computer does get signed out.** Settings → Online dashboard says so plainly and has a **Sign in again with an emailed code** button. It keeps the same computer and its data online.

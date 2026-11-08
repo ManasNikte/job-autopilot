@@ -221,6 +221,9 @@ def structured(*, user: str, schema: dict, model: str, effort: str = "high", max
     system: a short task-specific system prompt instead of the candidate's master prompt.
     web_search: let Claude search the public web (used only for the sponsor lookup).
     """
+    from . import license
+    if license.revoked():                   # the site operator has deactivated this install's account
+        raise BackendUnavailable(license.message())
     system = system or system_prompt()
     b = backend()
     if not interactive and b == "claude_cli":

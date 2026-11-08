@@ -152,7 +152,7 @@ language sql stable security definer set search_path = public as $$
   join auth.users me on me.id = auth.uid() and me.email_confirmed_at is not null
   join auth.users o on o.id = a.owner_id
   left join public.profiles p on p.id = a.owner_id
-  where a.email = lower(me.email) and a.owner_id <> auth.uid()
+  where a.email = lower(me.email) and a.owner_id <> auth.uid() and not public.is_revoked()
 $$;
 revoke all on function public.my_invitations() from public, anon;
 grant execute on function public.my_invitations() to authenticated;
@@ -161,6 +161,7 @@ create or replace function public.accept_invitation(owner uuid) returns boolean
 language plpgsql security definer set search_path = public as $$
 declare n int;
 begin
+  if public.is_revoked() then return false; end if;
   perform set_config('app.accepting', 'on', true);
   update public.account_emails a set accepted_at = now()
   from auth.users me
@@ -173,13 +174,23 @@ revoke all on function public.accept_invitation(uuid) from public, anon;
 grant execute on function public.accept_invitation(uuid) to authenticated;
 
 -- Owners whose data the signed-in user may see: themselves, plus anyone whose invitation they accepted.
+-- True when the signed-in account has been revoked by the operator (its email is on the denylist). Drives the
+-- license gate: a revoked account reads nothing, writes nothing, and the app turns off its AI features.
+create or replace function public.is_revoked() returns boolean
+language plpgsql stable security definer set search_path = public as $$
+begin
+  return exists (select 1 from public.blocked_emails b
+                 join auth.users u on lower(u.email) = b.email where u.id = auth.uid());
+end $$;
+
 create or replace function public.viewable_owner_ids() returns setof uuid
 language sql stable security definer set search_path = public as $$
-  select auth.uid()
+  select auth.uid() where not public.is_revoked()
   union
   select a.owner_id from public.account_emails a
   join auth.users u on u.id = auth.uid() and u.email_confirmed_at is not null   -- only a confirmed address
   where a.email = lower(u.email) and a.owner_id <> auth.uid() and a.accepted_at is not null
+    and not public.is_revoked()
 $$;
 revoke all on function public.viewable_owner_ids() from public, anon;
 grant execute on function public.viewable_owner_ids() to authenticated;
@@ -322,6 +333,37 @@ end $$;
 drop trigger if exists refuse_blocked_email on auth.users;
 create trigger refuse_blocked_email before insert or update of email on auth.users
   for each row execute function public.refuse_blocked_email();
+
+-- License gate: the app asks for its standing on each sync; a revoked account turns off its AI features locally.
+create or replace function public.license_status() returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  if public.is_revoked() then
+    return jsonb_build_object('status', 'revoked', 'reason',
+      coalesce((select b.reason from public.blocked_emails b join auth.users u on lower(u.email) = b.email
+                where u.id = auth.uid()), ''));
+  end if;
+  return jsonb_build_object('status', 'ok');
+end $$;
+revoke all on function public.license_status() from public, anon;
+grant execute on function public.license_status() to authenticated;
+
+-- A revoked account writes nothing (its dashboard sync stops); reads are already empty via viewable_owner_ids().
+create or replace function public.refuse_revoked() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if public.is_revoked() then
+    raise exception 'This account has been deactivated.';
+  end if;
+  return new;
+end $$;
+do $$ declare t text; begin
+  foreach t in array array['machines', 'snapshots', 'jobs', 'email_updates', 'commands'] loop
+    execute format('drop trigger if exists refuse_revoked on public.%I', t);
+    execute format('create trigger refuse_revoked before insert or update on public.%I
+                    for each row execute function public.refuse_revoked()', t);
+  end loop;
+end $$;
 
 -- Site-wide counts for the person who runs the site ("active" = applied in the last 14 days), shown in the footer of their local dashboard.
 -- The operators table has row-level security and no policies, so nobody can read or change it through

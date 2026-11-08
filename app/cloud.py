@@ -287,6 +287,8 @@ def disconnect(force: bool = False) -> None:
     delete_secret(KEY)
     _token.update(access="", exp=0)
     _reset_cursors()
+    from . import license
+    license.clear()                                  # no account here anymore: nothing to gate
     try:
         STATE_FILE.unlink()
     except OSError:
@@ -468,6 +470,12 @@ def sync_once(log=print, full: bool = True) -> dict:
     mid, uid = st["machine_id"], st["user_id"]
     now = db.now()
     if full:
+        from . import license
+        lic = license_status()                        # the operator's verdict on this account; gates the AI features
+        license.record(lic)
+        if isinstance(lic, dict) and lic.get("status") == "revoked":
+            STATUS.update(connected=True, last_sync=now, error="")   # revoked: don't push data the server would refuse
+            return {"queued": 0, "revoked": True}
         _rest("POST", "snapshots", params={"on_conflict": "machine_id"}, prefer="resolution=merge-duplicates",
               json={"machine_id": mid, "user_id": uid, "data": snapshot(), "updated_at": now})
         since = (db.kv_get("cloud_jobs_since") or {}).get("v") or (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
@@ -517,6 +525,17 @@ def session_lost() -> bool:
         return False
     except Exception as e:
         return "Refresh Token" in str(e)
+
+
+def license_status() -> dict | None:
+    """This account's standing, from the site operator: {'status': 'ok'|'revoked', 'reason': ...}. None on any
+    error — a network/auth problem, or a site that predates the gate — and the app then keeps its last cached
+    answer (so a never-revoked install is simply never gated)."""
+    try:
+        d = _rpc("license_status", {})
+        return d if isinstance(d, dict) and d.get("status") in ("ok", "revoked") else None
+    except Exception:
+        return None
 
 
 def operator_stats() -> dict | None:
