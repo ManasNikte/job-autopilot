@@ -134,8 +134,23 @@ def fetch_gmail(address: str, since: datetime) -> list[dict]:
     pw = get_secret(f"gmail:{address}")
     if not pw:
         raise RuntimeError(f"No app password saved for {address}")
+    import socket
+    import time as _time
+    last = None
+    for attempt in range(3):                                   # Gmail IMAP occasionally stalls mid-read; retry the run
+        try:
+            return _fetch_gmail_once(address, since, pw)
+        except (imaplib.IMAP4.abort, socket.timeout, TimeoutError, OSError) as e:
+            last = e
+            if attempt < 2:
+                _time.sleep(3)
+    raise RuntimeError(f"Gmail timed out for {address} after retries ({last}).")
+
+
+def _fetch_gmail_once(address: str, since: datetime, pw: str) -> list[dict]:
+    import socket
     out = []
-    with imaplib.IMAP4_SSL("imap.gmail.com", 993, timeout=60) as m:
+    with imaplib.IMAP4_SSL("imap.gmail.com", 993, timeout=90) as m:
         m.login(address, pw.replace(" ", ""))
         m.select("INBOX", readonly=True)                       # read-only: nothing gets marked as read
         typ, data = m.search(None, f'(SINCE "{since:%d-%b-%Y}")')
@@ -155,7 +170,10 @@ def fetch_gmail(address: str, since: datetime) -> list[dict]:
         for h in heads:
             if not likely_application_email(h["from"], h["subject"], own):
                 continue
-            typ, full = m.fetch(h["num"], "(BODY.PEEK[])")
+            try:                                              # one slow/broken message mustn't sink the whole fetch
+                typ, full = m.fetch(h["num"], "(BODY.PEEK[])")
+            except (imaplib.IMAP4.abort, socket.timeout, TimeoutError, OSError):
+                continue
             raw = next((x[1] for x in full if isinstance(x, tuple)), b"")
             msg = email.message_from_bytes(raw)
             try:

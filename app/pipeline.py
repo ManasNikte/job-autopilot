@@ -126,6 +126,12 @@ def fetch_all(log: Log = _print) -> dict:
         if not db.upsert_job({k: v for k, v in j.items() if k in JOB_COLUMNS}):
             return
         stats["new"] += 1
+        decided = db.prior_decision(j["company"], j["title"], j["id"])
+        if decided:                             # same role you already skipped/applied to, re-posted under a new id
+            db.update_job(j["id"], status="rejected", verdict="DON'T APPLY",
+                          status_reason=f"Duplicate of a job you already {decided}")
+            stats["duplicates"] = stats.get("duplicates", 0) + 1
+            return
         if ok:
             stats["passed"] += 1
             db.update_job(j["id"], status="to_screen", status_reason="; ".join(notes) or reason)

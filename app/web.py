@@ -664,7 +664,12 @@ def job_action(job_id):
     if act == "applied":
         db.update_job(job_id, status="applied", applied_at=db.now())
         db.resolve_interventions(job_id, ("submit",), "submitted")
-        flash(f"Marked applied: {job['company']}. LinkedIn outreach is ready on this page.")
+        flash(f"Marked applied: {job['company']}. Clicked by mistake? Use \"Undo — not submitted\" below. LinkedIn outreach is ready on this page.")
+    elif act == "unapply":          # mis-clicked "I submitted it": put it back the way it was
+        had_docs = bool(job.get("resume_pdf") or job.get("tailor_json"))
+        db.update_job(job_id, status="ready" if had_docs else "to_tailor", applied_at=None, status_changed_at=None,
+                      status_reason="Not submitted (undone)")
+        flash(f"Undone — {job['company']} is back to " + ("Ready to submit." if had_docs else "the build queue."))
     elif act in ("interviewing", "offer", "closed"):
         db.update_job(job_id, status=act)
         if act == "closed":

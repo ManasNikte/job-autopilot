@@ -224,6 +224,7 @@ assessment surfaced with its deadline, and eight confirmations recorded.
 
 | Version | What it added |
 |---|---|
+| **v3.18.1** | Skipped/applied jobs don't rebuild when re-posted; undo "I submitted it"; sturdier Gmail fetching |
 | **v3.18** | The site operator can revoke an account: its dashboard access and AI features switch off |
 | **v3.17.2** | Signing out on your phone keeps your computer signed in; no more doubled emails or Needs you items |
 | **v3.17.1** | Removed passkey sign-in; Google, LinkedIn, GitHub, and email stay |

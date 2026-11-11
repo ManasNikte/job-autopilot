@@ -334,3 +334,35 @@ def test_first_run_of_the_day_looks_back_further(tmp_path, monkeypatch):
     assert pipeline.lookback_hours(now)[0] == pipeline.CATCHUP_MAX_HOURS
     monkeypatch.setenv("FIRST_RUN_CATCHUP", "0")
     assert pipeline.lookback_hours(now) == (24, "")
+
+
+def test_a_reposted_job_you_already_decided_is_not_rebuilt(tmp_path, monkeypatch):
+    from app import db
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    db.upsert_job({"id": "jobright:aaa", "company": "Cursor", "title": "Software Engineer", "status": "rejected",
+                   "status_reason": "Skipped by you", "verdict": "DON'T APPLY"})
+    # Re-posted under a new id, different case/spacing -> inherits your skip
+    assert db.prior_decision(" cursor ", "SOFTWARE ENGINEER", "jobright:bbb") == "skipped"
+    # A different role at the same company is unaffected
+    assert db.prior_decision("Cursor", "Data Scientist", "jobright:ccc") is None
+    # A role you applied to is inherited too (so it isn't rebuilt or re-applied)
+    db.upsert_job({"id": "g:1", "company": "Acme", "title": "SWE", "status": "applied"})
+    assert db.prior_decision("Acme", "SWE", "g:2") == "applied to"
+    # The decided row never matches itself
+    assert db.prior_decision("Cursor", "Software Engineer", "jobright:aaa") is None
+
+
+def test_undo_i_submitted_it_puts_the_job_back(tmp_path, monkeypatch):
+    from app import db
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    from app.web import app
+    db.upsert_job({"id": "x:9", "company": "Acme", "title": "SWE", "status": "ready",
+                   "resume_pdf": "/tmp/r.pdf", "applied_at": None})
+    c = app.test_client()
+    c.post("/jobs/x:9/action", data={"action": "applied"})
+    assert db.get_job("x:9")["status"] == "applied"
+    c.post("/jobs/x:9/action", data={"action": "unapply"})          # mis-click undo
+    j = db.get_job("x:9")
+    assert j["status"] == "ready" and j["applied_at"] is None

@@ -3,6 +3,11 @@
 Your dashboard shows the newest section here as "What's new" when an update is available.
 Format: `## <version> (<date>)` followed by short, user-facing bullets.
 
+## 3.18.1 (2026-11-11)
+- **A job you skipped (or already applied to) no longer comes back.** Job boards re-post the same role under a new ID; the app matched only on ID, so a skipped role could be screened and have documents built all over again. It now recognizes the same company and title and keeps your decision.
+- **"Undo — not submitted."** Clicked "I submitted it" by mistake? The job page now has an Undo button that puts it back to Ready (or the build queue), so a stray click is easy to reverse.
+- **Gmail fetching is more reliable.** A slow or stuck message used to time out and fail the whole email check ("read operation timed out"). It now retries, and one bad message is skipped instead of sinking the run.
+
 ## 3.18 (2026-11-08)
 - **The site operator can revoke an account.** If you host the online dashboard, you can deactivate an account you don't want to serve (see `supabase/README.md`). A revoked account is signed out of the dashboard and its AI features — screening, tailoring, and document generation — switch off on the next sync, with a clear message. This is enforced by your server; it is a gate you control, not a change to anyone's computer.
 

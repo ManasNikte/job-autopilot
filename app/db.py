@@ -211,6 +211,22 @@ def upsert_job(job: dict) -> bool:
         return True
 
 
+def prior_decision(company: str, title: str, exclude_id: str = "") -> str | None:
+    """If the same role (company + title) was already decided — you applied to it, or you skipped it — return a short
+    phrase. Job boards re-issue a new id for the same posting, and dedup is by id, so without this a re-fetched copy
+    would be screened and have documents built again even though you already dealt with it."""
+    row = fetchone(
+        "SELECT status FROM jobs WHERE lower(trim(company)) = lower(trim(?)) AND lower(trim(title)) = lower(trim(?)) "
+        "AND id <> ? AND (status IN ('applied','interviewing','offer','closed') "
+        "OR (status = 'rejected' AND coalesce(status_reason,'') LIKE 'Skipped by you%')) "
+        "ORDER BY CASE status WHEN 'offer' THEN 0 WHEN 'interviewing' THEN 1 WHEN 'applied' THEN 2 "
+        "WHEN 'closed' THEN 3 ELSE 4 END LIMIT 1",
+        (company or "", title or "", exclude_id))
+    if not row:
+        return None
+    return "skipped" if row["status"] == "rejected" else "applied to"
+
+
 TRACKED_STATUSES = ("applied", "interviewing", "offer", "closed")   # outcome changes the dashboard counts "today"
 
 
